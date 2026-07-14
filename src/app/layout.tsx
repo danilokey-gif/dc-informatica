@@ -29,6 +29,7 @@ export default function RootLayout({
               <a href="/produtos" style={{ fontWeight: 500 }} className="text-muted">Produtos</a>
               <a href="/vendas" style={{ fontWeight: 500 }} className="text-muted">Vendas</a>
               <a href="/os" style={{ fontWeight: 500 }} className="text-muted">Ordens de Serviço</a>
+              <a href="/relatorios" style={{ fontWeight: 500 }} className="text-muted">Relatórios</a>
             </nav>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <span className="text-muted" style={{ alignSelf: 'center' }}>Admin</span>

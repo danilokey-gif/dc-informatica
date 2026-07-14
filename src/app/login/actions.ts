@@ -26,8 +26,6 @@ export async function loginAction(formData: FormData) {
   const user = await prisma.user.findUnique({ where: { email } })
   const passwordMatches = user ? await bcrypt.compare(password, user.passwordHash) : false
 
-  console.log('[loginAction debug]', { email, userFound: !!user, passwordMatches, userCount })
-
   if (user && passwordMatches) {
     const cookieStore = await cookies()
     const token = await signSession(user.id)

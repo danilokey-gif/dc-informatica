@@ -5,7 +5,10 @@ export default async function Dashboard() {
   const customerCount = await prisma.customer.count();
   const osCount = await prisma.serviceOrder.count();
   const pendingOs = await prisma.serviceOrder.count({ where: { status: 'BUDGET' } });
-  
+  const products = await prisma.product.findMany({ select: { stockQty: true, minStockAlert: true } });
+  const productCount = products.length;
+  const lowStockCount = products.filter(p => p.stockQty <= p.minStockAlert).length;
+
   return (
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4">
@@ -30,6 +33,16 @@ export default async function Dashboard() {
           <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{pendingOs}</p>
         </div>
 
+        <div className="card text-center" style={{ borderTop: '4px solid var(--primary)' }}>
+          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Total de Produtos</h3>
+          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{productCount}</p>
+        </div>
+
+        <div className="card text-center" style={{ borderTop: '4px solid #dc2626' }}>
+          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Estoque Baixo</h3>
+          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{lowStockCount}</p>
+        </div>
+
       </div>
       
       <div className="card">
@@ -37,6 +50,7 @@ export default async function Dashboard() {
         <div className="flex gap-4">
           <Link href="/clientes/novo" className="btn btn-outline">Cadastrar Cliente</Link>
           <Link href="/clientes" className="btn btn-outline">Buscar Clientes</Link>
+          <Link href="/produtos/novo" className="btn btn-outline">Cadastrar Produto</Link>
           <Link href="/os" className="btn btn-outline">Ver todas as OS</Link>
         </div>
       </div>

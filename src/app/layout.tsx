@@ -26,6 +26,7 @@ export default function RootLayout({
             <nav style={{ display: 'flex', gap: '1.5rem' }}>
               <a href="/" style={{ fontWeight: 500 }} className="text-muted">Dashboard</a>
               <a href="/clientes" style={{ fontWeight: 500 }} className="text-muted">Clientes</a>
+              <a href="/produtos" style={{ fontWeight: 500 }} className="text-muted">Produtos</a>
               <a href="/os" style={{ fontWeight: 500 }} className="text-muted">Ordens de Serviço</a>
             </nav>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>

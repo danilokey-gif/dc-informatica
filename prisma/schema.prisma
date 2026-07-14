@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("USER")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Customer {
+  id            String         @id @default(cuid())
+  name          String
+  document      String?
+  phone         String?
+  address       String?
+  email         String?
+  serviceOrders ServiceOrder[]
+  sales         Sale[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model ServiceOrder {
+  id              String   @id @default(cuid())
+  customer        Customer @relation(fields: [customerId], references: [id])
+  customerId      String
+  device          String
+  issue           String
+  technicalReport String?
+  price           Float?
+  status          String   @default("BUDGET")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Product {
+  id            String     @id @default(cuid())
+  name          String
+  sku           String?    @unique
+  description   String?
+  category      String?
+  costPrice     Float      @default(0)
+  salePrice     Float      @default(0)
+  stockQty      Int        @default(0)
+  minStockAlert Int        @default(0)
+  saleItems     SaleItem[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  customer      Customer?  @relation(fields: [customerId], references: [id])
+  customerId    String?
+  items         SaleItem[]
+  total         Float
+  paymentMethod String
+  invoiceNumber String?
+  invoiceType   String?
+  status        String     @default("COMPLETED")
+  createdAt     DateTime   @default(now())
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  saleId    String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  unitPrice Float
+}

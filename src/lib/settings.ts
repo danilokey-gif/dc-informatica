@@ -8,3 +8,10 @@ export async function getCompanySettings() {
     data: { id: 'main', name: 'Dc Informática' }
   })
 }
+
+export async function getNfseConfig() {
+  const config = await prisma.nfseConfig.findUnique({ where: { id: 'main' } })
+  if (config) return config
+
+  return prisma.nfseConfig.create({ data: { id: 'main' } })
+}

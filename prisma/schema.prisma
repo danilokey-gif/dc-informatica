@@ -31,16 +31,17 @@ model Customer {
 }
 
 model ServiceOrder {
-  id              String   @id @default(cuid())
-  customer        Customer @relation(fields: [customerId], references: [id])
+  id              String        @id @default(cuid())
+  customer        Customer      @relation(fields: [customerId], references: [id])
   customerId      String
   device          String
   issue           String
   technicalReport String?
   price           Float?
-  status          String   @default("BUDGET")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status          String        @default("BUDGET")
+  nfseEmissoes    NfseEmissao[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model Product {
@@ -90,4 +91,34 @@ model CompanySettings {
   address   String?
   logo      String?
   updatedAt DateTime @updatedAt
+}
+
+model NfseConfig {
+  id               String   @id @default("main")
+  ambiente         String   @default("homologacao")
+  codigoMunicipio  String?
+  codigoServico    String?
+  cnae             String?
+  aliquotaIss      Float?
+  certificado      String?
+  certificadoSenha String?
+  certificadoNome  String?
+  serieDps         String   @default("1")
+  proximoNumeroDps Int      @default(1)
+  updatedAt        DateTime @updatedAt
+}
+
+model NfseEmissao {
+  id             String       @id @default(cuid())
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id])
+  serviceOrderId String
+  ambiente       String
+  numeroDps      Int
+  serieDps       String
+  status         String       @default("PROCESSANDO")
+  chaveAcesso    String?
+  xmlDps         String?
+  xmlNfse        String?
+  motivoErro     String?
+  createdAt      DateTime     @default(now())
 }

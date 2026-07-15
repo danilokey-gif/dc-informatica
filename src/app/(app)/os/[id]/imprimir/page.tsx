@@ -1,23 +1,30 @@
 import { prisma } from "@/lib/prisma"
-import { getCompanySettings } from "@/lib/settings"
+import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { notFound } from "next/navigation"
 import PrintButton from "./PrintButton"
 import WhatsAppButton from "./WhatsAppButton"
+import { emitirNfseServiceOrder } from "./nfse-actions"
 
 export default async function ImprimirOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [os, settings] = await Promise.all([
+  const [os, settings, nfseConfig] = await Promise.all([
     prisma.serviceOrder.findUnique({
       where: { id },
-      include: { customer: true }
+      include: { customer: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } } }
     }),
-    getCompanySettings()
+    getCompanySettings(),
+    getNfseConfig()
   ])
 
   if (!os) {
     notFound()
   }
+
+  const nfseConfigurada = !!(nfseConfig.certificado && nfseConfig.codigoMunicipio && nfseConfig.codigoServico && nfseConfig.aliquotaIss !== null)
+  const ultimaEmissao = os.nfseEmissoes[0]
+  const nfseAutorizada = ultimaEmissao?.status === 'AUTORIZADA'
+  const emitirNfseAction = emitirNfseServiceOrder.bind(null, os.id)
 
   const tipoDocumento = os.status === 'BUDGET' ? 'ORÇAMENTO' : (os.status === 'DELIVERED' ? 'RECIBO / GARANTIA' : 'ORDEM DE SERVIÇO')
   const numeroOS = os.id.slice(-6).toUpperCase()
@@ -100,6 +107,39 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
           <p style={{ fontSize: '1rem', color: '#4b5563', margin: 0 }}>Valor Total:</p>
           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>{valor}</p>
         </div>
+      </div>
+
+      {/* Nota Fiscal de Serviço */}
+      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Nota Fiscal de Serviço (NFS-e)</h3>
+
+        {!nfseConfigurada && (
+          <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
+            Configuração fiscal incompleta. Vá em Configurações {'>'} Nota Fiscal de Serviço para cadastrar o certificado digital, município e alíquota de ISS.
+          </p>
+        )}
+
+        {ultimaEmissao && (
+          <div style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+            <p style={{ margin: 0 }}>
+              <strong>Status:</strong>{' '}
+              {ultimaEmissao.status === 'AUTORIZADA' && <span style={{ color: '#16a34a' }}>Autorizada</span>}
+              {ultimaEmissao.status === 'REJEITADA' && <span style={{ color: '#b91c1c' }}>Rejeitada</span>}
+              {ultimaEmissao.status === 'PROCESSANDO' && <span>Processando</span>}
+              {' '}(DPS nº {ultimaEmissao.numeroDps}, série {ultimaEmissao.serieDps}, ambiente {ultimaEmissao.ambiente})
+            </p>
+            {ultimaEmissao.chaveAcesso && <p style={{ margin: '0.25rem 0 0 0' }}><strong>Chave de acesso:</strong> {ultimaEmissao.chaveAcesso}</p>}
+            {ultimaEmissao.motivoErro && <p style={{ margin: '0.25rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissao.motivoErro}</p>}
+          </div>
+        )}
+
+        {!nfseAutorizada && (
+          <form action={emitirNfseAction}>
+            <button type="submit" className="btn btn-primary" disabled={!nfseConfigurada}>
+              {ultimaEmissao?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NFS-e'}
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Botões de ação */}

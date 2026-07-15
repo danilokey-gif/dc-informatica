@@ -34,6 +34,18 @@ const navItems = [
       <path d="M10.6 5.4 4 12v3.25h3.25L14 8.65" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   ) },
+  { href: '/fornecedores', label: 'Fornecedores', icon: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M3 16V8l7-4 7 4v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M7.5 16v-4.5h5V16" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  ) },
+  { href: '/financeiro', label: 'Financeiro', icon: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <circle cx="10" cy="10" r="6.75" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M10 6v8M12.25 8.1c0-.94-1.007-1.7-2.25-1.7s-2.25.76-2.25 1.7S8.757 9.8 10 9.8s2.25.76 2.25 1.7-1.007 1.7-2.25 1.7-2.25-.76-2.25-1.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ) },
   { href: '/relatorios', label: 'Relatórios', icon: (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path d="M4 16.5V11m5 5.5V6.5m5 10V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

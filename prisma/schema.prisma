@@ -18,7 +18,7 @@ model User {
 }
 
 model Customer {
-  id            String         @id @default(cuid())
+  id            String               @id @default(cuid())
   name          String
   document      String?
   phone         String?
@@ -26,22 +26,24 @@ model Customer {
   email         String?
   serviceOrders ServiceOrder[]
   sales         Sale[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  transactions  FinanceTransaction[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 }
 
 model ServiceOrder {
-  id              String        @id @default(cuid())
-  customer        Customer      @relation(fields: [customerId], references: [id])
+  id              String               @id @default(cuid())
+  customer        Customer             @relation(fields: [customerId], references: [id])
   customerId      String
   device          String
   issue           String
   technicalReport String?
   price           Float?
-  status          String        @default("BUDGET")
+  status          String               @default("BUDGET")
   nfseEmissoes    NfseEmissao[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  transactions    FinanceTransaction[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 }
 
 model Product {
@@ -60,16 +62,17 @@ model Product {
 }
 
 model Sale {
-  id            String     @id @default(cuid())
-  customer      Customer?  @relation(fields: [customerId], references: [id])
+  id            String              @id @default(cuid())
+  customer      Customer?           @relation(fields: [customerId], references: [id])
   customerId    String?
   items         SaleItem[]
   total         Float
   paymentMethod String
   invoiceNumber String?
   invoiceType   String?
-  status        String     @default("COMPLETED")
-  createdAt     DateTime   @default(now())
+  status        String              @default("COMPLETED")
+  transaction   FinanceTransaction?
+  createdAt     DateTime            @default(now())
 }
 
 model SaleItem {
@@ -121,4 +124,48 @@ model NfseEmissao {
   xmlNfse        String?
   motivoErro     String?
   createdAt      DateTime     @default(now())
+}
+
+model Supplier {
+  id           String               @id @default(cuid())
+  name         String
+  document     String?
+  phone        String?
+  email        String?
+  address      String?
+  transactions FinanceTransaction[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model FinanceCategory {
+  id           String               @id @default(cuid())
+  name         String
+  type         String // RECEITA | DESPESA
+  transactions FinanceTransaction[]
+  createdAt    DateTime             @default(now())
+}
+
+model FinanceTransaction {
+  id             String           @id @default(cuid())
+  type           String // RECEITA | DESPESA
+  description    String
+  amount         Float
+  dueDate        DateTime
+  paidDate       DateTime?
+  status         String           @default("PENDENTE") // PENDENTE | PAGO | CANCELADO
+  paymentMethod  String?
+  notes          String?
+  category       FinanceCategory? @relation(fields: [categoryId], references: [id])
+  categoryId     String?
+  supplier       Supplier?        @relation(fields: [supplierId], references: [id])
+  supplierId     String?
+  customer       Customer?        @relation(fields: [customerId], references: [id])
+  customerId     String?
+  sale           Sale?            @relation(fields: [saleId], references: [id])
+  saleId         String?          @unique
+  serviceOrder   ServiceOrder?    @relation(fields: [serviceOrderId], references: [id])
+  serviceOrderId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }

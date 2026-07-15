@@ -44,7 +44,7 @@ export async function createSale(formData: FormData) {
       })
     }
 
-    return tx.sale.create({
+    const novaVenda = await tx.sale.create({
       data: {
         customerId: customerId || undefined,
         paymentMethod,
@@ -52,6 +52,23 @@ export async function createSale(formData: FormData) {
         items: { create: saleItemsData }
       }
     })
+
+    // Venda no PDV é recebida na hora: já entra como receita paga no financeiro.
+    await tx.financeTransaction.create({
+      data: {
+        type: 'RECEITA',
+        description: `Venda #${novaVenda.id.slice(-6).toUpperCase()}`,
+        amount: total,
+        dueDate: novaVenda.createdAt,
+        paidDate: novaVenda.createdAt,
+        status: 'PAGO',
+        paymentMethod,
+        customerId: customerId || undefined,
+        saleId: novaVenda.id,
+      }
+    })
+
+    return novaVenda
   })
 
   redirect(`/vendas/${sale.id}/imprimir`)

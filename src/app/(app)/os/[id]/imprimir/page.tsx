@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import PrintButton from "./PrintButton"
 import WhatsAppButton from "./WhatsAppButton"
 import { emitirNfseServiceOrder } from "./nfse-actions"
+import { gerarContaReceberOS } from "../../../financeiro/actions"
 
 export default async function ImprimirOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -11,7 +12,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   const [os, settings, nfseConfig] = await Promise.all([
     prisma.serviceOrder.findUnique({
       where: { id },
-      include: { customer: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } } }
+      include: { customer: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } }, transactions: true }
     }),
     getCompanySettings(),
     getNfseConfig()
@@ -20,6 +21,9 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   if (!os) {
     notFound()
   }
+
+  const gerarContaAction = gerarContaReceberOS.bind(null, os.id)
+  const jaTemContaReceber = os.transactions.some(t => t.type === 'RECEITA')
 
   const nfseConfigurada = !!(nfseConfig.certificado && nfseConfig.codigoMunicipio && nfseConfig.codigoServico && nfseConfig.aliquotaIss !== null)
   const ultimaEmissao = os.nfseEmissoes[0]
@@ -107,6 +111,20 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
           <p style={{ fontSize: '1rem', color: '#4b5563', margin: 0 }}>Valor Total:</p>
           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>{valor}</p>
         </div>
+      </div>
+
+      {/* Financeiro */}
+      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Financeiro</h3>
+        {jaTemContaReceber ? (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Conta a receber já gerada para esta OS. <a href="/financeiro/contas" className="text-primary">Ver em Financeiro</a>.</p>
+        ) : os.price ? (
+          <form action={gerarContaAction}>
+            <button type="submit" className="btn btn-outline">Gerar Conta a Receber ({os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</button>
+          </form>
+        ) : (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Defina o valor da OS para gerar a conta a receber.</p>
+        )}
       </div>
 
       {/* Nota Fiscal de Serviço */}

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 
+export const dynamic = 'force-dynamic'
+
 export default async function VendasPage() {
   const vendas = await prisma.sale.findMany({
     orderBy: { createdAt: 'desc' },

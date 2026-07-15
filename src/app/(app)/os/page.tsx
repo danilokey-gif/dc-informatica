@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { deleteOS } from "./actions"
 
+export const dynamic = 'force-dynamic'
+
 export default async function OSPage() {
   const ordens = await prisma.serviceOrder.findMany({
     include: { customer: true },

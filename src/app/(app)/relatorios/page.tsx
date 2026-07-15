@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
+export const dynamic = 'force-dynamic'
+
 const statusLabels: Record<string, string> = {
   BUDGET: 'Orçamento Pendente',
   APPROVED: 'Orçamento Aprovado',

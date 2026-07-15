@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import VendaForm from "./VendaForm"
 
+export const dynamic = 'force-dynamic'
+
 export default async function NovaVendaPage() {
   const [produtos, clientes] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, salePrice: true, stockQty: true } }),

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { deleteProduct } from "./actions"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ProdutosPage() {
   const produtos = await prisma.product.findMany({
     orderBy: { createdAt: 'desc' }

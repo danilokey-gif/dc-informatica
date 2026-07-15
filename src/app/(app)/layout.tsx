@@ -1,6 +1,8 @@
 import { getCompanySettings } from "@/lib/settings";
 import Sidebar from "./Sidebar";
 
+export const dynamic = 'force-dynamic'
+
 export default async function AppLayout({
   children,
 }: Readonly<{

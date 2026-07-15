@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { deleteCustomer } from "./actions"
 
+export const dynamic = 'force-dynamic'
+
 export default async function ClientesPage() {
   const clientes = await prisma.customer.findMany({
     orderBy: { createdAt: 'desc' }

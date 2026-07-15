@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic'
+
 export default async function Dashboard() {
   const customerCount = await prisma.customer.count();
   const osCount = await prisma.serviceOrder.count();

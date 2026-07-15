@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         String   @default("USER")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String         @id @default(cuid())
+  name           String
+  email          String         @unique
+  passwordHash   String
+  role           String         @default("TECNICO") // ADMIN | TECNICO
+  assignedOrders ServiceOrder[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model Customer {
@@ -40,6 +41,8 @@ model ServiceOrder {
   technicalReport String?
   price           Float?
   status          String               @default("BUDGET")
+  technician      User?                @relation(fields: [technicianId], references: [id])
+  technicianId    String?
   nfseEmissoes    NfseEmissao[]
   transactions    FinanceTransaction[]
   createdAt       DateTime             @default(now())

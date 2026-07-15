@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function OSPage() {
   const ordens = await prisma.serviceOrder.findMany({
-    include: { customer: true },
+    include: { customer: true, technician: true },
     orderBy: { createdAt: 'desc' }
   })
 
@@ -46,6 +46,7 @@ export default async function OSPage() {
               <th>OS #</th>
               <th>Cliente</th>
               <th>Aparelho</th>
+              <th>Técnico</th>
               <th>Status</th>
               <th>Data</th>
               <th>Ações</th>
@@ -54,7 +55,7 @@ export default async function OSPage() {
           <tbody>
             {ordens.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-muted">Nenhuma ordem de serviço cadastrada.</td>
+                <td colSpan={7} className="text-center text-muted">Nenhuma ordem de serviço cadastrada.</td>
               </tr>
             )}
             {ordens.map(os => {
@@ -64,6 +65,7 @@ export default async function OSPage() {
                   <td style={{ fontWeight: 'bold' }}>{os.id.slice(-6).toUpperCase()}</td>
                   <td>{os.customer.name}</td>
                   <td>{os.device}</td>
+                  <td>{os.technician?.name || <span className="text-muted">-</span>}</td>
                   <td>
                     <span style={{ 
                       backgroundColor: getStatusColor(os.status), 

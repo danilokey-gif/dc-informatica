@@ -15,7 +15,10 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
     notFound()
   }
 
-  const clientes = await prisma.customer.findMany({ orderBy: { name: 'asc' } })
+  const [clientes, tecnicos] = await Promise.all([
+    prisma.customer.findMany({ orderBy: { name: 'asc' } }),
+    prisma.user.findMany({ orderBy: { name: 'asc' } }),
+  ])
   const updateAction = updateOS.bind(null, id)
 
   // WhatsApp e Email Sharing info
@@ -63,6 +66,16 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
           <div className="input-group">
             <label className="input-label" htmlFor="technicalReport">Laudo Técnico (Orçamento/Solução)</label>
             <textarea id="technicalReport" name="technicalReport" className="input-field" rows={4} defaultValue={os.technicalReport || ''}></textarea>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="technicianId">Técnico Responsável</label>
+            <select id="technicianId" name="technicianId" className="input-field" defaultValue={os.technicianId || ''}>
+              <option value="">Não atribuído</option>
+              {tecnicos.map(tecnico => (
+                <option key={tecnico.id} value={tecnico.id}>{tecnico.name}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

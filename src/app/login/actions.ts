@@ -28,7 +28,7 @@ export async function loginAction(formData: FormData) {
 
   if (user && passwordMatches) {
     const cookieStore = await cookies()
-    const token = await signSession(user.id)
+    const token = await signSession(user.id, user.role)
     cookieStore.set('auth_token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' })
     redirect('/')
   } else {

@@ -1,5 +1,10 @@
 const encoder = new TextEncoder()
 
+export interface Session {
+  userId: string
+  role: string
+}
+
 function getSecret() {
   const secret = process.env.AUTH_SECRET
   if (!secret) {
@@ -20,20 +25,27 @@ async function hmac(data: string) {
   return Buffer.from(signature).toString('base64url')
 }
 
-export async function signSession(userId: string) {
-  const signature = await hmac(userId)
-  return `${userId}.${signature}`
+export async function signSession(userId: string, role: string) {
+  const payload = `${userId}.${role}`
+  const signature = await hmac(payload)
+  return `${payload}.${signature}`
 }
 
-export async function verifySession(token: string | undefined): Promise<string | null> {
+export async function verifySession(token: string | undefined): Promise<Session | null> {
   if (!token) return null
   const separatorIndex = token.lastIndexOf('.')
   if (separatorIndex === -1) return null
 
-  const userId = token.slice(0, separatorIndex)
+  const payload = token.slice(0, separatorIndex)
   const signature = token.slice(separatorIndex + 1)
-  const expectedSignature = await hmac(userId)
+  const expectedSignature = await hmac(payload)
 
   if (signature !== expectedSignature) return null
-  return userId
+
+  const dotIndex = payload.indexOf('.')
+  if (dotIndex === -1) return null
+
+  const userId = payload.slice(0, dotIndex)
+  const role = payload.slice(dotIndex + 1)
+  return { userId, role }
 }

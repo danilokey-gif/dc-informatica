@@ -5,9 +5,10 @@ import Link from "next/link"
 export const dynamic = 'force-dynamic'
 
 export default async function NovaOSPage() {
-  const clientes = await prisma.customer.findMany({
-    orderBy: { name: 'asc' }
-  })
+  const [clientes, tecnicos] = await Promise.all([
+    prisma.customer.findMany({ orderBy: { name: 'asc' } }),
+    prisma.user.findMany({ orderBy: { name: 'asc' } }),
+  ])
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -36,6 +37,16 @@ export default async function NovaOSPage() {
           <div className="input-group">
             <label className="input-label" htmlFor="issue">Defeito Relatado pelo Cliente *</label>
             <textarea id="issue" name="issue" className="input-field" rows={4} required></textarea>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="technicianId">Técnico Responsável</label>
+            <select id="technicianId" name="technicianId" className="input-field" defaultValue="">
+              <option value="">Não atribuído</option>
+              {tecnicos.map(tecnico => (
+                <option key={tecnico.id} value={tecnico.id}>{tecnico.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="input-group">

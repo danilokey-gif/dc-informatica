@@ -9,9 +9,10 @@ export async function createOS(formData: FormData) {
   const device = formData.get('device') as string
   const issue = formData.get('issue') as string
   const status = formData.get('status') as string || 'BUDGET'
+  const technicianId = (formData.get('technicianId') as string) || null
 
   await prisma.serviceOrder.create({
-    data: { customerId, device, issue, status }
+    data: { customerId, device, issue, status, technicianId }
   })
 
   redirect('/os')
@@ -24,10 +25,11 @@ export async function updateOS(id: string, formData: FormData) {
   const technicalReport = formData.get('technicalReport') as string
   const price = formData.get('price') ? parseFloat(formData.get('price') as string) : null
   const status = formData.get('status') as string
+  const technicianId = (formData.get('technicianId') as string) || null
 
   await prisma.serviceOrder.update({
     where: { id },
-    data: { customerId, device, issue, technicalReport, price, status }
+    data: { customerId, device, issue, technicalReport, price, status, technicianId }
   })
 
   redirect('/os')

@@ -12,7 +12,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   const [os, settings, nfseConfig] = await Promise.all([
     prisma.serviceOrder.findUnique({
       where: { id },
-      include: { customer: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } }, transactions: true }
+      include: { customer: true, technician: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } }, transactions: true }
     }),
     getCompanySettings(),
     getNfseConfig()
@@ -95,6 +95,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Detalhes do Serviço</h3>
         <div style={{ fontSize: '0.9rem' }}>
           <p style={{ marginBottom: '0.5rem' }}><strong>Aparelho / Marca / Modelo:</strong><br /> {os.device}</p>
+          {os.technician && <p style={{ marginBottom: '0.5rem' }}><strong>Técnico Responsável:</strong><br /> {os.technician.name}</p>}
           <p style={{ marginBottom: '0.5rem' }}><strong>Defeito Relatado:</strong><br /> {os.issue}</p>
           <p style={{ marginBottom: '0.5rem' }}><strong>Laudo Técnico / Solução:</strong><br /> {os.technicalReport || 'Aguardando avaliação técnica.'}</p>
         </div>

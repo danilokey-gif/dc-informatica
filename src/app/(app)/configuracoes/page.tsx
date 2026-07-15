@@ -58,6 +58,16 @@ export default async function ConfiguracoesPage() {
           </div>
 
           <div className="input-group">
+            <label className="input-label" htmlFor="pixKey">Chave Pix (para gerar cobranças)</label>
+            <input type="text" id="pixKey" name="pixKey" className="input-field" defaultValue={settings.pixKey || ''} placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="pixCity">Cidade (para o QR code Pix)</label>
+            <input type="text" id="pixCity" name="pixCity" className="input-field" defaultValue={settings.pixCity || ''} placeholder="Ex: Sao Paulo" />
+          </div>
+
+          <div className="input-group">
             <label className="input-label">Logo Atual</label>
             {settings.logo ? (
               <div className="flex items-center gap-4" style={{ marginBottom: '0.75rem' }}>

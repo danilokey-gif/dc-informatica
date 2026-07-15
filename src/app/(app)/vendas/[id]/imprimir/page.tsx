@@ -4,6 +4,8 @@ import { notFound } from "next/navigation"
 import PrintButton from "../../../os/[id]/imprimir/PrintButton"
 import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
 import { updateSaleInvoice } from "../../actions"
+import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
+import CopyPixButton from "../../../os/[id]/imprimir/CopyPixButton"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -46,6 +48,20 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
   const linkWhatsApp = telefoneCliente
     ? `https://wa.me/55${telefoneCliente}?text=${encodeURIComponent(mensagemWhatsApp)}`
     : `https://wa.me/?text=${encodeURIComponent(mensagemWhatsApp)}`
+
+  const pixConfigurado = !!(settings.pixKey && settings.pixCity)
+  let pixQrCodeDataUrl: string | null = null
+  let pixCopiaECola: string | null = null
+  if (pixConfigurado) {
+    pixCopiaECola = gerarPixCopiaECola({
+      pixKey: settings.pixKey!,
+      merchantName: settings.name,
+      merchantCity: settings.pixCity!,
+      amount: venda.total,
+      txid: venda.id,
+    })
+    pixQrCodeDataUrl = await gerarPixQrCodeDataUrl(pixCopiaECola)
+  }
 
   return (
     <div style={{ backgroundColor: 'white', color: 'black', padding: '2rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
@@ -120,6 +136,23 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>{totalFormatado}</p>
         </div>
       </div>
+
+      {/* Cobrança via Pix */}
+      {pixQrCodeDataUrl && pixCopiaECola && (
+        <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Cobrança via Pix</h3>
+          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pixQrCodeDataUrl} alt="QR Code Pix" style={{ width: '160px', height: '160px' }} />
+            <div style={{ flex: 1, minWidth: '250px' }}>
+              <p style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '0.75rem' }}>
+                Peça para o cliente escanear o QR code ou copiar o código Pix abaixo.
+              </p>
+              <CopyPixButton copiaECola={pixCopiaECola} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Nota Fiscal */}
       <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>

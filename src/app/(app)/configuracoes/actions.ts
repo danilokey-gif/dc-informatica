@@ -15,6 +15,8 @@ export async function updateSettings(formData: FormData) {
   const phone = (formData.get('phone') as string) || null
   const email = (formData.get('email') as string) || null
   const address = (formData.get('address') as string) || null
+  const pixKey = (formData.get('pixKey') as string) || null
+  const pixCity = (formData.get('pixCity') as string) || null
   const removeLogo = formData.get('removeLogo') === '1'
   const logoFile = formData.get('logo') as File | null
 
@@ -36,8 +38,8 @@ export async function updateSettings(formData: FormData) {
 
   await prisma.companySettings.upsert({
     where: { id: 'main' },
-    create: { id: 'main', name, document, phone, email, address, logo: logo ?? undefined },
-    update: { name, document, phone, email, address, ...(logo !== undefined ? { logo } : {}) }
+    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, logo: logo ?? undefined },
+    update: { name, document, phone, email, address, pixKey, pixCity, ...(logo !== undefined ? { logo } : {}) }
   })
 
   revalidatePath('/', 'layout')

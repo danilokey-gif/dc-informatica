@@ -96,6 +96,8 @@ model CompanySettings {
   email     String?
   address   String?
   logo      String?
+  pixKey    String?
+  pixCity   String?
   updatedAt DateTime @updatedAt
 }
 

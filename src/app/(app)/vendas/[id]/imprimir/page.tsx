@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { getCompanySettings } from "@/lib/settings"
 import { notFound } from "next/navigation"
 import PrintButton from "../../../os/[id]/imprimir/PrintButton"
 import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
@@ -7,10 +8,13 @@ import { updateSaleInvoice } from "../../actions"
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const venda = await prisma.sale.findUnique({
-    where: { id },
-    include: { customer: true, items: { include: { product: true } } }
-  })
+  const [venda, settings] = await Promise.all([
+    prisma.sale.findUnique({
+      where: { id },
+      include: { customer: true, items: { include: { product: true } } }
+    }),
+    getCompanySettings()
+  ])
 
   if (!venda) {
     notFound()
@@ -26,7 +30,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
   const mensagemWhatsApp = [
     `Olá${venda.customer ? ' ' + venda.customer.name : ''}! 👋`,
     ``,
-    `Segue o recibo da sua compra na *Dc Informática*:`,
+    `Segue o recibo da sua compra na *${settings.name}*:`,
     ``,
     `🧾 *Venda Nº:* ${numeroVenda}`,
     `📦 *Itens:*`,
@@ -36,7 +40,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
     venda.invoiceNumber ? `📄 *Nota Fiscal:* ${venda.invoiceType} ${venda.invoiceNumber}` : '',
     ``,
     `Obrigado pela preferência!`,
-    `📞 (14) 99743-7540`,
+    settings.phone ? `📞 ${settings.phone}` : '',
   ].filter(Boolean).join('\n')
 
   const linkWhatsApp = telefoneCliente
@@ -47,11 +51,17 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
     <div style={{ backgroundColor: 'white', color: 'black', padding: '2rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #dc2626', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ color: '#dc2626', margin: 0, fontSize: '2rem' }}>Dc Informática</h1>
-          <p style={{ margin: '0.25rem 0 0 0', color: '#4b5563', fontSize: '0.875rem' }}>Loja e Assistência Técnica</p>
-          <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>WhatsApp: (14) 99743-7540</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #dc2626', paddingBottom: '1rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {settings.logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={settings.logo} alt={settings.name} style={{ height: '50px', width: '50px', objectFit: 'contain' }} />
+          )}
+          <div>
+            <h1 style={{ color: '#dc2626', margin: 0, fontSize: '2rem' }}>{settings.name}</h1>
+            <p style={{ margin: '0.25rem 0 0 0', color: '#4b5563', fontSize: '0.875rem' }}>Loja e Assistência Técnica</p>
+            {settings.phone && <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>WhatsApp: {settings.phone}</p>}
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>RECIBO DE VENDA</h2>

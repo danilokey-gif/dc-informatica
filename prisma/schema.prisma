@@ -80,3 +80,14 @@ model SaleItem {
   quantity  Int
   unitPrice Float
 }
+
+model CompanySettings {
+  id        String   @id @default("main")
+  name      String   @default("Dc Informática")
+  document  String?
+  phone     String?
+  email     String?
+  address   String?
+  logo      String?
+  updatedAt DateTime @updatedAt
+}

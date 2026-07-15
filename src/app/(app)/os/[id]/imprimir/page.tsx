@@ -1,15 +1,19 @@
 import { prisma } from "@/lib/prisma"
+import { getCompanySettings } from "@/lib/settings"
 import { notFound } from "next/navigation"
 import PrintButton from "./PrintButton"
 import WhatsAppButton from "./WhatsAppButton"
 
 export default async function ImprimirOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  
-  const os = await prisma.serviceOrder.findUnique({
-    where: { id },
-    include: { customer: true }
-  })
+
+  const [os, settings] = await Promise.all([
+    prisma.serviceOrder.findUnique({
+      where: { id },
+      include: { customer: true }
+    }),
+    getCompanySettings()
+  ])
 
   if (!os) {
     notFound()
@@ -24,7 +28,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   const mensagemWhatsApp = [
     `Olá ${os.customer.name}! 👋`,
     ``,
-    `Segue o resumo da sua *${tipoDocumento}* na *Dc Informática*:`,
+    `Segue o resumo da sua *${tipoDocumento}* na *${settings.name}*:`,
     ``,
     `🔧 *OS Nº:* ${numeroOS}`,
     `💻 *Aparelho:* ${os.device}`,
@@ -33,7 +37,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
     `💰 *Valor:* ${valor}`,
     ``,
     `Qualquer dúvida, estamos à disposição!`,
-    `📞 (14) 99743-7540`,
+    settings.phone ? `📞 ${settings.phone}` : '',
   ].filter(Boolean).join('\n')
 
   const linkWhatsApp = telefoneCliente
@@ -44,11 +48,17 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
     <div style={{ backgroundColor: 'white', color: 'black', padding: '2rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #dc2626', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ color: '#dc2626', margin: 0, fontSize: '2rem' }}>Dc Informática</h1>
-          <p style={{ margin: '0.25rem 0 0 0', color: '#4b5563', fontSize: '0.875rem' }}>Assistência Técnica Especializada</p>
-          <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>WhatsApp: (14) 99743-7540</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #dc2626', paddingBottom: '1rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {settings.logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={settings.logo} alt={settings.name} style={{ height: '50px', width: '50px', objectFit: 'contain' }} />
+          )}
+          <div>
+            <h1 style={{ color: '#dc2626', margin: 0, fontSize: '2rem' }}>{settings.name}</h1>
+            <p style={{ margin: '0.25rem 0 0 0', color: '#4b5563', fontSize: '0.875rem' }}>Assistência Técnica Especializada</p>
+            {settings.phone && <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>WhatsApp: {settings.phone}</p>}
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>{tipoDocumento}</h2>
@@ -98,7 +108,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />
         {os.customer.email && (
           <a
-            href={`mailto:${os.customer.email}?subject=OS ${numeroOS} - Dc Informática&body=${encodeURIComponent(`Olá ${os.customer.name},\n\nSegue o resumo da sua ${tipoDocumento}:\n\nOS Nº: ${numeroOS}\nAparelho: ${os.device}\nDefeito: ${os.issue}\nValor: ${valor}\n\nQualquer dúvida, entre em contato:\n(14) 99743-7540`)}`}
+            href={`mailto:${os.customer.email}?subject=OS ${numeroOS} - ${settings.name}&body=${encodeURIComponent(`Olá ${os.customer.name},\n\nSegue o resumo da sua ${tipoDocumento}:\n\nOS Nº: ${numeroOS}\nAparelho: ${os.device}\nDefeito: ${os.issue}\nValor: ${valor}\n\nQualquer dúvida, entre em contato:\n${settings.phone || ''}`)}`}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600,

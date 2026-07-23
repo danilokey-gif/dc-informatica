@@ -28,6 +28,16 @@ export interface DpsInput {
   tomador?: DpsTomador
   servico: DpsServico
   aliquotaIss: number // percentual, ex: 5 para 5%
+  regimeTributario: 'MEI' | 'SIMPLES' | 'NORMAL'
+}
+
+/** Mapeia o regime tributário do prestador para os códigos exigidos pelo grupo regTrib da DPS. */
+function montarRegTrib(regime: DpsInput['regimeTributario']) {
+  // opSimpNac: 1=Não optante pelo Simples Nacional, 2=MEI, 3=ME/EPP optante pelo Simples Nacional
+  const opSimpNac = regime === 'MEI' ? '2' : regime === 'SIMPLES' ? '3' : '1'
+  // regApTribSN (regime de apuração) só se aplica quando opSimpNac=3 (ME/EPP) — MEI e Não optante não usam esse campo.
+  const regApTribSN = regime === 'SIMPLES' ? `<regApTribSN>1</regApTribSN>` : ''
+  return `<opSimpNac>${opSimpNac}</opSimpNac>${regApTribSN}<regEspTrib>0</regEspTrib>`
 }
 
 function esc(value: string) {
@@ -100,11 +110,7 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
           tagDocPrestador +
           (input.prestador.inscricaoMunicipal ? `<IM>${esc(input.prestador.inscricaoMunicipal)}</IM>` : '') +
           (input.prestador.razaoSocial ? `<xNome>${esc(input.prestador.razaoSocial)}</xNome>` : '') +
-          `<regTrib>` +
-            `<opSimpNac>3</opSimpNac>` +
-            `<regApTribSN>1</regApTribSN>` +
-            `<regEspTrib>0</regEspTrib>` +
-          `</regTrib>` +
+          `<regTrib>${montarRegTrib(input.regimeTributario)}</regTrib>` +
         `</prest>` +
         tomadorXml +
         `<serv>` +

@@ -129,6 +129,15 @@ export default async function ConfiguracoesPage() {
           </div>
 
           <div className="input-group">
+            <label className="input-label" htmlFor="regimeTributario">Regime Tributário *</label>
+            <select id="regimeTributario" name="regimeTributario" className="input-field" defaultValue={nfseConfig.regimeTributario}>
+              <option value="MEI">MEI (Microempreendedor Individual)</option>
+              <option value="SIMPLES">Simples Nacional (ME/EPP)</option>
+              <option value="NORMAL">Não optante pelo Simples Nacional</option>
+            </select>
+          </div>
+
+          <div className="input-group">
             <label className="input-label" htmlFor="codigoMunicipio">Código IBGE do Município *</label>
             <input type="text" id="codigoMunicipio" name="codigoMunicipio" className="input-field" defaultValue={nfseConfig.codigoMunicipio || ''} placeholder="Ex: 3550308 (São Paulo)" />
           </div>

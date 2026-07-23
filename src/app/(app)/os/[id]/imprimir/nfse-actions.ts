@@ -55,6 +55,7 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
       valor: os.price,
     },
     aliquotaIss: nfseConfig.aliquotaIss,
+    regimeTributario: nfseConfig.regimeTributario as 'MEI' | 'SIMPLES' | 'NORMAL',
   })
 
   const xmlAssinado = assinarDps(xml, id, certMaterial)

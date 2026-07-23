@@ -104,6 +104,7 @@ model CompanySettings {
 model NfseConfig {
   id               String   @id @default("main")
   ambiente         String   @default("homologacao")
+  regimeTributario String   @default("MEI") // MEI | SIMPLES | NORMAL
   codigoMunicipio  String?
   codigoServico    String?
   cnae             String?

@@ -48,6 +48,7 @@ export async function updateSettings(formData: FormData) {
 
 export async function updateNfseConfig(formData: FormData) {
   const ambiente = (formData.get('ambiente') as string) || 'homologacao'
+  const regimeTributario = (formData.get('regimeTributario') as string) || 'MEI'
   const codigoMunicipio = (formData.get('codigoMunicipio') as string) || null
   const codigoServico = (formData.get('codigoServico') as string) || null
   const cnae = (formData.get('cnae') as string) || null
@@ -60,6 +61,7 @@ export async function updateNfseConfig(formData: FormData) {
 
   const data: {
     ambiente: string
+    regimeTributario: string
     codigoMunicipio: string | null
     codigoServico: string | null
     cnae: string | null
@@ -68,7 +70,7 @@ export async function updateNfseConfig(formData: FormData) {
     certificado?: string | null
     certificadoSenha?: string | null
     certificadoNome?: string | null
-  } = { ambiente, codigoMunicipio, codigoServico, cnae, aliquotaIss, serieDps }
+  } = { ambiente, regimeTributario, codigoMunicipio, codigoServico, cnae, aliquotaIss, serieDps }
 
   if (removeCertificado) {
     data.certificado = null

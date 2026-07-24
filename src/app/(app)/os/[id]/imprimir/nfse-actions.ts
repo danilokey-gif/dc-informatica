@@ -132,6 +132,7 @@ export async function enviarNfseEmail(serviceOrderId: string) {
       <p>Qualquer dúvida, entre em contato conosco.</p>
       <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
     `,
+    logoDataUrl: empresa.logo,
   })
 
   revalidatePath(`/os/${serviceOrderId}/imprimir`)

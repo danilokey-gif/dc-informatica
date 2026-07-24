@@ -12,12 +12,28 @@ function getTransporter() {
   })
 }
 
-export async function enviarEmail(params: { to: string; subject: string; html: string }) {
+export async function enviarEmail(params: { to: string; subject: string; html: string; logoDataUrl?: string | null }) {
   const transporter = getTransporter()
+
+  const attachments = []
+  let htmlComLogo = params.html
+  if (params.logoDataUrl) {
+    const match = params.logoDataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/)
+    if (match) {
+      attachments.push({
+        filename: 'logo.png',
+        content: Buffer.from(match[2], 'base64'),
+        cid: 'logo-empresa',
+      })
+      htmlComLogo = `<img src="cid:logo-empresa" alt="Logo" style="height:60px;width:60px;object-fit:contain;margin-bottom:1rem;" />${params.html}`
+    }
+  }
+
   await transporter.sendMail({
     from: `"${process.env.EMAIL_REMETENTE_NOME || 'Dc Informática'}" <${process.env.GMAIL_USER}>`,
     to: params.to,
     subject: params.subject,
-    html: params.html,
+    html: htmlComLogo,
+    attachments,
   })
 }

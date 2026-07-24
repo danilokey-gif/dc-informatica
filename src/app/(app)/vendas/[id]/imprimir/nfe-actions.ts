@@ -167,6 +167,7 @@ export async function enviarNfeEmail(saleId: string) {
       <p>Qualquer dúvida, entre em contato conosco.</p>
       <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
     `,
+    logoDataUrl: empresa.logo,
   })
 
   revalidatePath(`/vendas/${saleId}/imprimir`)

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma"
+import { getCompanySettings, getNfseConfig } from "@/lib/settings"
+import { gerarPdfDanfse, gerarPdfDanfe } from "@/lib/pdf-notas"
 import JSZip from "jszip"
 import { NextRequest } from "next/server"
 
@@ -17,7 +19,9 @@ export async function GET(request: NextRequest) {
   // Inclui o dia inteiro do "fim": vai até o início do dia seguinte.
   const fim = new Date(new Date(`${fimStr}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000)
 
-  const [emissoesNfse, emissoesNfe] = await Promise.all([
+  const [empresa, nfseConfig, emissoesNfse, emissoesNfe] = await Promise.all([
+    getCompanySettings(),
+    getNfseConfig(),
     prisma.nfseEmissao.findMany({
       where: { status: 'AUTORIZADA', createdAt: { gte: inicio, lt: fim } },
       include: { serviceOrder: { include: { customer: true } } },
@@ -25,7 +29,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.nfeEmissao.findMany({
       where: { status: 'AUTORIZADA', createdAt: { gte: inicio, lt: fim } },
-      include: { sale: { include: { customer: true } } },
+      include: { sale: { include: { customer: true, items: { include: { product: true } } } } },
       orderBy: { createdAt: 'asc' },
     }),
   ])
@@ -37,18 +41,62 @@ export async function GET(request: NextRequest) {
   const zip = new JSZip()
 
   for (const e of emissoesNfse) {
-    if (!e.xmlNfse) continue
     const dataStr = e.createdAt.toISOString().slice(0, 10)
     const clienteSlug = e.serviceOrder.customer.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
-    zip.file(`NFSe/${dataStr}_NFSe-${e.numeroDps}_${clienteSlug}.xml`, e.xmlNfse)
+    const nomeBase = `${dataStr}_NFSe-${e.numeroDps}_${clienteSlug}`
+
+    if (e.xmlNfse) zip.file(`NFSe/${nomeBase}.xml`, e.xmlNfse)
+
+    const os = e.serviceOrder
+    const pdf = await gerarPdfDanfse({
+      ambiente: e.ambiente,
+      numeroDps: e.numeroDps,
+      serieDps: e.serieDps,
+      chaveAcesso: e.chaveAcesso || '',
+      dataEmissao: e.createdAt,
+      prestadorNome: empresa.name,
+      prestadorCnpj: empresa.document || '',
+      prestadorEndereco: empresa.address,
+      tomadorNome: os.customer.name,
+      tomadorDocumento: os.customer.document,
+      descricaoServico: `${os.device} — ${os.issue}`,
+      codigoMunicipio: nfseConfig.codigoMunicipio || '',
+      regimeTributario: nfseConfig.regimeTributario,
+      valorTotal: (os.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+    })
+    zip.file(`NFSe/${nomeBase}.pdf`, pdf)
   }
 
   for (const e of emissoesNfe) {
-    if (!e.xmlNfe) continue
     const dataStr = e.createdAt.toISOString().slice(0, 10)
     const clienteNome = e.sale.customer?.name || 'Consumidor'
     const clienteSlug = clienteNome.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
-    zip.file(`NFe/${dataStr}_NFe-${e.numero}_${clienteSlug}.xml`, e.xmlNfe)
+    const nomeBase = `${dataStr}_NFe-${e.numero}_${clienteSlug}`
+
+    if (e.xmlNfe) zip.file(`NFe/${nomeBase}.xml`, e.xmlNfe)
+
+    const pdf = await gerarPdfDanfe({
+      ambiente: e.ambiente,
+      numero: e.numero,
+      serie: e.serie,
+      chaveAcesso: e.chaveAcesso || '',
+      emitenteNome: empresa.name,
+      emitenteCnpj: empresa.document || '',
+      emitenteIe: empresa.inscricaoEstadual,
+      destinatarioNome: clienteNome,
+      destinatarioDocumento: e.sale.customer?.document,
+      itens: e.sale.items.map(item => ({
+        codigo: item.product.sku || item.productId.slice(-8),
+        descricao: item.product.name,
+        ncm: item.product.ncm || '-',
+        cfop: item.product.cfop || '-',
+        quantidade: item.quantity,
+        valorUnitario: item.unitPrice,
+        valorTotal: item.unitPrice * item.quantity,
+      })),
+      valorTotal: e.sale.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+    })
+    zip.file(`NFe/${nomeBase}.pdf`, pdf)
   }
 
   const zipBuffer = await zip.generateAsync({ type: 'uint8array' })

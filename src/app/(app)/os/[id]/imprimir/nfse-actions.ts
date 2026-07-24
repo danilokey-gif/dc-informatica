@@ -81,6 +81,7 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
         where: { id: emissao.id },
         data: {
           status: 'AUTORIZADA',
+          chaveAcesso: resposta.chaveAcesso,
           xmlNfse: resposta.xmlNfse || null,
         }
       }),

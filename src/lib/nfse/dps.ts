@@ -56,12 +56,15 @@ function formatarDecimal(valor: number) {
   return valor.toFixed(2)
 }
 
+/** Converte para o horário de Brasília (UTC-3, sem horário de verão) no formato exigido pela DPS. */
 function formatarDataHoraUTC(data: Date) {
-  return data.toISOString().replace(/\.\d{3}Z$/, '-03:00')
+  const local = new Date(data.getTime() - 3 * 60 * 60 * 1000)
+  return local.toISOString().replace(/\.\d{3}Z$/, '-03:00')
 }
 
 function formatarData(data: Date) {
-  return data.toISOString().slice(0, 10)
+  const local = new Date(data.getTime() - 3 * 60 * 60 * 1000)
+  return local.toISOString().slice(0, 10)
 }
 
 /**
@@ -96,7 +99,8 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
   })() : ''
 
   const xml =
-    `<DPS versao="1.01">` +
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">` +
       `<infDPS Id="${id}">` +
         `<tpAmb>${tpAmb}</tpAmb>` +
         `<dhEmi>${formatarDataHoraUTC(new Date())}</dhEmi>` +
@@ -109,7 +113,8 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
         `<prest>` +
           tagDocPrestador +
           (input.prestador.inscricaoMunicipal ? `<IM>${esc(input.prestador.inscricaoMunicipal)}</IM>` : '') +
-          (input.prestador.razaoSocial ? `<xNome>${esc(input.prestador.razaoSocial)}</xNome>` : '') +
+          // xNome do prestador não é informado: tpEmit=1 (emitente é o próprio prestador), o
+          // sistema já identifica o nome pelo CNPJ e rejeita a DPS se vier repetido aqui.
           `<regTrib>${montarRegTrib(input.regimeTributario)}</regTrib>` +
         `</prest>` +
         tomadorXml +
@@ -126,7 +131,8 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
             `<tribMun>` +
               `<tribISSQN>1</tribISSQN>` +
               `<tpRetISSQN>1</tpRetISSQN>` +
-              `<pAliq>${formatarDecimal(input.aliquotaIss)}</pAliq>` +
+              // MEI não informa alíquota: o ISS é um valor fixo mensal (DAS-MEI), não calculado por nota.
+              (input.regimeTributario === 'MEI' ? '' : `<pAliq>${formatarDecimal(input.aliquotaIss)}</pAliq>`) +
             `</tribMun>` +
             `<totTrib><indTotTrib>0</indTotTrib></totTrib>` +
           `</trib>` +

@@ -1,5 +1,5 @@
 import forge from 'node-forge'
-import https from 'https'
+import { Agent } from 'undici'
 
 export interface CertMaterial {
   privateKeyPem: string
@@ -43,12 +43,24 @@ export function extractCertMaterial(pfxBuffer: Buffer, password: string): CertMa
 }
 
 /**
- * Cria um agente HTTPS com autenticação mútua (mTLS) usando o certificado,
+ * Cria um dispatcher HTTP com autenticação mútua (mTLS) usando o certificado,
  * necessário para chamar qualquer endpoint da API do Sistema Nacional NFS-e.
+ *
+ * O `fetch` nativo do Node (undici) ignora silenciosamente um `https.Agent` passado
+ * via `agent` — mTLS só funciona de fato passando um dispatcher do `undici` com as
+ * opções de TLS em `connect` (que aceitam os mesmos campos do `tls.connect`).
+ *
+ * Não passamos o `.pfx` bruto pro `tls.connect`: certificados e-CNPJ mais antigos usam
+ * criptografia legada (RC2/3DES) que o OpenSSL 3.x (usado pelo Node atual) recusa por
+ * padrão ("Unsupported PKCS12 PFX data"). Como o `node-forge` já sabe ler esse mesmo
+ * arquivo em JS puro, extraímos chave+certificado em PEM primeiro e usamos isso no TLS.
  */
-export function buildMtlsAgent(pfxBuffer: Buffer, password: string): https.Agent {
-  return new https.Agent({
-    pfx: pfxBuffer,
-    passphrase: password,
+export function buildMtlsAgent(pfxBuffer: Buffer, password: string): Agent {
+  const { privateKeyPem, certificatePem } = extractCertMaterial(pfxBuffer, password)
+  return new Agent({
+    connect: {
+      key: privateKeyPem,
+      cert: certificatePem,
+    },
   })
 }

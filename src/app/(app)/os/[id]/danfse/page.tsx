@@ -10,7 +10,7 @@ const border = '1px solid #333'
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ backgroundColor: '#e8e8e8', border, borderTop: 'none', padding: '0.1rem 0.4rem', fontSize: '0.6rem', fontWeight: 'bold', lineHeight: 1.3 }}>
+    <div style={{ backgroundColor: '#e8e8e8', border, borderTop: 'none', padding: '0.16rem 0.46rem', fontSize: '0.68rem', fontWeight: 'bold', lineHeight: 1.35 }}>
       {children}
     </div>
   )
@@ -18,9 +18,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function Campo({ label, value, flex = 1 }: { label: string; value: React.ReactNode; flex?: number }) {
   return (
-    <div style={{ flex, border, borderTop: 'none', borderRight: 'none', padding: '0.15rem 0.35rem', boxSizing: 'border-box' }}>
-      <div style={{ fontSize: '0.52rem', fontWeight: 'bold', lineHeight: 1.2 }}>{label}</div>
-      <div style={{ fontSize: '0.62rem', lineHeight: 1.25 }}>{value || '-'}</div>
+    <div style={{ flex, border, borderTop: 'none', borderRight: 'none', padding: '0.22rem 0.42rem', boxSizing: 'border-box' }}>
+      <div style={{ fontSize: '0.58rem', fontWeight: 'bold', lineHeight: 1.25 }}>{label}</div>
+      <div style={{ fontSize: '0.7rem', lineHeight: 1.3 }}>{value || '-'}</div>
     </div>
   )
 }
@@ -66,42 +66,42 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
   const numeroNfse = emissao.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || emissao.numeroDps
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.6rem', maxWidth: '850px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.62rem', lineHeight: 1.25 }}>
+    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.75rem', maxWidth: '870px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.69rem', lineHeight: 1.32 }}>
       <style>{`
         @media print {
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: 10mm; }
           html, body { height: auto !important; }
         }
       `}</style>
 
       {emissao.ambiente !== 'producao' && (
-        <div style={{ textAlign: 'center', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', padding: '0.3rem', marginBottom: '0.4rem', border: '1px solid #991b1b', fontSize: '0.6rem' }}>
+        <div style={{ textAlign: 'center', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', padding: '0.35rem', marginBottom: '0.5rem', border: '1px solid #991b1b', fontSize: '0.68rem' }}>
           NFS-e EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL
         </div>
       )}
 
       {/* Cabeçalho */}
-      <div style={{ display: 'flex', alignItems: 'center', border, padding: '0.3rem', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', width: '28%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', border, padding: '0.4rem', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', width: '28%' }}>
           {empresa.logo && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={empresa.logo} alt={empresa.name} style={{ height: '26px', width: '26px', objectFit: 'contain', flexShrink: 0 }} />
+            <img src={empresa.logo} alt={empresa.name} style={{ height: '38px', width: '38px', objectFit: 'contain', flexShrink: 0 }} />
           )}
-          <span style={{ fontSize: '0.58rem', fontWeight: 'bold', lineHeight: 1.2 }}>NFSe<br /><span style={{ fontWeight: 'normal', fontSize: '0.48rem' }}>Nota Fiscal de Serviço eletrônica</span></span>
+          <span style={{ fontSize: '0.65rem', fontWeight: 'bold', lineHeight: 1.25 }}>NFSe<br /><span style={{ fontWeight: 'normal', fontSize: '0.53rem' }}>Nota Fiscal de Serviço eletrônica</span></span>
         </div>
         <div style={{ textAlign: 'center', width: '44%' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '0.72rem' }}>DANFSe v1.0</div>
-          <div style={{ fontSize: '0.6rem' }}>Documento Auxiliar da NFS-e</div>
+          <div style={{ fontWeight: 'bold', fontSize: '0.82rem' }}>DANFSe v1.0</div>
+          <div style={{ fontSize: '0.67rem' }}>Documento Auxiliar da NFS-e</div>
         </div>
-        <div style={{ textAlign: 'right', width: '28%', fontSize: '0.56rem' }}>
+        <div style={{ textAlign: 'right', width: '28%', fontSize: '0.62rem' }}>
           <div style={{ fontWeight: 'bold' }}>MUNICÍPIO DE {(nfseConfig.nomeMunicipio || '').toUpperCase()}</div>
         </div>
       </div>
 
       {/* Chave de acesso */}
-      <div style={{ border, borderTop: 'none', padding: '0.2rem 0.4rem' }}>
-        <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>Chave de Acesso da NFS-e</div>
-        <div style={{ fontFamily: 'monospace', fontSize: '0.62rem' }}>{emissao.chaveAcesso}</div>
+      <div style={{ border, borderTop: 'none', padding: '0.26rem 0.46rem' }}>
+        <div style={{ fontSize: '0.57rem', fontWeight: 'bold' }}>Chave de Acesso da NFS-e</div>
+        <div style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{emissao.chaveAcesso}</div>
       </div>
 
       {/* Identificação + QR */}
@@ -118,10 +118,10 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
             <Campo label="Data e Hora da emissão da DPS" value={emissao.createdAt.toLocaleString('pt-BR')} />
           </Row>
         </div>
-        <div style={{ width: '92px', flexShrink: 0, border, borderLeft: 'none', borderTop: 'none', padding: '0.2rem', textAlign: 'center', boxSizing: 'border-box' }}>
+        <div style={{ width: '105px', flexShrink: 0, border, borderLeft: 'none', borderTop: 'none', padding: '0.26rem', textAlign: 'center', boxSizing: 'border-box' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrCodeDataUrl} alt="QR Code" style={{ width: '68px', height: '68px', maxWidth: '100%' }} />
-          <p style={{ fontSize: '0.42rem', margin: '0.15rem 0 0 0', lineHeight: 1.15 }}>Autenticidade verificável pela leitura deste QR ou pela chave no portal nacional da NFS-e</p>
+          <img src={qrCodeDataUrl} alt="QR Code" style={{ width: '78px', height: '78px', maxWidth: '100%' }} />
+          <p style={{ fontSize: '0.46rem', margin: '0.15rem 0 0 0', lineHeight: 1.2 }}>Autenticidade verificável pela leitura deste QR ou pela chave no portal nacional da NFS-e</p>
         </div>
       </div>
 

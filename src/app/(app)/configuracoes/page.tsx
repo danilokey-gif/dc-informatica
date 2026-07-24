@@ -126,8 +126,8 @@ export default async function ConfiguracoesPage() {
         </form>
       </div>
 
-      <div className="card">
-        <h3 className="mb-4">Nota Fiscal de Serviço (NFS-e Nacional)</h3>
+      <div id="nfse" className="card" style={{ borderLeft: '4px solid #dc2626', scrollMarginTop: '1rem' }}>
+        <h3 className="mb-4">🧾 Nota Fiscal de Serviço (NFS-e Nacional)</h3>
         <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
           Emissão automática via API do Sistema Nacional NFS-e. Exige certificado digital e-CNPJ (A1).
         </p>
@@ -219,8 +219,8 @@ export default async function ConfiguracoesPage() {
         </form>
       </div>
 
-      <div className="card">
-        <h3 className="mb-4">Nota Fiscal de Produtos (NF-e)</h3>
+      <div id="nfe" className="card" style={{ borderLeft: '4px solid #dc2626', scrollMarginTop: '1rem' }}>
+        <h3 className="mb-4">📦 Nota Fiscal de Produtos (NF-e)</h3>
         <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
           Emissão automática via Sefaz-SP. Exige certificado digital e-CNPJ (A1) e Inscrição Estadual preenchida acima.
         </p>

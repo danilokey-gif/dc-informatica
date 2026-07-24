@@ -6,6 +6,7 @@ import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfseClient } from "@/lib/nfse/client"
 import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
+import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 
 export async function emitirNfseServiceOrder(serviceOrderId: string) {
@@ -99,6 +100,39 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
       }
     })
   }
+
+  revalidatePath(`/os/${serviceOrderId}/imprimir`)
+}
+
+export async function enviarNfseEmail(serviceOrderId: string) {
+  const [os, empresa, emissao] = await Promise.all([
+    prisma.serviceOrder.findUniqueOrThrow({ where: { id: serviceOrderId }, include: { customer: true } }),
+    getCompanySettings(),
+    prisma.nfseEmissao.findFirst({ where: { serviceOrderId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
+  ])
+
+  if (!os.customer.email) {
+    throw new Error('Cliente não tem e-mail cadastrado. Edite o cliente para adicionar um.')
+  }
+  if (!emissao) {
+    throw new Error('Nenhuma NFS-e autorizada encontrada para esta OS.')
+  }
+
+  const valor = os.price ? os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''
+
+  await enviarEmail({
+    to: os.customer.email,
+    subject: `Nota Fiscal de Serviço - ${empresa.name}`,
+    html: `
+      <p>Olá, ${os.customer.name}!</p>
+      <p>Segue a Nota Fiscal de Serviço referente ao atendimento do seu ${os.device}.</p>
+      <p><strong>Chave de acesso:</strong> ${emissao.chaveAcesso}</p>
+      ${valor ? `<p><strong>Valor:</strong> ${valor}</p>` : ''}
+      <p><strong>Ambiente:</strong> ${emissao.ambiente === 'producao' ? 'Produção' : 'Homologação (sem valor fiscal)'}</p>
+      <p>Qualquer dúvida, entre em contato conosco.</p>
+      <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
+    `,
+  })
 
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
 }

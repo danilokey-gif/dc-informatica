@@ -6,7 +6,8 @@ import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
 import { updateSaleInvoice } from "../../actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "../../../os/[id]/imprimir/CopyPixButton"
-import { emitirNfeVenda } from "./nfe-actions"
+import { emitirNfeVenda, enviarNfeEmail } from "./nfe-actions"
+import StatusBadge from "@/components/StatusBadge"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,6 +29,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
   const ultimaEmissaoNfe = venda.nfeEmissoes[0]
   const nfeAutorizada = ultimaEmissaoNfe?.status === 'AUTORIZADA'
   const emitirNfeAction = emitirNfeVenda.bind(null, venda.id)
+  const enviarNfeEmailAction = enviarNfeEmail.bind(null, venda.id)
 
   const numeroVenda = venda.id.slice(-6).toUpperCase()
   const totalFormatado = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -162,8 +164,11 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
       )}
 
       {/* Emissão automática de NF-e */}
-      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Nota Fiscal de Produtos (NF-e)</h3>
+      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid var(--border)', borderLeft: '4px solid #dc2626', padding: '1rem', borderRadius: '0.5rem' }}>
+        <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.125rem' }}>📦 Nota Fiscal de Produtos (NF-e)</h3>
+          {ultimaEmissaoNfe && <StatusBadge status={ultimaEmissaoNfe.status} />}
+        </div>
 
         {!nfeConfigurada && (
           <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
@@ -172,32 +177,36 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
         )}
 
         {ultimaEmissaoNfe && (
-          <div style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
-            <p style={{ margin: 0 }}>
-              <strong>Status:</strong>{' '}
-              {ultimaEmissaoNfe.status === 'AUTORIZADA' && <span style={{ color: '#16a34a' }}>Autorizada</span>}
-              {ultimaEmissaoNfe.status === 'REJEITADA' && <span style={{ color: '#b91c1c' }}>Rejeitada</span>}
-              {ultimaEmissaoNfe.status === 'PROCESSANDO' && <span>Processando</span>}
-              {' '}(NF-e nº {ultimaEmissaoNfe.numero}, série {ultimaEmissaoNfe.serie}, ambiente {ultimaEmissaoNfe.ambiente})
-            </p>
-            {ultimaEmissaoNfe.chaveAcesso && <p style={{ margin: '0.25rem 0 0 0' }}><strong>Chave de acesso:</strong> {ultimaEmissaoNfe.chaveAcesso}</p>}
-            {ultimaEmissaoNfe.motivoErro && <p style={{ margin: '0.25rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissaoNfe.motivoErro}</p>}
+          <div style={{ marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: 'var(--surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
+            <p style={{ margin: 0 }}>NF-e nº <strong>{ultimaEmissaoNfe.numero}</strong>, série {ultimaEmissaoNfe.serie} — ambiente <strong>{ultimaEmissaoNfe.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong></p>
+            {ultimaEmissaoNfe.chaveAcesso && <p style={{ margin: '0.35rem 0 0 0' }}><strong>Chave de acesso:</strong> <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{ultimaEmissaoNfe.chaveAcesso}</span></p>}
+            {ultimaEmissaoNfe.motivoErro && <p style={{ margin: '0.35rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissaoNfe.motivoErro}</p>}
           </div>
         )}
 
-        {!nfeAutorizada && (
-          <form action={emitirNfeAction}>
-            <button type="submit" className="btn btn-primary" disabled={!nfeConfigurada}>
-              {ultimaEmissaoNfe?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NF-e'}
-            </button>
-          </form>
-        )}
+        <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+          {!nfeAutorizada && (
+            <form action={emitirNfeAction}>
+              <button type="submit" className="btn btn-primary" disabled={!nfeConfigurada}>
+                {ultimaEmissaoNfe?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NF-e'}
+              </button>
+            </form>
+          )}
+          {nfeAutorizada && (
+            <form action={enviarNfeEmailAction}>
+              <button type="submit" className="btn btn-outline" disabled={!venda.customer?.email}>
+                ✉️ Enviar Nota por E-mail
+              </button>
+              {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+            </form>
+          )}
+        </div>
       </div>
 
       {/* Nota Fiscal (registro manual) */}
-      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Registro Manual (NF-e/NFC-e emitida por fora)</h3>
-        <p style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '1rem' }}>
+      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid var(--border)', padding: '1rem', borderRadius: '0.5rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-main)', fontSize: '1.125rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Registro Manual (nota emitida por fora)</h3>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
           Se preferir emitir por outro emissor (ex: Sebrae), registre o número aqui.
         </p>
         <div className="flex gap-4 mb-4" style={{ flexWrap: 'wrap' }}>

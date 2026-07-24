@@ -6,7 +6,7 @@ const PUBLIC_PATHS = ['/manifest.json', '/sw.js']
 
 // Rotas com dados sensíveis (financeiro, fiscal, configurações da empresa, gestão de usuários):
 // visíveis só para ADMIN. Um técnico logado não deve ver nem acessar diretamente por URL.
-const ADMIN_ONLY_PREFIXES = ['/financeiro', '/fornecedores', '/relatorios', '/configuracoes', '/usuarios']
+const ADMIN_ONLY_PREFIXES = ['/financeiro', '/fornecedores', '/relatorios', '/configuracoes', '/usuarios', '/notas-fiscais']
 
 export async function middleware(request: NextRequest) {
   if (PUBLIC_PATHS.includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/icons/')) {

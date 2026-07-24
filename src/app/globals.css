@@ -357,6 +357,29 @@ h3 { font-size: 1.5rem; }
   }
 }
 
+/* Selos de status (notas fiscais, emissões, etc.) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-danger { background: #fee2e2; color: #991b1b; }
+.badge-warning { background: #fef9c3; color: #854d0e; }
+.badge-neutral { background: var(--surface-hover); color: var(--text-muted); border: 1px solid var(--border); }
+
+@media (prefers-color-scheme: dark) {
+  .badge-success { background: rgba(22, 163, 74, 0.2); color: #4ade80; }
+  .badge-danger { background: rgba(220, 38, 38, 0.2); color: #f87171; }
+  .badge-warning { background: rgba(202, 138, 4, 0.2); color: #facc15; }
+}
+
 /* Área para Impressão */
 @media print {
   body {

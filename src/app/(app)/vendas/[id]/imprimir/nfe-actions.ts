@@ -6,6 +6,7 @@ import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfeSoapClient } from "@/lib/nfe/soap-client"
 import { montarXmlNfe, assinarNfe } from "@/lib/nfe/xml"
+import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 
 const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'> = {
@@ -134,6 +135,39 @@ export async function emitirNfeVenda(saleId: string) {
       }
     })
   }
+
+  revalidatePath(`/vendas/${saleId}/imprimir`)
+}
+
+export async function enviarNfeEmail(saleId: string) {
+  const [venda, empresa, emissao] = await Promise.all([
+    prisma.sale.findUniqueOrThrow({ where: { id: saleId }, include: { customer: true } }),
+    getCompanySettings(),
+    prisma.nfeEmissao.findFirst({ where: { saleId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
+  ])
+
+  if (!venda.customer?.email) {
+    throw new Error('Cliente não tem e-mail cadastrado. Edite o cliente para adicionar um.')
+  }
+  if (!emissao) {
+    throw new Error('Nenhuma NF-e autorizada encontrada para esta venda.')
+  }
+
+  const valor = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  await enviarEmail({
+    to: venda.customer.email,
+    subject: `Nota Fiscal de Produtos - ${empresa.name}`,
+    html: `
+      <p>Olá, ${venda.customer.name}!</p>
+      <p>Segue a Nota Fiscal referente à sua compra.</p>
+      <p><strong>Chave de acesso:</strong> ${emissao.chaveAcesso}</p>
+      <p><strong>Valor:</strong> ${valor}</p>
+      <p><strong>Ambiente:</strong> ${emissao.ambiente === 'producao' ? 'Produção' : 'Homologação (sem valor fiscal)'}</p>
+      <p>Qualquer dúvida, entre em contato conosco.</p>
+      <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
+    `,
+  })
 
   revalidatePath(`/vendas/${saleId}/imprimir`)
 }

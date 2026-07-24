@@ -34,6 +34,12 @@ const navItems = [
       <path d="M10.6 5.4 4 12v3.25h3.25L14 8.65" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   ) },
+  { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M13 3v3h3M7 10h6M7 13h6M7 7h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) },
   { href: '/fornecedores', label: 'Fornecedores', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path d="M3 16V8l7-4 7 4v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />

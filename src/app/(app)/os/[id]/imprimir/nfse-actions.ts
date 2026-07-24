@@ -133,6 +133,11 @@ export async function enviarNfseEmail(serviceOrderId: string) {
       <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
     `,
     logoDataUrl: empresa.logo,
+    arquivos: emissao.xmlNfse ? [{
+      filename: `NFSe-${emissao.chaveAcesso}.xml`,
+      content: emissao.xmlNfse,
+      contentType: 'application/xml',
+    }] : [],
   })
 
   revalidatePath(`/os/${serviceOrderId}/imprimir`)

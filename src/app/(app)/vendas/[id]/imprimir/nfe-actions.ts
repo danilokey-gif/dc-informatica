@@ -168,6 +168,11 @@ export async function enviarNfeEmail(saleId: string) {
       <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
     `,
     logoDataUrl: empresa.logo,
+    arquivos: emissao.xmlNfe ? [{
+      filename: `NFe-${emissao.chaveAcesso}.xml`,
+      content: emissao.xmlNfe,
+      contentType: 'application/xml',
+    }] : [],
   })
 
   revalidatePath(`/vendas/${saleId}/imprimir`)

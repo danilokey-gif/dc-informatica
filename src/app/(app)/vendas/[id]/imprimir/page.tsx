@@ -146,6 +146,17 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      {/* Informações Fiscais (aparece na impressão) */}
+      {nfeAutorizada && ultimaEmissaoNfe && (
+        <div style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem', fontSize: '0.8rem' }}>
+          <p style={{ margin: 0, fontWeight: 'bold' }}>NF-e nº {ultimaEmissaoNfe.numero}, série {ultimaEmissaoNfe.serie}</p>
+          <p style={{ margin: '0.25rem 0 0 0', wordBreak: 'break-all' }}><strong>Chave de acesso:</strong> {ultimaEmissaoNfe.chaveAcesso}</p>
+          {ultimaEmissaoNfe.ambiente !== 'producao' && (
+            <p style={{ margin: '0.25rem 0 0 0', color: '#b91c1c', fontWeight: 'bold' }}>NF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL</p>
+          )}
+        </div>
+      )}
+
       {/* Cobrança via Pix */}
       {pixQrCodeDataUrl && pixCopiaECola && (
         <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>

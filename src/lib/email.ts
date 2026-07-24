@@ -12,10 +12,20 @@ function getTransporter() {
   })
 }
 
-export async function enviarEmail(params: { to: string; subject: string; html: string; logoDataUrl?: string | null }) {
+interface AnexoArquivo {
+  filename: string
+  content: string
+  contentType?: string
+}
+
+export async function enviarEmail(params: { to: string; subject: string; html: string; logoDataUrl?: string | null; arquivos?: AnexoArquivo[] }) {
   const transporter = getTransporter()
 
-  const attachments = []
+  const attachments: Array<{ filename: string; content: string | Buffer; cid?: string; contentType?: string }> = (params.arquivos || []).map(a => ({
+    filename: a.filename,
+    content: a.content,
+    contentType: a.contentType,
+  }))
   let htmlComLogo = params.html
   if (params.logoDataUrl) {
     const match = params.logoDataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/)

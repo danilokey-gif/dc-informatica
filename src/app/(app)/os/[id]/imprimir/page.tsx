@@ -132,6 +132,17 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
+      {/* Informações Fiscais (aparece na impressão) */}
+      {ultimaEmissao?.status === 'AUTORIZADA' && (
+        <div style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem', fontSize: '0.8rem' }}>
+          <p style={{ margin: 0, fontWeight: 'bold' }}>NFS-e nº {ultimaEmissao.numeroDps}, série {ultimaEmissao.serieDps}</p>
+          <p style={{ margin: '0.25rem 0 0 0', wordBreak: 'break-all' }}><strong>Chave de acesso:</strong> {ultimaEmissao.chaveAcesso}</p>
+          {ultimaEmissao.ambiente !== 'producao' && (
+            <p style={{ margin: '0.25rem 0 0 0', color: '#b91c1c', fontWeight: 'bold' }}>NFS-e EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL</p>
+          )}
+        </div>
+      )}
+
       {/* Cobrança via Pix */}
       {pixQrCodeDataUrl && pixCopiaECola && (
         <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>

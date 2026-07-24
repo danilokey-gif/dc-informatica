@@ -60,8 +60,10 @@ export async function GET(request: NextRequest) {
       tomadorNome: os.customer.name,
       tomadorDocumento: os.customer.document,
       descricaoServico: `${os.device} — ${os.issue}`,
+      codigoServico: nfseConfig.codigoServico,
       codigoMunicipio: nfseConfig.codigoMunicipio || '',
       regimeTributario: nfseConfig.regimeTributario,
+      aliquotaIss: nfseConfig.aliquotaIss,
       valorTotal: (os.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
     })
     zip.file(`NFSe/${nomeBase}.pdf`, pdf)

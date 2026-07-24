@@ -161,8 +161,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
           Este recibo não tem valor fiscal. Emita a nota no portal do governo e registre o número aqui.
         </p>
         <div className="flex gap-4 mb-4" style={{ flexWrap: 'wrap' }}>
-          <a href="https://www.nfse.gov.br" target="_blank" rel="noopener noreferrer" className="btn btn-outline">Emitir NFS-e Nacional (serviços)</a>
-          <a href="https://www.nfe.fazenda.gov.br" target="_blank" rel="noopener noreferrer" className="btn btn-outline">Portal NF-e/NFC-e (produtos)</a>
+          <a href="https://26408013848.emissornfe.sebrae.com.br" target="_blank" rel="noopener noreferrer" className="btn btn-outline">Emitir NF-e/NFC-e (Sebrae)</a>
         </div>
         <form action={updateInvoiceAction} className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div className="input-group" style={{ marginBottom: 0 }}>

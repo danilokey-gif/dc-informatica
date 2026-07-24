@@ -35,9 +35,10 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
     )
   }
 
-  // URL de consulta pública do Sistema Nacional NFS-e (padrão documentado nos manuais oficiais).
-  const urlConsulta = `https://www.nfse.gov.br/consultapublica/?chave=${emissao.chaveAcesso}`
-  const qrCodeDataUrl = await gerarQrCodeDataUrl(urlConsulta)
+  // O portal de consulta pública (nfse.gov.br/consultapublica) é um formulário, sem parâmetro de
+  // URL documentado pra pré-preencher a chave. Por isso o QR Code traz a própria chave em texto,
+  // pra escanear e colar no campo de busca — garante funcionar, sem depender de um link que talvez não exista.
+  const qrCodeDataUrl = await gerarQrCodeDataUrl(emissao.chaveAcesso)
   const valorServico = os.price || 0
   const valorFormatado = valorServico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
   const chaveFormatada = emissao.chaveAcesso.match(/.{1,4}/g)?.join(' ') || emissao.chaveAcesso
@@ -139,10 +140,10 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
       <div style={{ border: '1px solid #333', borderTop: 'none', padding: '0.75rem', textAlign: 'center' }}>
         <div style={labelStyle}>Consulta pública / Autenticidade</div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={qrCodeDataUrl} alt="QR Code de consulta da NFS-e" style={{ width: '120px', height: '120px', margin: '0.5rem auto' }} />
+        <img src={qrCodeDataUrl} alt="QR Code com a chave de acesso da NFS-e" style={{ width: '120px', height: '120px', margin: '0.5rem auto' }} />
         <p style={{ fontFamily: 'monospace', fontSize: '0.85rem', margin: '0.35rem 0' }}>{chaveFormatada}</p>
         <p className="text-muted" style={{ fontSize: '0.65rem', margin: 0 }}>
-          Consulte a autenticidade em www.nfse.gov.br informando a chave de acesso acima.
+          Escaneie o QR Code (ou copie a chave acima) e cole em www.nfse.gov.br/consultapublica para validar esta nota.
         </p>
       </div>
 

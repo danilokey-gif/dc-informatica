@@ -44,8 +44,9 @@ export interface DanfsePdfInput {
 export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
   const bufferPromise = coletarBuffer(doc)
-  const urlConsulta = `https://www.nfse.gov.br/consultapublica/?chave=${input.chaveAcesso}`
-  const qrCode = await gerarQrCodeBuffer(urlConsulta)
+  // O portal de consulta (nfse.gov.br/consultapublica) é um formulário, sem parâmetro de URL
+  // documentado pra pré-preencher a chave — por isso o QR traz a própria chave em texto.
+  const qrCode = await gerarQrCodeBuffer(input.chaveAcesso)
   const ehMei = input.regimeTributario === 'MEI'
 
   if (input.ambiente !== 'producao') {
@@ -94,7 +95,7 @@ export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
   doc.y = qrY + qrSize + 10
   doc.font('Courier').fontSize(10).text(formatarChave(input.chaveAcesso), { align: 'center' })
   doc.moveDown(0.3)
-  doc.fontSize(8).fillColor('gray').text('Consulte a autenticidade em www.nfse.gov.br informando a chave de acesso acima.', { align: 'center' })
+  doc.fontSize(8).fillColor('gray').text('Escaneie o QR Code (ou copie a chave acima) e cole em www.nfse.gov.br/consultapublica para validar esta nota.', { align: 'center' })
 
   doc.end()
   return bufferPromise

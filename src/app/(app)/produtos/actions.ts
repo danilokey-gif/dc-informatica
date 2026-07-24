@@ -13,9 +13,11 @@ export async function createProduct(formData: FormData) {
   const salePrice = parseFloat(formData.get('salePrice') as string) || 0
   const stockQty = parseInt(formData.get('stockQty') as string) || 0
   const minStockAlert = parseInt(formData.get('minStockAlert') as string) || 0
+  const ncm = (formData.get('ncm') as string) || null
+  const cfop = (formData.get('cfop') as string) || null
 
   await prisma.product.create({
-    data: { name, sku, category, description, costPrice, salePrice, stockQty, minStockAlert }
+    data: { name, sku, category, description, costPrice, salePrice, stockQty, minStockAlert, ncm, cfop }
   })
 
   redirect('/produtos')
@@ -30,10 +32,12 @@ export async function updateProduct(id: string, formData: FormData) {
   const salePrice = parseFloat(formData.get('salePrice') as string) || 0
   const stockQty = parseInt(formData.get('stockQty') as string) || 0
   const minStockAlert = parseInt(formData.get('minStockAlert') as string) || 0
+  const ncm = (formData.get('ncm') as string) || null
+  const cfop = (formData.get('cfop') as string) || null
 
   await prisma.product.update({
     where: { id },
-    data: { name, sku, category, description, costPrice, salePrice, stockQty, minStockAlert }
+    data: { name, sku, category, description, costPrice, salePrice, stockQty, minStockAlert, ncm, cfop }
   })
 
   redirect('/produtos')

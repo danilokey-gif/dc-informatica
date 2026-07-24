@@ -59,6 +59,8 @@ model Product {
   salePrice     Float      @default(0)
   stockQty      Int        @default(0)
   minStockAlert Int        @default(0)
+  ncm           String?
+  cfop          String?
   saleItems     SaleItem[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -75,6 +77,7 @@ model Sale {
   invoiceType   String?
   status        String              @default("COMPLETED")
   transaction   FinanceTransaction?
+  nfeEmissoes   NfeEmissao[]
   createdAt     DateTime            @default(now())
 }
 
@@ -89,16 +92,21 @@ model SaleItem {
 }
 
 model CompanySettings {
-  id        String   @id @default("main")
-  name      String   @default("Dc Informática")
-  document  String?
-  phone     String?
-  email     String?
-  address   String?
-  logo      String?
-  pixKey    String?
-  pixCity   String?
-  updatedAt DateTime @updatedAt
+  id                String   @id @default("main")
+  name              String   @default("Dc Informática")
+  document          String?
+  phone             String?
+  email             String?
+  address           String?
+  logo              String?
+  pixKey            String?
+  pixCity           String?
+  inscricaoEstadual String?
+  enderLogradouro   String?
+  enderNumero       String?
+  enderBairro       String?
+  enderCep          String?
+  updatedAt         DateTime @updatedAt
 }
 
 model NfseConfig {
@@ -130,6 +138,37 @@ model NfseEmissao {
   xmlNfse        String?
   motivoErro     String?
   createdAt      DateTime     @default(now())
+}
+
+model NfeConfig {
+  id               String   @id @default("main")
+  ambiente         String   @default("homologacao")
+  crt              String   @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (inclui MEI), 2=Simples excesso sublimite, 3=Regime Normal
+  codigoMunicipio  String?
+  nomeMunicipio    String?
+  uf               String   @default("SP")
+  cfopPadrao       String   @default("5102") // Venda de mercadoria dentro do estado, sem substituicao tributaria
+  certificado      String?
+  certificadoSenha String?
+  certificadoNome  String?
+  serie            String   @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
+  proximoNumero    Int      @default(1)
+  updatedAt        DateTime @updatedAt
+}
+
+model NfeEmissao {
+  id            String   @id @default(cuid())
+  sale          Sale     @relation(fields: [saleId], references: [id])
+  saleId        String
+  ambiente      String
+  numero        Int
+  serie         String
+  status        String   @default("PROCESSANDO")
+  chaveAcesso   String?
+  xmlNfe        String?
+  xmlProtocolo  String?
+  motivoErro    String?
+  createdAt     DateTime @default(now())
 }
 
 model Supplier {

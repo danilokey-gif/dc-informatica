@@ -17,6 +17,11 @@ export async function updateSettings(formData: FormData) {
   const address = (formData.get('address') as string) || null
   const pixKey = (formData.get('pixKey') as string) || null
   const pixCity = (formData.get('pixCity') as string) || null
+  const inscricaoEstadual = (formData.get('inscricaoEstadual') as string) || null
+  const enderLogradouro = (formData.get('enderLogradouro') as string) || null
+  const enderNumero = (formData.get('enderNumero') as string) || null
+  const enderBairro = (formData.get('enderBairro') as string) || null
+  const enderCep = (formData.get('enderCep') as string) || null
   const removeLogo = formData.get('removeLogo') === '1'
   const logoFile = formData.get('logo') as File | null
 
@@ -38,8 +43,8 @@ export async function updateSettings(formData: FormData) {
 
   await prisma.companySettings.upsert({
     where: { id: 'main' },
-    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, logo: logo ?? undefined },
-    update: { name, document, phone, email, address, pixKey, pixCity, ...(logo !== undefined ? { logo } : {}) }
+    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined },
+    update: { name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}) }
   })
 
   revalidatePath('/', 'layout')
@@ -96,6 +101,56 @@ export async function updateNfseConfig(formData: FormData) {
   }
 
   await prisma.nfseConfig.upsert({
+    where: { id: 'main' },
+    create: { id: 'main', ...data },
+    update: data
+  })
+
+  revalidatePath('/configuracoes')
+  redirect('/configuracoes')
+}
+
+export async function updateNfeConfig(formData: FormData) {
+  const ambiente = (formData.get('ambiente') as string) || 'homologacao'
+  const crt = (formData.get('crt') as string) || '1'
+  const serie = (formData.get('serie') as string) || '2'
+  const cfopPadrao = (formData.get('cfopPadrao') as string) || '5102'
+  const removeCertificado = formData.get('removeCertificado') === '1'
+  const certFile = formData.get('certificado') as File | null
+  const certSenha = formData.get('certificadoSenha') as string
+
+  const data: {
+    ambiente: string
+    crt: string
+    serie: string
+    cfopPadrao: string
+    certificado?: string | null
+    certificadoSenha?: string | null
+    certificadoNome?: string | null
+  } = { ambiente, crt, serie, cfopPadrao }
+
+  if (removeCertificado) {
+    data.certificado = null
+    data.certificadoSenha = null
+    data.certificadoNome = null
+  } else if (certFile && certFile.size > 0) {
+    if (certFile.size > MAX_CERT_SIZE) {
+      throw new Error('Arquivo de certificado maior do que o esperado para um .pfx. Confira o arquivo enviado.')
+    }
+    if (!certSenha) {
+      throw new Error('Informe a senha do certificado para poder validá-lo.')
+    }
+    const buffer = Buffer.from(await certFile.arrayBuffer())
+    extractCertMaterial(buffer, certSenha)
+
+    data.certificado = buffer.toString('base64')
+    data.certificadoSenha = encryptSecret(certSenha)
+    data.certificadoNome = certFile.name
+  } else if (certSenha) {
+    data.certificadoSenha = encryptSecret(certSenha)
+  }
+
+  await prisma.nfeConfig.upsert({
     where: { id: 'main' },
     create: { id: 'main', ...data },
     update: data

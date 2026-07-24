@@ -1,5 +1,5 @@
-import { getCompanySettings, getNfseConfig } from "@/lib/settings"
-import { updateSettings, updateNfseConfig } from "./actions"
+import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
+import { updateSettings, updateNfseConfig, updateNfeConfig } from "./actions"
 import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 
@@ -20,8 +20,11 @@ function getCertificadoInfo(certificado: string | null, certificadoSenha: string
 export default async function ConfiguracoesPage() {
   const settings = await getCompanySettings()
   const nfseConfig = await getNfseConfig()
+  const nfeConfig = await getNfeConfig()
   const certInfo = getCertificadoInfo(nfseConfig.certificado, nfseConfig.certificadoSenha)
   const certVencendoLogo = certInfo?.valido && certInfo.validTo.getTime() - Date.now() < 1000 * 60 * 60 * 24 * 30
+  const certInfoNfe = getCertificadoInfo(nfeConfig.certificado, nfeConfig.certificadoSenha)
+  const certVencendoNfe = certInfoNfe?.valido && certInfoNfe.validTo.getTime() - Date.now() < 1000 * 60 * 60 * 24 * 30
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -55,6 +58,33 @@ export default async function ConfiguracoesPage() {
           <div className="input-group">
             <label className="input-label" htmlFor="address">Endereço</label>
             <input type="text" id="address" name="address" className="input-field" defaultValue={settings.address || ''} />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="inscricaoEstadual">Inscrição Estadual</label>
+            <input type="text" id="inscricaoEstadual" name="inscricaoEstadual" className="input-field" defaultValue={settings.inscricaoEstadual || ''} placeholder="Necessária para emitir NF-e de produtos" />
+          </div>
+
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
+              <label className="input-label" htmlFor="enderLogradouro">Logradouro</label>
+              <input type="text" id="enderLogradouro" name="enderLogradouro" className="input-field" defaultValue={settings.enderLogradouro || ''} />
+            </div>
+            <div className="input-group" style={{ flex: 1, minWidth: '100px' }}>
+              <label className="input-label" htmlFor="enderNumero">Número</label>
+              <input type="text" id="enderNumero" name="enderNumero" className="input-field" defaultValue={settings.enderNumero || ''} />
+            </div>
+          </div>
+
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
+              <label className="input-label" htmlFor="enderBairro">Bairro</label>
+              <input type="text" id="enderBairro" name="enderBairro" className="input-field" defaultValue={settings.enderBairro || ''} />
+            </div>
+            <div className="input-group" style={{ flex: 1, minWidth: '100px' }}>
+              <label className="input-label" htmlFor="enderCep">CEP</label>
+              <input type="text" id="enderCep" name="enderCep" className="input-field" defaultValue={settings.enderCep || ''} />
+            </div>
           </div>
 
           <div className="input-group">
@@ -184,6 +214,85 @@ export default async function ConfiguracoesPage() {
           <div style={{ marginTop: '2rem' }}>
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
               Salvar Configuração Fiscal
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="card">
+        <h3 className="mb-4">Nota Fiscal de Produtos (NF-e)</h3>
+        <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Emissão automática via Sefaz-SP. Exige certificado digital e-CNPJ (A1) e Inscrição Estadual preenchida acima.
+        </p>
+
+        {nfeConfig.certificadoNome && (
+          <div style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', backgroundColor: certInfoNfe?.valido ? 'var(--surface-hover)' : '#fef2f2', border: '1px solid var(--border)', fontSize: '0.875rem' }}>
+            {certInfoNfe?.valido ? (
+              <>
+                <strong>Certificado ativo:</strong> {nfeConfig.certificadoNome}
+                <br />
+                <span className={certVencendoNfe ? undefined : 'text-muted'} style={certVencendoNfe ? { color: '#b91c1c', fontWeight: 600 } : undefined}>
+                  Válido até {certInfoNfe.validTo.toLocaleDateString('pt-BR')}
+                  {certVencendoNfe && ' — vencendo em breve, providencie a renovação'}
+                </span>
+              </>
+            ) : (
+              <span style={{ color: '#b91c1c' }}>Não foi possível validar o certificado salvo ({nfeConfig.certificadoNome}). Envie o arquivo novamente.</span>
+            )}
+          </div>
+        )}
+
+        <form action={updateNfeConfig}>
+          <div className="input-group">
+            <label className="input-label" htmlFor="ambienteNfe">Ambiente</label>
+            <select id="ambienteNfe" name="ambiente" className="input-field" defaultValue={nfeConfig.ambiente}>
+              <option value="homologacao">Homologação (testes, sem valor fiscal)</option>
+              <option value="producao">Produção (notas reais)</option>
+            </select>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="crt">Regime Tributário (CRT) *</label>
+            <select id="crt" name="crt" className="input-field" defaultValue={nfeConfig.crt}>
+              <option value="1">Simples Nacional (inclui MEI)</option>
+              <option value="2">Simples Nacional - excesso de sublimite</option>
+              <option value="3">Regime Normal</option>
+            </select>
+          </div>
+
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
+              <label className="input-label" htmlFor="serie">Série da NF-e *</label>
+              <input type="text" id="serie" name="serie" className="input-field" defaultValue={nfeConfig.serie} />
+            </div>
+            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
+              <label className="input-label" htmlFor="cfopPadrao">CFOP Padrão *</label>
+              <input type="text" id="cfopPadrao" name="cfopPadrao" className="input-field" defaultValue={nfeConfig.cfopPadrao} placeholder="Ex: 5102" />
+            </div>
+          </div>
+
+          {nfeConfig.certificadoNome && (
+            <div className="input-group">
+              <label className="flex items-center gap-4" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <input type="checkbox" name="removeCertificado" value="1" />
+                Remover certificado atual
+              </label>
+            </div>
+          )}
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="certificadoNfe">Certificado Digital e-CNPJ (.pfx / .p12)</label>
+            <input type="file" id="certificadoNfe" name="certificado" accept=".pfx,.p12" className="input-field" />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="certificadoSenhaNfe">Senha do Certificado</label>
+            <input type="password" id="certificadoSenhaNfe" name="certificadoSenha" className="input-field" autoComplete="new-password" />
+          </div>
+
+          <div style={{ marginTop: '2rem' }}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+              Salvar Configuração da NF-e
             </button>
           </div>
         </form>

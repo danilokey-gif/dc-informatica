@@ -1,26 +1,33 @@
 import { prisma } from "@/lib/prisma"
-import { getCompanySettings } from "@/lib/settings"
+import { getCompanySettings, getNfeConfig } from "@/lib/settings"
 import { notFound } from "next/navigation"
 import PrintButton from "../../../os/[id]/imprimir/PrintButton"
 import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
 import { updateSaleInvoice } from "../../actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "../../../os/[id]/imprimir/CopyPixButton"
+import { emitirNfeVenda } from "./nfe-actions"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [venda, settings] = await Promise.all([
+  const [venda, settings, nfeConfig] = await Promise.all([
     prisma.sale.findUnique({
       where: { id },
-      include: { customer: true, items: { include: { product: true } } }
+      include: { customer: true, items: { include: { product: true } }, nfeEmissoes: { orderBy: { createdAt: 'desc' } } }
     }),
-    getCompanySettings()
+    getCompanySettings(),
+    getNfeConfig()
   ])
 
   if (!venda) {
     notFound()
   }
+
+  const nfeConfigurada = !!(nfeConfig.certificado && settings.inscricaoEstadual && settings.enderLogradouro && nfeConfig.codigoMunicipio)
+  const ultimaEmissaoNfe = venda.nfeEmissoes[0]
+  const nfeAutorizada = ultimaEmissaoNfe?.status === 'AUTORIZADA'
+  const emitirNfeAction = emitirNfeVenda.bind(null, venda.id)
 
   const numeroVenda = venda.id.slice(-6).toUpperCase()
   const totalFormatado = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -154,11 +161,44 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      {/* Nota Fiscal */}
+      {/* Emissão automática de NF-e */}
       <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Nota Fiscal</h3>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Nota Fiscal de Produtos (NF-e)</h3>
+
+        {!nfeConfigurada && (
+          <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
+            Configuração fiscal incompleta. Vá em Configurações {'>'} Nota Fiscal de Produtos e Dados da Empresa para cadastrar certificado, Inscrição Estadual e endereço.
+          </p>
+        )}
+
+        {ultimaEmissaoNfe && (
+          <div style={{ marginBottom: '1rem', fontSize: '0.875rem' }}>
+            <p style={{ margin: 0 }}>
+              <strong>Status:</strong>{' '}
+              {ultimaEmissaoNfe.status === 'AUTORIZADA' && <span style={{ color: '#16a34a' }}>Autorizada</span>}
+              {ultimaEmissaoNfe.status === 'REJEITADA' && <span style={{ color: '#b91c1c' }}>Rejeitada</span>}
+              {ultimaEmissaoNfe.status === 'PROCESSANDO' && <span>Processando</span>}
+              {' '}(NF-e nº {ultimaEmissaoNfe.numero}, série {ultimaEmissaoNfe.serie}, ambiente {ultimaEmissaoNfe.ambiente})
+            </p>
+            {ultimaEmissaoNfe.chaveAcesso && <p style={{ margin: '0.25rem 0 0 0' }}><strong>Chave de acesso:</strong> {ultimaEmissaoNfe.chaveAcesso}</p>}
+            {ultimaEmissaoNfe.motivoErro && <p style={{ margin: '0.25rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissaoNfe.motivoErro}</p>}
+          </div>
+        )}
+
+        {!nfeAutorizada && (
+          <form action={emitirNfeAction}>
+            <button type="submit" className="btn btn-primary" disabled={!nfeConfigurada}>
+              {ultimaEmissaoNfe?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NF-e'}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Nota Fiscal (registro manual) */}
+      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Registro Manual (NF-e/NFC-e emitida por fora)</h3>
         <p style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '1rem' }}>
-          Este recibo não tem valor fiscal. Emita a nota no portal do governo e registre o número aqui.
+          Se preferir emitir por outro emissor (ex: Sebrae), registre o número aqui.
         </p>
         <div className="flex gap-4 mb-4" style={{ flexWrap: 'wrap' }}>
           <a href="https://26408013848.emissornfe.sebrae.com.br" target="_blank" rel="noopener noreferrer" className="btn btn-outline">Emitir NF-e/NFC-e (Sebrae)</a>

@@ -51,6 +51,17 @@ export default function NovoProdutoPage() {
             <input type="number" step="1" min="0" id="minStockAlert" name="minStockAlert" className="input-field" defaultValue="0" />
           </div>
 
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
+              <label className="input-label" htmlFor="ncm">NCM (para NF-e)</label>
+              <input type="text" id="ncm" name="ncm" className="input-field" placeholder="8 dígitos, ex: 84733090" />
+            </div>
+            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
+              <label className="input-label" htmlFor="cfop">CFOP (para NF-e)</label>
+              <input type="text" id="cfop" name="cfop" className="input-field" placeholder="Deixe em branco p/ usar o padrão" />
+            </div>
+          </div>
+
           <div style={{ marginTop: '2rem' }}>
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
               Salvar Produto

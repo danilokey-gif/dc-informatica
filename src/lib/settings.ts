@@ -15,3 +15,10 @@ export async function getNfseConfig() {
 
   return prisma.nfseConfig.create({ data: { id: 'main' } })
 }
+
+export async function getNfeConfig() {
+  const config = await prisma.nfeConfig.findUnique({ where: { id: 'main' } })
+  if (config) return config
+
+  return prisma.nfeConfig.create({ data: { id: 'main' } })
+}

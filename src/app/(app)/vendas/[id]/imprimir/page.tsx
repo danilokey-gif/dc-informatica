@@ -204,12 +204,17 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
             </form>
           )}
           {nfeAutorizada && (
-            <form action={enviarNfeEmailAction}>
-              <button type="submit" className="btn btn-outline" disabled={!venda.customer?.email}>
-                ✉️ Enviar Nota por E-mail
-              </button>
-              {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
-            </form>
+            <>
+              <a href={`/vendas/${venda.id}/danfe`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                🖨️ Ver / Imprimir DANFE
+              </a>
+              <form action={enviarNfeEmailAction}>
+                <button type="submit" className="btn btn-outline" disabled={!venda.customer?.email}>
+                  ✉️ Enviar Nota por E-mail
+                </button>
+                {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+              </form>
+            </>
           )}
         </div>
       </div>

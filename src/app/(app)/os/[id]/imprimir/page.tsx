@@ -204,12 +204,17 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
             </form>
           )}
           {nfseAutorizada && (
-            <form action={enviarNfseEmailAction}>
-              <button type="submit" className="btn btn-outline" disabled={!os.customer.email}>
-                ✉️ Enviar Nota por E-mail
-              </button>
-              {!os.customer.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
-            </form>
+            <>
+              <a href={`/os/${os.id}/danfse`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                🖨️ Ver / Imprimir DANFSe
+              </a>
+              <form action={enviarNfseEmailAction}>
+                <button type="submit" className="btn btn-outline" disabled={!os.customer.email}>
+                  ✉️ Enviar Nota por E-mail
+                </button>
+                {!os.customer.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+              </form>
+            </>
           )}
         </div>
       </div>

@@ -22,6 +22,9 @@ export default async function NotasFiscaisPage() {
     }),
   ])
 
+  const hoje = new Date().toISOString().slice(0, 10)
+  const primeiroDiaMes = `${hoje.slice(0, 7)}-01`
+
   const nfseConfigurada = !!(nfseConfig.certificado && nfseConfig.codigoMunicipio && nfseConfig.codigoServico && nfseConfig.aliquotaIss !== null)
   const nfeConfigurada = !!(nfeConfig.certificado && empresa.inscricaoEstadual && empresa.enderLogradouro && nfeConfig.codigoMunicipio)
 
@@ -105,6 +108,24 @@ export default async function NotasFiscaisPage() {
           </p>
           <Link href="/configuracoes#nfe" className="btn btn-outline">Configurar NF-e</Link>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <h3 className="mb-4">⬇️ Baixar Notas do Período</h3>
+        <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Baixa um .zip com os XMLs de todas as NFS-e e NF-e autorizadas no período — útil para enviar ao contador ou guardar como arquivo pessoal.
+        </p>
+        <form action="/notas-fiscais/download" method="get" className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label" htmlFor="inicio">De</label>
+            <input type="date" id="inicio" name="inicio" className="input-field" defaultValue={primeiroDiaMes} required />
+          </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label" htmlFor="fim">Até</label>
+            <input type="date" id="fim" name="fim" className="input-field" defaultValue={hoje} required />
+          </div>
+          <button type="submit" className="btn btn-primary">Baixar .zip</button>
+        </form>
       </div>
 
       <div className="card">

@@ -380,6 +380,30 @@ h3 { font-size: 1.5rem; }
   .badge-warning { background: rgba(202, 138, 4, 0.2); color: #facc15; }
 }
 
+/* Campo de busca com sugestões (SearchableSelect) */
+.searchable-select-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-top: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+}
+.searchable-select-option {
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.searchable-select-option:hover {
+  background: var(--surface-hover);
+}
+
 /* Área para Impressão */
 @media print {
   body {

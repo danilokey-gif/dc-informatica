@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { updateTransaction, marcarComoPago, marcarComoPendente } from "../../actions"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import SearchableSelect from "@/components/SearchableSelect"
 
 export const dynamic = 'force-dynamic'
 
@@ -86,22 +87,24 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
 
           <div className="input-group">
             <label className="input-label" htmlFor="supplierId">Fornecedor</label>
-            <select id="supplierId" name="supplierId" className="input-field" defaultValue={transacao.supplierId || ''}>
-              <option value="">-</option>
-              {fornecedores.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="supplierId"
+              name="supplierId"
+              placeholder="-"
+              defaultValue={transacao.supplierId || ''}
+              options={fornecedores.map(f => ({ value: f.id, label: f.name }))}
+            />
           </div>
 
           <div className="input-group">
             <label className="input-label" htmlFor="customerId">Cliente</label>
-            <select id="customerId" name="customerId" className="input-field" defaultValue={transacao.customerId || ''}>
-              <option value="">-</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="customerId"
+              name="customerId"
+              placeholder="-"
+              defaultValue={transacao.customerId || ''}
+              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+            />
           </div>
 
           <div className="input-group">

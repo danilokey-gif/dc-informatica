@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { createTransaction } from "../../actions"
 import Link from "next/link"
+import SearchableSelect from "@/components/SearchableSelect"
 
 export const dynamic = 'force-dynamic'
 
@@ -57,22 +58,22 @@ export default async function NovoLancamentoPage() {
 
           <div className="input-group">
             <label className="input-label" htmlFor="supplierId">Fornecedor (opcional)</label>
-            <select id="supplierId" name="supplierId" className="input-field" defaultValue="">
-              <option value="">-</option>
-              {fornecedores.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="supplierId"
+              name="supplierId"
+              placeholder="-"
+              options={fornecedores.map(f => ({ value: f.id, label: f.name }))}
+            />
           </div>
 
           <div className="input-group">
             <label className="input-label" htmlFor="customerId">Cliente (opcional)</label>
-            <select id="customerId" name="customerId" className="input-field" defaultValue="">
-              <option value="">-</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="customerId"
+              name="customerId"
+              placeholder="-"
+              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+            />
           </div>
 
           <div className="input-group">

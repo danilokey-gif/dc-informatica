@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { updateOS } from "../actions"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import SearchableSelect from "@/components/SearchableSelect"
 
 export default async function EditarOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -46,11 +47,13 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
         <form action={updateAction}>
           <div className="input-group">
             <label className="input-label" htmlFor="customerId">Cliente *</label>
-            <select id="customerId" name="customerId" className="input-field" required defaultValue={os.customerId}>
-              {clientes.map(cliente => (
-                <option key={cliente.id} value={cliente.id}>{cliente.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="customerId"
+              name="customerId"
+              required
+              defaultValue={os.customerId}
+              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+            />
           </div>
 
           <div className="input-group">
@@ -70,12 +73,13 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
 
           <div className="input-group">
             <label className="input-label" htmlFor="technicianId">Técnico Responsável</label>
-            <select id="technicianId" name="technicianId" className="input-field" defaultValue={os.technicianId || ''}>
-              <option value="">Não atribuído</option>
-              {tecnicos.map(tecnico => (
-                <option key={tecnico.id} value={tecnico.id}>{tecnico.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="technicianId"
+              name="technicianId"
+              placeholder="Não atribuído"
+              defaultValue={os.technicianId || ''}
+              options={tecnicos.map(t => ({ value: t.id, label: t.name }))}
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

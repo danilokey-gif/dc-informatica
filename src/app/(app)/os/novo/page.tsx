@@ -1,6 +1,7 @@
 import { createOS } from "../actions"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
+import SearchableSelect from "@/components/SearchableSelect"
 
 export const dynamic = 'force-dynamic'
 
@@ -21,12 +22,13 @@ export default async function NovaOSPage() {
         <form action={createOS}>
           <div className="input-group">
             <label className="input-label" htmlFor="customerId">Cliente *</label>
-            <select id="customerId" name="customerId" className="input-field" required>
-              <option value="">Selecione um cliente...</option>
-              {clientes.map(cliente => (
-                <option key={cliente.id} value={cliente.id}>{cliente.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="customerId"
+              name="customerId"
+              required
+              placeholder="Digite o nome do cliente..."
+              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+            />
           </div>
 
           <div className="input-group">
@@ -41,12 +43,12 @@ export default async function NovaOSPage() {
 
           <div className="input-group">
             <label className="input-label" htmlFor="technicianId">Técnico Responsável</label>
-            <select id="technicianId" name="technicianId" className="input-field" defaultValue="">
-              <option value="">Não atribuído</option>
-              {tecnicos.map(tecnico => (
-                <option key={tecnico.id} value={tecnico.id}>{tecnico.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              id="technicianId"
+              name="technicianId"
+              placeholder="Não atribuído"
+              options={tecnicos.map(t => ({ value: t.id, label: t.name }))}
+            />
           </div>
 
           <div className="input-group">

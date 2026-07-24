@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createSale } from '../actions'
+import SearchableSelect from '@/components/SearchableSelect'
 
 interface Produto {
   id: string
@@ -71,19 +72,16 @@ export default function VendaForm({ produtos, clientes }: { produtos: Produto[];
         <div className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div className="input-group" style={{ flex: 1, minWidth: '250px', marginBottom: 0 }}>
             <label className="input-label" htmlFor="produtoSelect">Produto</label>
-            <select
+            <SearchableSelect
               id="produtoSelect"
-              className="input-field"
               value={selectedProductId}
-              onChange={e => setSelectedProductId(e.target.value)}
-            >
-              <option value="">Selecione um produto...</option>
-              {produtos.map(produto => (
-                <option key={produto.id} value={produto.id}>
-                  {produto.name} — {produto.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (estoque: {produto.stockQty})
-                </option>
-              ))}
-            </select>
+              onValueChange={setSelectedProductId}
+              placeholder="Digite o nome do produto..."
+              options={produtos.map(produto => ({
+                value: produto.id,
+                label: `${produto.name} — ${produto.salePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (estoque: ${produto.stockQty})`,
+              }))}
+            />
           </div>
           <div className="input-group" style={{ width: '120px', marginBottom: 0 }}>
             <label className="input-label" htmlFor="quantidade">Qtd.</label>
@@ -151,12 +149,12 @@ export default function VendaForm({ produtos, clientes }: { produtos: Produto[];
         <h3 className="mb-4">Finalizar Venda</h3>
         <div className="input-group">
           <label className="input-label" htmlFor="customerId">Cliente (opcional)</label>
-          <select id="customerId" name="customerId" className="input-field" defaultValue="">
-            <option value="">Cliente não identificado</option>
-            {clientes.map(cliente => (
-              <option key={cliente.id} value={cliente.id}>{cliente.name}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            id="customerId"
+            name="customerId"
+            placeholder="Cliente não identificado"
+            options={clientes.map(c => ({ value: c.id, label: c.name }))}
+          />
         </div>
 
         <div className="input-group">

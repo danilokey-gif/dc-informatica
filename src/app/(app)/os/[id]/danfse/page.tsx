@@ -6,19 +6,28 @@ import PrintButton from "../imprimir/PrintButton"
 
 export const dynamic = 'force-dynamic'
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function Field({ label, value, flex = 1 }: { label: string; value?: React.ReactNode; flex?: number }) {
   return (
-    <div style={{ backgroundColor: '#e8e8e8', border: '1px solid #333', borderTop: 'none', padding: '0.1rem 0.4rem', fontSize: '0.62rem', fontWeight: 'bold', marginTop: '0.1rem' }}>
+    <div style={{ flex, padding: '0.06rem 0.4rem', minWidth: 0 }}>
+      <div style={{ fontWeight: 'bold' }}>{label}</div>
+      <div>{value || '-'}</div>
+    </div>
+  )
+}
+
+function FieldRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', borderBottom: '1px solid #000' }}>
       {children}
     </div>
   )
 }
 
-function Campo({ label, value }: { label: string; value: React.ReactNode }) {
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div style={{ display: 'flex', gap: '0.5rem', padding: '0.06rem 0.4rem', borderBottom: '1px solid #ddd', borderLeft: '1px solid #333', borderRight: '1px solid #333' }}>
-      <span style={{ fontWeight: 'bold', minWidth: '185px', flexShrink: 0 }}>{label}:</span>
-      <span>{value || '-'}</span>
+    <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '0.08rem 0.4rem', fontWeight: 'bold' }}>
+      {title}
+      {subtitle && <div style={{ fontWeight: 'normal' }}>{subtitle}</div>}
     </div>
   )
 }
@@ -56,13 +65,12 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
       ? 'Optante - Simples Nacional (ME/EPP)'
       : 'Não Optante'
   const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
-  // O governo atribui um número de NFS-e próprio (nNFSe), diferente do número da DPS que enviamos.
   const numeroNfse = emissao.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || emissao.numeroDps
   const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
   const codigoServicoFormatado = `${nfseConfig.codigoServico?.replace(/(\d{2})(\d{2})(\d{2})/, '$1.$2.$3')}${nfseConfig.descricaoCodServico ? ` - ${nfseConfig.descricaoCodServico}` : ''}`
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.6rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.58rem', lineHeight: 1.15 }}>
+    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.4rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.56rem', lineHeight: 1.15, border: '1px solid #000' }}>
       <style>{`
         @media print {
           @page { size: A4; margin: 10mm; }
@@ -71,17 +79,17 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
       `}</style>
 
       {emissao.ambiente !== 'producao' && (
-        <div style={{ textAlign: 'center', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', padding: '0.25rem', marginBottom: '0.35rem', border: '1px solid #991b1b', fontSize: '0.6rem' }}>
+        <div style={{ textAlign: 'center', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', padding: '0.25rem', border: '1px solid #991b1b', fontSize: '0.6rem' }}>
           NFS-e EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL
         </div>
       )}
 
       {/* Cabeçalho */}
-      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #333', padding: '0.3rem', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #000', padding: '0.3rem 0.4rem', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '28%' }}>
           {empresa.logo && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={empresa.logo} alt={empresa.name} style={{ height: '24px', width: '24px', objectFit: 'contain', flexShrink: 0 }} />
+            <img src={empresa.logo} alt={empresa.name} style={{ height: '26px', width: '26px', objectFit: 'contain', flexShrink: 0 }} />
           )}
           <span style={{ fontSize: '0.56rem', fontWeight: 'bold', lineHeight: 1.15 }}>NFSe<br /><span style={{ fontWeight: 'normal', fontSize: '0.46rem' }}>Nota Fiscal de Serviço eletrônica</span></span>
         </div>
@@ -94,81 +102,113 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      {/* Identificação + QR */}
-      <div style={{ display: 'flex' }}>
-        <div style={{ flex: 1 }}>
-          <Campo label="Chave de Acesso da NFS-e" value={<span style={{ fontFamily: 'monospace' }}>{emissao.chaveAcesso}</span>} />
-          <Campo label="Número da NFS-e" value={numeroNfse} />
-          <Campo label="Competência da NFS-e" value={emissao.createdAt.toLocaleDateString('pt-BR')} />
-          <Campo label="Data e Hora da emissão da NFS-e" value={emissao.createdAt.toLocaleString('pt-BR')} />
-          <Campo label="Número da DPS" value={emissao.numeroDps} />
-          <Campo label="Série da DPS" value={emissao.serieDps} />
-          <Campo label="Data e Hora da emissão da DPS" value={emissao.createdAt.toLocaleString('pt-BR')} />
+      {/* Chave de acesso + QR */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #000' }}>
+        <div style={{ flex: 1, padding: '0.12rem 0.4rem' }}>
+          <div style={{ fontWeight: 'bold' }}>Chave de Acesso da NFS-e</div>
+          <div style={{ fontFamily: 'monospace' }}>{emissao.chaveAcesso}</div>
         </div>
-        <div style={{ width: '85px', flexShrink: 0, border: '1px solid #333', borderLeft: 'none', padding: '0.15rem', textAlign: 'center', boxSizing: 'border-box' }}>
+        <div style={{ width: '78px', flexShrink: 0, padding: '0.15rem', textAlign: 'center', boxSizing: 'border-box', borderLeft: '1px solid #000' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrCodeDataUrl} alt="QR Code" style={{ width: '60px', height: '60px', maxWidth: '100%' }} />
-          <p style={{ fontSize: '0.36rem', margin: '0.1rem 0 0 0', lineHeight: 1.1 }}>Autenticidade verificável pela leitura deste QR ou pela chave no portal nacional da NFS-e</p>
+          <img src={qrCodeDataUrl} alt="QR Code" style={{ width: '56px', height: '56px', maxWidth: '100%' }} />
         </div>
       </div>
+      <FieldRow>
+        <Field label="Número da NFS-e" value={numeroNfse} />
+        <Field label="Competência da NFS-e" value={emissao.createdAt.toLocaleDateString('pt-BR')} />
+        <Field label="Data e Hora da emissão da NFS-e" value={emissao.createdAt.toLocaleString('pt-BR')} />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Número da DPS" value={emissao.numeroDps} />
+        <Field label="Série da DPS" value={emissao.serieDps} />
+        <Field label="Data e Hora da emissão da DPS" value={emissao.createdAt.toLocaleString('pt-BR')} />
+      </FieldRow>
 
       {/* Emitente */}
-      <SectionTitle>EMITENTE DA NFS-e — Prestador do Serviço</SectionTitle>
-      <Campo label="CNPJ / CPF / NIF" value={empresa.document} />
-      <Campo label="Inscrição Municipal" value={null} />
-      <Campo label="Telefone" value={empresa.phone} />
-      <Campo label="Nome / Nome Empresarial" value={empresa.name} />
-      <Campo label="E-mail" value={empresa.email} />
-      <Campo label="Endereço" value={enderecoPrestador} />
-      <Campo label="Município" value={municipioLabel} />
-      <Campo label="CEP" value={empresa.enderCep} />
-      <Campo label="Simples Nacional na Data de Competência" value={simplesLabel} />
-      <Campo label="Regime de Apuração Tributária pelo SN" value={ehMei ? null : (nfseConfig.regimeTributario === 'SIMPLES' ? 'Regime de apuração dos tributos federais e SN' : null)} />
+      <SectionHeader title="EMITENTE DA NFS-e" subtitle="Prestador do Serviço" />
+      <FieldRow>
+        <Field label="CNPJ / CPF / NIF" value={empresa.document} />
+        <Field label="Inscrição Municipal" value={null} />
+        <Field label="Telefone" value={empresa.phone} />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Nome / Nome Empresarial" value={empresa.name} flex={2} />
+        <Field label="E-mail" value={empresa.email} flex={2} />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Endereço" value={enderecoPrestador} flex={2} />
+        <Field label="Município" value={municipioLabel} />
+        <Field label="CEP" value={empresa.enderCep} />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Simples Nacional na Data de Competência" value={simplesLabel} flex={2} />
+        <Field label="Regime de Apuração Tributária pelo SN" value={ehMei ? null : (nfseConfig.regimeTributario === 'SIMPLES' ? 'Regime de apuração dos tributos federais e SN' : null)} flex={2} />
+      </FieldRow>
 
       {/* Tomador */}
-      <SectionTitle>TOMADOR DO SERVIÇO</SectionTitle>
-      <Campo label="CNPJ / CPF / NIF" value={os.customer.document} />
-      <Campo label="Inscrição Municipal" value={null} />
-      <Campo label="Telefone" value={os.customer.phone} />
-      <Campo label="Nome / Nome Empresarial" value={os.customer.name} />
-      <Campo label="E-mail" value={os.customer.email} />
-      <Campo label="Endereço" value={os.customer.address} />
-      <Campo label="Município" value={municipioLabel} />
-      <Campo label="CEP" value={null} />
+      <SectionHeader title="TOMADOR DO SERVIÇO" />
+      <FieldRow>
+        <Field label="CNPJ / CPF / NIF" value={os.customer.document} />
+        <Field label="Inscrição Municipal" value={null} />
+        <Field label="Telefone" value={os.customer.phone} />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Nome / Nome Empresarial" value={os.customer.name} flex={2} />
+        <Field label="E-mail" value={os.customer.email} flex={2} />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Endereço" value={os.customer.address} flex={2} />
+        <Field label="Município" value={municipioLabel} />
+        <Field label="CEP" value={null} />
+      </FieldRow>
 
-      <SectionTitle>INTERMEDIÁRIO DO SERVIÇO NÃO IDENTIFICADO NA NFS-e</SectionTitle>
+      <div style={{ borderBottom: '1px solid #000', padding: '0.08rem 0.4rem', fontWeight: 'bold' }}>
+        INTERMEDIÁRIO DO SERVIÇO NÃO IDENTIFICADO NA NFS-e
+      </div>
 
       {/* Serviço */}
-      <SectionTitle>SERVIÇO PRESTADO</SectionTitle>
-      <Campo label="Código de Tributação Nacional" value={codigoServicoFormatado} />
-      <Campo label="Local da Prestação" value={municipioLabel} />
-      <Campo label="País da Prestação" value="Brasil" />
-      <Campo label="Descrição do Serviço" value={`${os.device} — ${os.issue}`} />
+      <SectionHeader title="SERVIÇO PRESTADO" />
+      <FieldRow>
+        <Field label="Código de Tributação Nacional" value={codigoServicoFormatado} flex={2} />
+        <Field label="Local da Prestação" value={municipioLabel} />
+        <Field label="País da Prestação" value="Brasil" />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Descrição do Serviço" value={`${os.device} — ${os.issue}`} flex={4} />
+      </FieldRow>
 
       {/* Tributação Municipal */}
-      <SectionTitle>TRIBUTAÇÃO MUNICIPAL</SectionTitle>
-      <Campo label="Tributação do ISSQN" value="Operação Tributável" />
-      <Campo label="Município de Incidência do ISSQN" value={municipioLabel} />
-      <Campo label="Regime Especial de Tributação" value="Nenhum" />
-      <Campo label="Suspensão da Exigibilidade do ISSQN" value="Não" />
-      <Campo label="Valor do Serviço" value={valorFormatado} />
-      <Campo label="BC ISSQN" value={ehMei ? null : valorFormatado} />
-      <Campo label="Alíquota Aplicada" value={ehMei ? null : `${nfseConfig.aliquotaIss}%`} />
-      <Campo label="Retenção do ISSQN" value="Não Retido" />
+      <SectionHeader title="TRIBUTAÇÃO MUNICIPAL" />
+      <FieldRow>
+        <Field label="Tributação do ISSQN" value="Operação Tributável" />
+        <Field label="Município de Incidência do ISSQN" value={municipioLabel} />
+        <Field label="Regime Especial de Tributação" value="Nenhum" />
+        <Field label="Suspensão da Exigibilidade do ISSQN" value="Não" />
+      </FieldRow>
+      <FieldRow>
+        <Field label="Valor do Serviço" value={valorFormatado} />
+        <Field label="BC ISSQN" value={ehMei ? null : valorFormatado} />
+        <Field label="Alíquota Aplicada" value={ehMei ? null : `${nfseConfig.aliquotaIss}%`} />
+        <Field label="Retenção do ISSQN" value="Não Retido" />
+      </FieldRow>
 
       {/* Tributação Federal */}
-      <SectionTitle>TRIBUTAÇÃO FEDERAL</SectionTitle>
-      <Campo label="IRRF" value={null} />
-      <Campo label="Contribuição Previdenciária - Retida" value={null} />
-      <Campo label="Contribuições Sociais - Retidas" value={null} />
-      <Campo label="PIS/COFINS - Débito Apuração Própria" value={null} />
+      <SectionHeader title="TRIBUTAÇÃO FEDERAL" />
+      <FieldRow>
+        <Field label="IRRF" value={null} />
+        <Field label="Contribuição Previdenciária - Retida" value={null} />
+        <Field label="Contribuições Sociais - Retidas" value={null} />
+        <Field label="PIS/COFINS - Débito Apuração Própria" value={null} />
+      </FieldRow>
 
       {/* Valor total */}
-      <SectionTitle>VALOR TOTAL DA NFS-E</SectionTitle>
-      <Campo label="Valor do Serviço" value={valorFormatado} />
-      <Campo label="Descontos" value={null} />
-      <Campo label="ISSQN Retido" value={null} />
-      <Campo label="Valor Líquido da NFS-e" value={valorFormatado} />
+      <SectionHeader title="VALOR TOTAL DA NFS-E" />
+      <FieldRow>
+        <Field label="Valor do Serviço" value={valorFormatado} />
+        <Field label="Descontos" value={null} />
+        <Field label="ISSQN Retido" value={null} />
+        <Field label="Valor Líquido da NFS-e" value={valorFormatado} />
+      </FieldRow>
 
       <div className="no-print" style={{ marginTop: '1.5rem', textAlign: 'center' }}>
         <PrintButton />

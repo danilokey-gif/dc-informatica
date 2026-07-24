@@ -167,14 +167,25 @@ export default async function ConfiguracoesPage() {
             </select>
           </div>
 
-          <div className="input-group">
-            <label className="input-label" htmlFor="codigoMunicipio">Código IBGE do Município *</label>
-            <input type="text" id="codigoMunicipio" name="codigoMunicipio" className="input-field" defaultValue={nfseConfig.codigoMunicipio || ''} placeholder="Ex: 3550308 (São Paulo)" />
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
+              <label className="input-label" htmlFor="codigoMunicipio">Código IBGE do Município *</label>
+              <input type="text" id="codigoMunicipio" name="codigoMunicipio" className="input-field" defaultValue={nfseConfig.codigoMunicipio || ''} placeholder="Ex: 3550308 (São Paulo)" />
+            </div>
+            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
+              <label className="input-label" htmlFor="nomeMunicipio">Nome do Município *</label>
+              <input type="text" id="nomeMunicipio" name="nomeMunicipio" className="input-field" defaultValue={nfseConfig.nomeMunicipio || ''} placeholder="Ex: São Paulo" />
+            </div>
           </div>
 
           <div className="input-group">
             <label className="input-label" htmlFor="codigoServico">Código de Tributação Nacional do Serviço *</label>
             <input type="text" id="codigoServico" name="codigoServico" className="input-field" defaultValue={nfseConfig.codigoServico || ''} placeholder="6 dígitos, ex: 010901" />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="descricaoCodServico">Descrição do Código de Tributação</label>
+            <input type="text" id="descricaoCodServico" name="descricaoCodServico" className="input-field" defaultValue={nfseConfig.descricaoCodServico || ''} placeholder="Texto que aparece na nota junto ao código" />
           </div>
 
           <div className="input-group">

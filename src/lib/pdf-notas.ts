@@ -15,32 +15,41 @@ function formatarChave(chave: string) {
   return chave.match(/.{1,4}/g)?.join(' ') || chave
 }
 
-const REGIME_LABEL: Record<string, string> = {
-  MEI: 'MEI — Microempreendedor Individual (Optante do Simples Nacional)',
-  SIMPLES: 'Simples Nacional (ME/EPP)',
-  NORMAL: 'Regime Normal (não optante pelo Simples Nacional)',
+const SIMPLES_LABEL: Record<string, string> = {
+  MEI: 'Optante - Microempreendedor Individual (MEI)',
+  SIMPLES: 'Optante - Simples Nacional (ME/EPP)',
+  NORMAL: 'Não Optante',
 }
 
 export interface DanfsePdfInput {
   ambiente: string
+  numeroNfse: string | number
   numeroDps: number
   serieDps: string
   chaveAcesso: string
   dataEmissao: Date
   prestadorNome: string
   prestadorCnpj: string
+  prestadorTelefone?: string | null
+  prestadorEmail?: string | null
   prestadorEndereco?: string | null
+  prestadorCep?: string | null
   tomadorNome: string
   tomadorDocumento?: string | null
+  tomadorTelefone?: string | null
+  tomadorEmail?: string | null
+  tomadorEndereco?: string | null
   descricaoServico: string
   codigoServico?: string | null
-  codigoMunicipio: string
+  descricaoCodServico?: string | null
+  municipioLabel: string
   regimeTributario: string
   aliquotaIss?: number | null
   valorTotal: string
 }
 
-/** Layout padrão nacional do DANFSe (Sistema Nacional NFS-e), com QR Code de consulta pública. */
+/** Layout do DANFSe seguindo o modelo padrão nacional (blocos e ordem dos campos conferidos
+ * contra uma NFS-e real emitida pelo portal do governo), com QR Code de consulta pública. */
 export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 40 })
   const bufferPromise = coletarBuffer(doc)
@@ -56,45 +65,137 @@ export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
     doc.moveDown(2)
   }
 
-  doc.fillColor('black').fontSize(16).font('Helvetica-Bold').text('DANFSe', { align: 'center' })
-  doc.fontSize(9).font('Helvetica').text('Documento Auxiliar da Nota Fiscal de Serviço Eletrônica', { align: 'center' })
-  doc.fontSize(8).fillColor('gray').text(`Código de Verificação: ${input.chaveAcesso.slice(-9)}`, { align: 'center' })
-  doc.fillColor('black')
-  doc.moveDown(1)
-
-  doc.fontSize(10).font('Helvetica-Bold').text(`Número da NFS-e: ${input.numeroDps}   Série: ${input.serieDps}   Emissão: ${input.dataEmissao.toLocaleString('pt-BR')}`)
-  doc.moveDown(0.7)
-
-  doc.font('Helvetica-Bold').text('Prestador de Serviços')
-  doc.font('Helvetica').text(`${input.prestadorNome} — CNPJ: ${input.prestadorCnpj}`)
-  if (input.prestadorEndereco) doc.text(input.prestadorEndereco)
+  doc.fillColor('black').fontSize(16).font('Helvetica-Bold').text('DANFSe v1.0', { align: 'center' })
+  doc.fontSize(9).font('Helvetica').text('Documento Auxiliar da NFS-e', { align: 'center' })
   doc.moveDown(0.5)
 
-  doc.font('Helvetica-Bold').text('Tomador de Serviços')
-  doc.font('Helvetica').text(`${input.tomadorNome}${input.tomadorDocumento ? ` — Documento: ${input.tomadorDocumento}` : ''}`)
+  doc.fontSize(8).font('Helvetica-Bold').text('Chave de Acesso da NFS-e')
+  doc.font('Courier').fontSize(9).text(input.chaveAcesso)
+  doc.moveDown(0.4)
+
+  // Mede a altura de verdade do texto (em vez de "moveDown" com valor fixo) pra não
+  // desalinhar quando um campo quebra em mais de uma linha (ex: endereço longo).
+  function alturaMaxima(textos: string[], largura: number, font: string, size: number) {
+    doc.font(font).fontSize(size)
+    return Math.max(...textos.map(t => doc.heightOfString(t, { width: largura - 5 })))
+  }
+
+  function linhaCampos(campos: [string, string | number | null | undefined][]) {
+    const largura = (doc.page.width - 80) / campos.length
+    const labels = campos.map(c => c[0])
+    const valores = campos.map(c => String(c[1] ?? '-'))
+    const alturaLabels = alturaMaxima(labels, largura, 'Helvetica-Bold', 8)
+    const alturaValores = alturaMaxima(valores, largura, 'Helvetica', 9)
+    const alturaTotal = alturaLabels + alturaValores + 14
+
+    if (doc.y + alturaTotal > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage()
+    }
+
+    doc.font('Helvetica-Bold').fontSize(8)
+    const y = doc.y
+    labels.forEach((label, i) => doc.text(label, 40 + i * largura, y, { width: largura - 5 }))
+    doc.y = y + alturaLabels + 2
+
+    doc.font('Helvetica').fontSize(9)
+    const y2 = doc.y
+    valores.forEach((value, i) => doc.text(value, 40 + i * largura, y2, { width: largura - 5 }))
+    doc.y = y2 + alturaValores + 8
+  }
+
+  function tituloSecao(texto: string) {
+    if (doc.y + 24 > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage()
+    }
+    doc.moveDown(0.3)
+    doc.rect(40, doc.y, doc.page.width - 80, 16).fill('#e8e8e8')
+    doc.fillColor('black').font('Helvetica-Bold').fontSize(8).text(texto, 45, doc.y + 4)
+    doc.y += 20
+  }
+
+  linhaCampos([
+    ['Número da NFS-e', input.numeroNfse],
+    ['Competência da NFS-e', input.dataEmissao.toLocaleDateString('pt-BR')],
+    ['Data e Hora da emissão da NFS-e', input.dataEmissao.toLocaleString('pt-BR')],
+  ])
+  linhaCampos([
+    ['Número da DPS', input.numeroDps],
+    ['Série da DPS', input.serieDps],
+    ['Data e Hora da emissão da DPS', input.dataEmissao.toLocaleString('pt-BR')],
+  ])
+
+  tituloSecao('EMITENTE DA NFS-e — Prestador do Serviço')
+  linhaCampos([
+    ['CNPJ / CPF / NIF', input.prestadorCnpj],
+    ['Inscrição Municipal', null],
+    ['Telefone', input.prestadorTelefone],
+  ])
+  linhaCampos([
+    ['Nome / Nome Empresarial', input.prestadorNome],
+    ['E-mail', input.prestadorEmail],
+  ])
+  linhaCampos([
+    ['Endereço', input.prestadorEndereco],
+    ['Município', input.municipioLabel],
+    ['CEP', input.prestadorCep],
+  ])
+  linhaCampos([
+    ['Simples Nacional na Data de Competência', SIMPLES_LABEL[input.regimeTributario] || input.regimeTributario],
+    ['Regime de Apuração Tributária pelo SN', null],
+  ])
+
+  tituloSecao('TOMADOR DO SERVIÇO')
+  linhaCampos([
+    ['CNPJ / CPF / NIF', input.tomadorDocumento],
+    ['Inscrição Municipal', null],
+    ['Telefone', input.tomadorTelefone],
+  ])
+  linhaCampos([
+    ['Nome / Nome Empresarial', input.tomadorNome],
+    ['E-mail', input.tomadorEmail],
+  ])
+  linhaCampos([
+    ['Endereço', input.tomadorEndereco],
+    ['Município', input.municipioLabel],
+    ['CEP', null],
+  ])
+
+  tituloSecao('SERVIÇO PRESTADO')
+  linhaCampos([
+    ['Código de Tributação Nacional', `${input.codigoServico || '-'}${input.descricaoCodServico ? ` - ${input.descricaoCodServico}` : ''}`],
+  ])
+  linhaCampos([
+    ['Descrição do Serviço', input.descricaoServico],
+  ])
+
+  tituloSecao('TRIBUTAÇÃO MUNICIPAL')
+  linhaCampos([
+    ['Tributação do ISSQN', 'Operação Tributável'],
+    ['Município de Incidência do ISSQN', input.municipioLabel],
+    ['Regime Especial de Tributação', 'Nenhum'],
+  ])
+  linhaCampos([
+    ['Valor do Serviço', input.valorTotal],
+    ['Alíquota Aplicada', ehMei ? 'Não se aplica (MEI)' : `${input.aliquotaIss ?? '-'}%`],
+    ['Retenção do ISSQN', 'Não Retido'],
+  ])
+
+  tituloSecao('VALOR TOTAL DA NFS-E')
+  linhaCampos([
+    ['Valor do Serviço', input.valorTotal],
+    ['ISSQN Retido', null],
+    ['Valor Líquido da NFS-e', input.valorTotal],
+  ])
+
+  if (doc.y + 130 > doc.page.height - doc.page.margins.bottom) {
+    doc.addPage()
+  }
   doc.moveDown(0.5)
-
-  doc.font('Helvetica-Bold').text('Serviço Prestado')
-  doc.font('Helvetica').text(`Código de Tributação Nacional: ${input.codigoServico || '-'}`)
-  doc.text(input.descricaoServico)
-  doc.moveDown(0.5)
-
-  doc.font('Helvetica-Bold').text('Valores')
-  doc.font('Helvetica').text(`Valor do Serviço: ${input.valorTotal}   Alíquota ISS: ${ehMei ? 'Não se aplica (MEI)' : `${input.aliquotaIss ?? '-'}%`}   Valor Líquido: ${input.valorTotal}`)
-  doc.moveDown(0.5)
-
-  doc.font('Helvetica-Bold').text('Tributação Municipal')
-  doc.font('Helvetica').text(`Município da Prestação (Cód. IBGE): ${input.codigoMunicipio}`)
-  doc.text(`Regime de Tributação: ${REGIME_LABEL[input.regimeTributario] || input.regimeTributario}`)
-  doc.moveDown(1)
-
-  doc.font('Helvetica-Bold').fontSize(10).text('Consulta Pública / Autenticidade', { align: 'center' })
-  const qrSize = 100
+  doc.font('Helvetica-Bold').fontSize(9).text('Consulta Pública / Autenticidade', { align: 'center' })
+  const qrSize = 90
   const qrY = doc.y + 5
   doc.image(qrCode, (doc.page.width - qrSize) / 2, qrY, { width: qrSize, height: qrSize })
-  doc.y = qrY + qrSize + 10
-  doc.font('Courier').fontSize(10).text(formatarChave(input.chaveAcesso), { align: 'center' })
-  doc.moveDown(0.3)
+  doc.y = qrY + qrSize + 8
   doc.fontSize(8).fillColor('gray').text('Escaneie o QR Code (ou copie a chave acima) e cole em www.nfse.gov.br/consultapublica para validar esta nota.', { align: 'center' })
 
   doc.end()

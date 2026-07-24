@@ -114,7 +114,9 @@ model NfseConfig {
   ambiente         String   @default("homologacao")
   regimeTributario String   @default("MEI") // MEI | SIMPLES | NORMAL
   codigoMunicipio  String?
+  nomeMunicipio    String?
   codigoServico    String?
+  descricaoCodServico String?
   cnae             String?
   aliquotaIss      Float?
   certificado      String?

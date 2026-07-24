@@ -55,7 +55,9 @@ export async function updateNfseConfig(formData: FormData) {
   const ambiente = (formData.get('ambiente') as string) || 'homologacao'
   const regimeTributario = (formData.get('regimeTributario') as string) || 'MEI'
   const codigoMunicipio = (formData.get('codigoMunicipio') as string) || null
+  const nomeMunicipio = (formData.get('nomeMunicipio') as string) || null
   const codigoServico = (formData.get('codigoServico') as string) || null
+  const descricaoCodServico = (formData.get('descricaoCodServico') as string) || null
   const cnae = (formData.get('cnae') as string) || null
   const aliquotaIssRaw = formData.get('aliquotaIss') as string
   const aliquotaIss = aliquotaIssRaw ? parseFloat(aliquotaIssRaw) : null
@@ -68,14 +70,16 @@ export async function updateNfseConfig(formData: FormData) {
     ambiente: string
     regimeTributario: string
     codigoMunicipio: string | null
+    nomeMunicipio: string | null
     codigoServico: string | null
+    descricaoCodServico: string | null
     cnae: string | null
     aliquotaIss: number | null
     serieDps: string
     certificado?: string | null
     certificadoSenha?: string | null
     certificadoNome?: string | null
-  } = { ambiente, regimeTributario, codigoMunicipio, codigoServico, cnae, aliquotaIss, serieDps }
+  } = { ambiente, regimeTributario, codigoMunicipio, nomeMunicipio, codigoServico, descricaoCodServico, cnae, aliquotaIss, serieDps }
 
   if (removeCertificado) {
     data.certificado = null

@@ -48,20 +48,31 @@ export async function GET(request: NextRequest) {
     if (e.xmlNfse) zip.file(`NFSe/${nomeBase}.xml`, e.xmlNfse)
 
     const os = e.serviceOrder
+    const numeroNfse = e.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || e.numeroDps
+    const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
+    const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
     const pdf = await gerarPdfDanfse({
       ambiente: e.ambiente,
+      numeroNfse,
       numeroDps: e.numeroDps,
       serieDps: e.serieDps,
       chaveAcesso: e.chaveAcesso || '',
       dataEmissao: e.createdAt,
       prestadorNome: empresa.name,
       prestadorCnpj: empresa.document || '',
-      prestadorEndereco: empresa.address,
+      prestadorTelefone: empresa.phone,
+      prestadorEmail: empresa.email,
+      prestadorEndereco: enderecoPrestador,
+      prestadorCep: empresa.enderCep,
       tomadorNome: os.customer.name,
       tomadorDocumento: os.customer.document,
+      tomadorTelefone: os.customer.phone,
+      tomadorEmail: os.customer.email,
+      tomadorEndereco: os.customer.address,
       descricaoServico: `${os.device} — ${os.issue}`,
       codigoServico: nfseConfig.codigoServico,
-      codigoMunicipio: nfseConfig.codigoMunicipio || '',
+      descricaoCodServico: nfseConfig.descricaoCodServico,
+      municipioLabel,
       regimeTributario: nfseConfig.regimeTributario,
       aliquotaIss: nfseConfig.aliquotaIss,
       valorTotal: (os.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),

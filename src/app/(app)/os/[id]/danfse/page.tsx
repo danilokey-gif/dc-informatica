@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 function Field({ label, value, flex = 1 }: { label: string; value?: React.ReactNode; flex?: number }) {
   return (
-    <div style={{ flex, padding: '0.07rem 0.4rem', minWidth: 0 }}>
+    <div style={{ flex, padding: '0.06rem 0.4rem', minWidth: 0 }}>
       <div style={{ fontWeight: 'bold' }}>{label}</div>
       <div>{value || '-'}</div>
     </div>
@@ -25,24 +25,10 @@ function FieldRow({ children }: { children: React.ReactNode }) {
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '0.1rem 0.4rem', fontWeight: 'bold' }}>
+    <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '0.08rem 0.4rem', fontWeight: 'bold' }}>
       {title}
       {subtitle && <div style={{ fontWeight: 'normal' }}>{subtitle}</div>}
     </div>
-  )
-}
-
-function NfseLogo({ height = 30 }: { height?: number }) {
-  return (
-    <svg viewBox="0 0 300 100" style={{ height, width: 'auto', flexShrink: 0 }}>
-      <text x="0" y="72" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="80" fill="#4f9c5c">N</text>
-      <path d="M30 18 L46 18 L46 34 L30 34 Z" fill="#f4c430" />
-      <path d="M30 18 A16 16 0 0 1 46 34 L30 34 Z" fill="#2d4373" />
-      <text x="62" y="72" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="80" fill="#5aab66">F</text>
-      <text x="122" y="72" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="80" fill="#7ec488">S</text>
-      <text x="184" y="80" fontFamily="Arial, sans-serif" fontWeight="900" fontSize="58" fill="#2d4373">e</text>
-      <text x="0" y="94" fontFamily="Arial, sans-serif" fontSize="15" fill="#6b7280">Nota Fiscal de Serviço eletrônica</text>
-    </svg>
   )
 }
 
@@ -84,7 +70,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
   const codigoServicoFormatado = `${nfseConfig.codigoServico?.replace(/(\d{2})(\d{2})(\d{2})/, '$1.$2.$3')}${nfseConfig.descricaoCodServico ? ` - ${nfseConfig.descricaoCodServico}` : ''}`
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.4rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.58rem', lineHeight: 1.15, border: '1px solid #000' }}>
+    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.4rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.56rem', lineHeight: 1.15, border: '1px solid #000' }}>
       <style>{`
         @media print {
           @page { size: A4; margin: 10mm; }
@@ -100,8 +86,12 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
 
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #000', padding: '0.3rem 0.4rem', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', width: '28%' }}>
-          <NfseLogo height={32} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '28%' }}>
+          {empresa.logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={empresa.logo} alt={empresa.name} style={{ height: '26px', width: '26px', objectFit: 'contain', flexShrink: 0 }} />
+          )}
+          <span style={{ fontSize: '0.56rem', fontWeight: 'bold', lineHeight: 1.15 }}>NFSe<br /><span style={{ fontWeight: 'normal', fontSize: '0.46rem' }}>Nota Fiscal de Serviço eletrônica</span></span>
         </div>
         <div style={{ textAlign: 'center', width: '44%' }}>
           <div style={{ fontWeight: 'bold', fontSize: '0.72rem' }}>DANFSe v1.0</div>

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 function Field({ label, value, flex = 1 }: { label: string; value?: React.ReactNode; flex?: number }) {
   return (
-    <div style={{ flex, padding: '0.06rem 0.4rem', minWidth: 0 }}>
+    <div style={{ flex, padding: '0.07rem 0.4rem', minWidth: 0 }}>
       <div style={{ fontWeight: 'bold' }}>{label}</div>
       <div>{value || '-'}</div>
     </div>
@@ -25,7 +25,7 @@ function FieldRow({ children }: { children: React.ReactNode }) {
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '0.08rem 0.4rem', fontWeight: 'bold' }}>
+    <div style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '0.1rem 0.4rem', fontWeight: 'bold' }}>
       {title}
       {subtitle && <div style={{ fontWeight: 'normal' }}>{subtitle}</div>}
     </div>
@@ -70,7 +70,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
   const codigoServicoFormatado = `${nfseConfig.codigoServico?.replace(/(\d{2})(\d{2})(\d{2})/, '$1.$2.$3')}${nfseConfig.descricaoCodServico ? ` - ${nfseConfig.descricaoCodServico}` : ''}`
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.4rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.56rem', lineHeight: 1.15, border: '1px solid #000' }}>
+    <div style={{ backgroundColor: 'white', color: 'black', padding: '0.4rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', fontSize: '0.58rem', lineHeight: 1.15, border: '1px solid #000' }}>
       <style>{`
         @media print {
           @page { size: A4; margin: 10mm; }

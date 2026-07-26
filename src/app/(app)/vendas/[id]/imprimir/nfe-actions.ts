@@ -44,6 +44,13 @@ export async function emitirNfeVenda(saleId: string) {
     throw new Error(`Produto(s) sem NCM cadastrado: ${itensSemNcm.map(i => i.product.name).join(', ')}. Edite o produto em Produtos.`)
   }
 
+  const cliente = venda.customer
+  if (cliente?.document) {
+    if (!cliente.enderLogradouro || !cliente.enderNumero || !cliente.enderBairro || !cliente.enderCep || !cliente.enderMunicipio || !cliente.enderUf || !cliente.enderCodMunicipio) {
+      throw new Error(`Endereço do cliente "${cliente.name}" incompleto (a NF-e exige endereço estruturado do destinatário). Edite o cliente em Clientes.`)
+    }
+  }
+
   const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
   const certSenha = decryptSecret(nfeConfig.certificadoSenha)
   const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
@@ -70,7 +77,19 @@ export async function emitirNfeVenda(saleId: string) {
         cep: empresa.enderCep,
       },
     },
-    destinatario: venda.customer ? { documento: venda.customer.document || undefined, nome: venda.customer.name } : undefined,
+    destinatario: venda.customer ? {
+      documento: venda.customer.document || undefined,
+      nome: venda.customer.name,
+      endereco: venda.customer.document && venda.customer.enderLogradouro ? {
+        logradouro: venda.customer.enderLogradouro,
+        numero: venda.customer.enderNumero!,
+        bairro: venda.customer.enderBairro!,
+        codigoMunicipio: venda.customer.enderCodMunicipio!,
+        nomeMunicipio: venda.customer.enderMunicipio!,
+        uf: venda.customer.enderUf!,
+        cep: venda.customer.enderCep!,
+      } : undefined,
+    } : undefined,
     itens: venda.items.map(item => ({
       codigo: item.product.sku || item.productId.slice(-8),
       descricao: item.product.name,

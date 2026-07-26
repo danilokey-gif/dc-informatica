@@ -22,6 +22,7 @@ export interface NfeEmitente {
 export interface NfeDestinatario {
   documento?: string
   nome: string
+  endereco?: NfeEndereco
 }
 
 export interface NfeItem {
@@ -88,7 +89,7 @@ const TP_PAGAMENTO: Record<NfeInput['formaPagamento'], string> = {
   dinheiro: '01',
   cartao_credito: '03',
   cartao_debito: '04',
-  pix: '17',
+  pix: '99',
   outro: '99',
 }
 
@@ -174,16 +175,30 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
     : input.destinatario?.nome
   const destXml = documentoDest ? (() => {
     const tagDoc = documentoDest.length === 11 ? `<CPF>${documentoDest}</CPF>` : `<CNPJ>${documentoDest}</CNPJ>`
+    const end = input.destinatario?.endereco
+    const enderDestXml = end ? (
+      `<enderDest>` +
+        `<xLgr>${esc(end.logradouro)}</xLgr>` +
+        `<nro>${esc(end.numero)}</nro>` +
+        `<xBairro>${esc(end.bairro)}</xBairro>` +
+        `<cMun>${end.codigoMunicipio}</cMun>` +
+        `<xMun>${esc(end.nomeMunicipio)}</xMun>` +
+        `<UF>${end.uf}</UF>` +
+        `<CEP>${soNumeros(end.cep)}</CEP>` +
+      `</enderDest>`
+    ) : ''
     return (
       `<dest>` +
         tagDoc +
         `<xNome>${esc(nomeDest!)}</xNome>` +
+        enderDestXml +
         `<indIEDest>9</indIEDest>` +
       `</dest>`
     )
   })() : ''
 
   const tPag = TP_PAGAMENTO[input.formaPagamento]
+  const xPag = input.formaPagamento === 'pix' ? '<xPag>PIX</xPag>' : ''
 
   // Sem declaração <?xml?> própria: este XML é embutido como elemento filho dentro do envelope
   // SOAP (enviNFe), e uma segunda declaração aninhada tornaria o documento inteiro malformado.
@@ -255,7 +270,7 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
           `</ICMSTot>` +
         `</total>` +
         `<transp><modFrete>9</modFrete></transp>` +
-        `<pag><detPag><tPag>${tPag}</tPag><vPag>${formatarDecimal(vProdTotal)}</vPag></detPag></pag>` +
+        `<pag><detPag><tPag>${tPag}</tPag>${xPag}<vPag>${formatarDecimal(vProdTotal)}</vPag></detPag></pag>` +
       `</infNFe>` +
     `</NFe>`
 

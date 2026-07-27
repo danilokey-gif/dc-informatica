@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit'
 import { gerarCode128Buffer } from './barcode'
 import { gerarQrCodeBuffer } from './qrcode-util'
+import fs from 'fs'
+import path from 'path'
 
 function coletarBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -54,17 +56,6 @@ interface PdfField {
   flex?: number
 }
 
-async function fetchImageBuffer(url: string): Promise<Buffer | null> {
-  try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const arrayBuffer = await res.arrayBuffer()
-    return Buffer.from(arrayBuffer)
-  } catch (e) {
-    return null
-  }
-}
-
 /** Layout do DANFSe oficial padrão nacional (grades e blocos) com logotipos e maior tamanho de página */
 export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
   // A4 dimensions: 595.28 x 841.89 points
@@ -72,12 +63,21 @@ export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 35 })
   const bufferPromise = coletarBuffer(doc)
 
-  const [qrCode, logoNfse, logoMarilia] = await Promise.all([
-    gerarQrCodeBuffer(input.chaveAcesso),
-    fetchImageBuffer('https://sefin.nfse.gov.br/SefinNacional/img/logo_nfse_vertical.png'),
-    fetchImageBuffer('https://upload.wikimedia.org/wikipedia/commons/e/e0/Bras%C3%A3o_de_Mar%C3%ADlia.png')
-  ])
+  // Load logos locally from the filesystem
+  let logoNfse: Buffer | null = null
+  let logoMarilia: Buffer | null = null
 
+  try {
+    const rootDir = process.cwd()
+    logoNfse = fs.readFileSync(path.join(rootDir, 'public', 'logo-nfse.png'))
+  } catch (e) {}
+
+  try {
+    const rootDir = process.cwd()
+    logoMarilia = fs.readFileSync(path.join(rootDir, 'public', 'logo-marilia.jpg'))
+  } catch (e) {}
+
+  const qrCode = await gerarQrCodeBuffer(input.chaveAcesso)
   const ehMei = input.regimeTributario === 'MEI'
 
   let currentY = 35

@@ -116,7 +116,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
           {/* Col 1: NFSe Logo */}
           <div style={{ width: '30%', padding: '6px 10px', borderRight: '1px solid #000', display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="https://sefin.nfse.gov.br/SefinNacional/img/logo_nfse_vertical.png" alt="NFS-e Nacional" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/logo-nfse.png" alt="NFS-e Nacional" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
             <div style={{ lineHeight: 1.15 }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>NFS-e</div>
               <div style={{ fontSize: '0.48rem', color: '#4b5563' }}>Nota Fiscal de Serviço eletrônica</div>
@@ -132,7 +132,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
           {/* Col 3: Prefeitura de Marília Logo */}
           <div style={{ width: '30%', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e0/Bras%C3%A3o_de_Mar%C3%ADlia.png" alt="Marília" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/logo-marilia.jpg" alt="Marília" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
             <div style={{ lineHeight: 1.15 }}>
               <div style={{ fontSize: '0.48rem', fontWeight: 'bold', color: '#4b5563' }}>MUNICÍPIO DE</div>
               <div style={{ fontSize: '0.68rem', fontWeight: 'bold', color: '#000' }}>MARÍLIA - SP</div>

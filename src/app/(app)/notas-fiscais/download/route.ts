@@ -105,6 +105,7 @@ export async function GET(request: NextRequest) {
       destinatarioCep: e.sale.customer?.enderCep || '-',
       destinatarioMunicipio: e.sale.customer?.enderMunicipio || '-',
       destinatarioUf: e.sale.customer?.enderUf || '-',
+      destinatarioTelefone: e.sale.customer?.phone || '-',
       itens: e.sale.items.map(item => ({
         codigo: item.product.sku || item.productId.slice(-8),
         descricao: item.product.name,

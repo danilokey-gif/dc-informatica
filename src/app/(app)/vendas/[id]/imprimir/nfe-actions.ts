@@ -207,6 +207,7 @@ export async function enviarNfeEmail(saleId: string) {
     destinatarioCep: venda.customer?.enderCep || '-',
     destinatarioMunicipio: venda.customer?.enderMunicipio || '-',
     destinatarioUf: venda.customer?.enderUf || '-',
+    destinatarioTelefone: venda.customer?.phone || '-',
     itens: venda.items.map(item => ({
       codigo: item.product.sku || item.productId.slice(-8),
       descricao: item.product.name,

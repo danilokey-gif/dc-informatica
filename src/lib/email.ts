@@ -14,7 +14,7 @@ function getTransporter() {
 
 interface AnexoArquivo {
   filename: string
-  content: string
+  content: string | Buffer
   contentType?: string
 }
 

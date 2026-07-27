@@ -8,6 +8,7 @@ import { NfseClient } from "@/lib/nfse/client"
 import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
+import { gerarPdfDanfse } from "@/lib/pdf-notas"
 
 export async function emitirNfseServiceOrder(serviceOrderId: string) {
   const [os, empresa, nfseConfig] = await Promise.all([
@@ -105,10 +106,11 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
 }
 
 export async function enviarNfseEmail(serviceOrderId: string) {
-  const [os, empresa, emissao] = await Promise.all([
+  const [os, empresa, emissao, nfseConfig] = await Promise.all([
     prisma.serviceOrder.findUniqueOrThrow({ where: { id: serviceOrderId }, include: { customer: true } }),
     getCompanySettings(),
     prisma.nfseEmissao.findFirst({ where: { serviceOrderId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
+    getNfseConfig(),
   ])
 
   if (!os.customer.email) {
@@ -119,6 +121,38 @@ export async function enviarNfseEmail(serviceOrderId: string) {
   }
 
   const valor = os.price ? os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''
+  
+  // Gerar anexo em PDF do DANFSe oficial
+  const numeroNfse = emissao.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || emissao.numeroDps
+  const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
+  const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
+  
+  const pdfBuffer = await gerarPdfDanfse({
+    ambiente: emissao.ambiente,
+    numeroNfse,
+    numeroDps: emissao.numeroDps,
+    serieDps: emissao.serieDps,
+    chaveAcesso: emissao.chaveAcesso || '',
+    dataEmissao: emissao.createdAt,
+    prestadorNome: empresa.name,
+    prestadorCnpj: empresa.document || '',
+    prestadorTelefone: empresa.phone,
+    prestadorEmail: empresa.email,
+    prestadorEndereco: enderecoPrestador,
+    prestadorCep: empresa.enderCep,
+    tomadorNome: os.customer.name,
+    tomadorDocumento: os.customer.document,
+    tomadorTelefone: os.customer.phone,
+    tomadorEmail: os.customer.email,
+    tomadorEndereco: os.customer.address,
+    descricaoServico: `${os.device} — ${os.issue}`,
+    codigoServico: nfseConfig.codigoServico,
+    descricaoCodServico: nfseConfig.descricaoCodServico,
+    municipioLabel,
+    regimeTributario: nfseConfig.regimeTributario,
+    aliquotaIss: nfseConfig.aliquotaIss,
+    valorTotal: valor,
+  })
 
   await enviarEmail({
     to: os.customer.email,
@@ -133,11 +167,18 @@ export async function enviarNfseEmail(serviceOrderId: string) {
       <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
     `,
     logoDataUrl: empresa.logo,
-    arquivos: emissao.xmlNfse ? [{
-      filename: `NFSe-${emissao.chaveAcesso}.xml`,
-      content: emissao.xmlNfse,
-      contentType: 'application/xml',
-    }] : [],
+    arquivos: [
+      ...(emissao.xmlNfse ? [{
+        filename: `NFSe-${emissao.chaveAcesso}.xml`,
+        content: emissao.xmlNfse,
+        contentType: 'application/xml',
+      }] : []),
+      {
+        filename: `DANFSe-${emissao.chaveAcesso}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      }
+    ],
   })
 
   revalidatePath(`/os/${serviceOrderId}/imprimir`)

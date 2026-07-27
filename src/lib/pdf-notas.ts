@@ -418,16 +418,20 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   // Col 3: Controle do Fisco (Barcode & Key)
   doc.rect(startX + 340, currentY, 195, headerHeight).stroke()
   try {
-    doc.image(barcode, startX + 340 + 15, currentY + 4, { width: 165, height: 20 })
+    doc.image(barcode, startX + 340 + 15, currentY + 3, { width: 165, height: 18 })
   } catch (e) {}
   
-  // Divider line under barcode
-  doc.strokeColor('#000000').lineWidth(0.5).moveTo(startX + 340, currentY + 27).lineTo(startX + 340 + 195, currentY + 27).stroke()
+  // Divider line 1: under barcode
+  doc.strokeColor('#000000').lineWidth(0.5).moveTo(startX + 340, currentY + 23).lineTo(startX + 340 + 195, currentY + 23).stroke()
   
-  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(4.5).text('CHAVE DE ACESSO', startX + 340 + 5, currentY + 30.5)
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(4.5).text('CHAVE DE ACESSO', startX + 340 + 5, currentY + 26)
   const formattedKey = input.chaveAcesso.match(/.{1,4}/g)?.join(' ') || input.chaveAcesso
-  doc.fillColor('#000000').font('Courier-Bold').fontSize(6.5).text(formattedKey, startX + 340 + 5, currentY + 36, { width: 185 })
-  doc.font('Helvetica').fontSize(4.8).fillColor('#4b5563').text("Consulta de autenticidade no portal nacional da NF-e\nwww.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizada", startX + 340 + 5, currentY + 44, { width: 185, lineGap: 0.5 })
+  doc.fillColor('#000000').font('Courier-Bold').fontSize(6.5).text(formattedKey, startX + 340 + 5, currentY + 31.5, { width: 185 })
+  
+  // Divider line 2: between key and authenticity notice
+  doc.strokeColor('#000000').lineWidth(0.5).moveTo(startX + 340, currentY + 41).lineTo(startX + 340 + 195, currentY + 41).stroke()
+  
+  doc.font('Helvetica').fontSize(4.3).fillColor('#4b5563').text("Consulta de autenticidade no portal nacional da NF-e\nwww.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizada", startX + 340 + 5, currentY + 44, { width: 185, align: 'center', lineGap: 0.5 })
 
   currentY += headerHeight + 4
 

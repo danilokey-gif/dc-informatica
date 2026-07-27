@@ -18,109 +18,110 @@ const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credi
 }
 
 export async function emitirNfeVenda(saleId: string) {
-  const [venda, empresa, nfeConfig] = await Promise.all([
-    prisma.sale.findUniqueOrThrow({ where: { id: saleId }, include: { customer: true, items: { include: { product: true } } } }),
-    getCompanySettings(),
-    getNfeConfig(),
-  ])
-
-  if (!nfeConfig.certificado || !nfeConfig.certificadoSenha) {
-    throw new Error('Certificado digital não configurado. Vá em Configurações > Nota Fiscal de Produtos.')
-  }
-  if (!empresa.document) {
-    throw new Error('CNPJ da empresa não configurado. Vá em Configurações > Dados da Empresa.')
-  }
-  if (!empresa.inscricaoEstadual) {
-    throw new Error('Inscrição Estadual não configurada. Vá em Configurações > Dados da Empresa.')
-  }
-  if (!empresa.enderLogradouro || !empresa.enderNumero || !empresa.enderBairro || !empresa.enderCep) {
-    throw new Error('Endereço da empresa incompleto (logradouro/número/bairro/CEP). Vá em Configurações > Dados da Empresa.')
-  }
-  if (!nfeConfig.codigoMunicipio || !nfeConfig.nomeMunicipio) {
-    throw new Error('Município da empresa não configurado. Vá em Configurações > Nota Fiscal de Produtos.')
-  }
-
-  const itensSemNcm = venda.items.filter(item => !item.product.ncm)
-  if (itensSemNcm.length > 0) {
-    throw new Error(`Produto(s) sem NCM cadastrado: ${itensSemNcm.map(i => i.product.name).join(', ')}. Edite o produto em Produtos.`)
-  }
-
-  const cliente = venda.customer
-  if (cliente?.document) {
-    if (!cliente.enderLogradouro || !cliente.enderNumero || !cliente.enderBairro || !cliente.enderCep || !cliente.enderMunicipio || !cliente.enderUf || !cliente.enderCodMunicipio) {
-      throw new Error(`Endereço do cliente "${cliente.name}" incompleto (a NF-e exige endereço estruturado do destinatário). Edite o cliente em Clientes.`)
-    }
-  }
-
-  const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
-  const certSenha = decryptSecret(nfeConfig.certificadoSenha)
-  const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
-
-  const numero = nfeConfig.proximoNumero
-  const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
-
-  const { xml, chaveAcesso } = montarXmlNfe({
-    ambiente,
-    serie: nfeConfig.serie,
-    numero,
-    emitente: {
-      cnpj: empresa.document,
-      razaoSocial: empresa.name,
-      inscricaoEstadual: empresa.inscricaoEstadual,
-      crt: nfeConfig.crt,
-      endereco: {
-        logradouro: empresa.enderLogradouro,
-        numero: empresa.enderNumero,
-        bairro: empresa.enderBairro,
-        codigoMunicipio: nfeConfig.codigoMunicipio,
-        nomeMunicipio: nfeConfig.nomeMunicipio,
-        uf: nfeConfig.uf,
-        cep: empresa.enderCep,
-      },
-    },
-    destinatario: venda.customer ? {
-      documento: venda.customer.document || undefined,
-      nome: venda.customer.name,
-      endereco: venda.customer.document && venda.customer.enderLogradouro ? {
-        logradouro: venda.customer.enderLogradouro,
-        numero: venda.customer.enderNumero!,
-        bairro: venda.customer.enderBairro!,
-        codigoMunicipio: venda.customer.enderCodMunicipio!,
-        nomeMunicipio: venda.customer.enderMunicipio!,
-        uf: venda.customer.enderUf!,
-        cep: venda.customer.enderCep!,
-      } : undefined,
-    } : undefined,
-    itens: venda.items.map(item => ({
-      codigo: item.product.sku || item.productId.slice(-8),
-      descricao: item.product.name,
-      ncm: item.product.ncm!,
-      cfop: item.product.cfop || nfeConfig.cfopPadrao,
-      unidade: 'UN',
-      quantidade: item.quantity,
-      valorUnitario: item.unitPrice,
-    })),
-    formaPagamento: TP_PAGAMENTO_POR_METODO[venda.paymentMethod] || 'outro',
-  })
-
-  const id = `NFe${chaveAcesso}`
-  const xmlAssinado = assinarNfe(xml, id, certMaterial)
-
-  const emissao = await prisma.nfeEmissao.create({
-    data: {
-      saleId,
-      ambiente,
-      numero,
-      serie: nfeConfig.serie,
-      status: 'PROCESSANDO',
-      chaveAcesso,
-      xmlNfe: xmlAssinado,
-    }
-  })
-
-  const client = new NfeSoapClient({ ambiente, pfxBuffer, certPassword: certSenha })
-
+  let emissaoId: string | null = null
   try {
+    const [venda, empresa, nfeConfig] = await Promise.all([
+      prisma.sale.findUniqueOrThrow({ where: { id: saleId }, include: { customer: true, items: { include: { product: true } } } }),
+      getCompanySettings(),
+      getNfeConfig(),
+    ])
+
+    if (!nfeConfig.certificado || !nfeConfig.certificadoSenha) {
+      throw new Error('Certificado digital não configurado. Vá em Configurações > Nota Fiscal de Produtos.')
+    }
+    if (!empresa.document) {
+      throw new Error('CNPJ da empresa não configurado. Vá em Configurações > Dados da Empresa.')
+    }
+    if (!empresa.inscricaoEstadual) {
+      throw new Error('Inscrição Estadual não configurada. Vá em Configurações > Dados da Empresa.')
+    }
+    if (!empresa.enderLogradouro || !empresa.enderNumero || !empresa.enderBairro || !empresa.enderCep) {
+      throw new Error('Endereço da empresa incompleto (logradouro/número/bairro/CEP). Vá em Configurações > Dados da Empresa.')
+    }
+    if (!nfeConfig.codigoMunicipio || !nfeConfig.nomeMunicipio) {
+      throw new Error('Município da empresa não configurado. Vá em Configurações > Nota Fiscal de Produtos.')
+    }
+
+    const itensSemNcm = venda.items.filter(item => !item.product.ncm)
+    if (itensSemNcm.length > 0) {
+      throw new Error(`Produto(s) sem NCM cadastrado: ${itensSemNcm.map(i => i.product.name).join(', ')}. Edite o produto em Produtos.`)
+    }
+
+    const cliente = venda.customer
+    if (cliente?.document) {
+      if (!cliente.enderLogradouro || !cliente.enderNumero || !cliente.enderBairro || !cliente.enderCep || !cliente.enderMunicipio || !cliente.enderUf || !cliente.enderCodMunicipio) {
+        throw new Error(`Endereço do cliente "${cliente.name}" incompleto (a NF-e exige endereço estruturado do destinatário). Edite o cliente em Clientes.`)
+      }
+    }
+
+    const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
+    const certSenha = decryptSecret(nfeConfig.certificadoSenha)
+    const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
+
+    const numero = nfeConfig.proximoNumero
+    const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
+
+    const { xml, chaveAcesso } = montarXmlNfe({
+      ambiente,
+      serie: nfeConfig.serie,
+      numero,
+      emitente: {
+        cnpj: empresa.document,
+        razaoSocial: empresa.name,
+        inscricaoEstadual: empresa.inscricaoEstadual,
+        crt: nfeConfig.crt,
+        endereco: {
+          logradouro: empresa.enderLogradouro,
+          numero: empresa.enderNumero,
+          bairro: empresa.enderBairro,
+          codigoMunicipio: nfeConfig.codigoMunicipio,
+          nomeMunicipio: nfeConfig.nomeMunicipio,
+          uf: nfeConfig.uf,
+          cep: empresa.enderCep,
+        },
+      },
+      destinatario: venda.customer ? {
+        documento: venda.customer.document || undefined,
+        nome: venda.customer.name,
+        endereco: venda.customer.document && venda.customer.enderLogradouro ? {
+          logradouro: venda.customer.enderLogradouro,
+          numero: venda.customer.enderNumero!,
+          bairro: venda.customer.enderBairro!,
+          codigoMunicipio: venda.customer.enderCodMunicipio!,
+          nomeMunicipio: venda.customer.enderMunicipio!,
+          uf: venda.customer.enderUf!,
+          cep: venda.customer.enderCep!,
+        } : undefined,
+      } : undefined,
+      itens: venda.items.map(item => ({
+        codigo: item.product.sku || item.productId.slice(-8),
+        descricao: item.product.name,
+        ncm: item.product.ncm!,
+        cfop: item.product.cfop || nfeConfig.cfopPadrao,
+        unidade: 'UN',
+        quantidade: item.quantity,
+        valorUnitario: item.unitPrice,
+      })),
+      formaPagamento: TP_PAGAMENTO_POR_METODO[venda.paymentMethod] || 'outro',
+    })
+
+    const id = `NFe${chaveAcesso}`
+    const xmlAssinado = assinarNfe(xml, id, certMaterial)
+
+    const emissao = await prisma.nfeEmissao.create({
+      data: {
+        saleId,
+        ambiente,
+        numero,
+        serie: nfeConfig.serie,
+        status: 'PROCESSANDO',
+        chaveAcesso,
+        xmlNfe: xmlAssinado,
+      }
+    })
+    emissaoId = emissao.id
+
+    const client = new NfeSoapClient({ ambiente, pfxBuffer, certPassword: certSenha })
     const idLote = String(Date.now()).slice(-15)
     const respostaXml = await client.autorizarNfe(idLote, xmlAssinado)
 
@@ -146,14 +147,25 @@ export async function emitirNfeVenda(saleId: string) {
         data: { status: 'REJEITADA', motivoErro: `[${cStatFinal}] ${xMotivoFinal}`, xmlProtocolo: respostaXml }
       })
     }
-  } catch (error) {
-    await prisma.nfeEmissao.update({
-      where: { id: emissao.id },
-      data: {
-        status: 'REJEITADA',
-        motivoErro: error instanceof Error ? error.message : 'Erro desconhecido ao emitir a NF-e.',
-      }
-    })
+  } catch (error: any) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    if (emissaoId) {
+      await prisma.nfeEmissao.update({
+        where: { id: emissaoId },
+        data: { status: 'REJEITADA', motivoErro: errorMsg }
+      })
+    } else {
+      await prisma.nfeEmissao.create({
+        data: {
+          saleId,
+          ambiente: 'homologacao',
+          numero: 0,
+          serie: '0',
+          status: 'REJEITADA',
+          motivoErro: errorMsg,
+        }
+      })
+    }
   }
 
   revalidatePath(`/vendas/${saleId}/imprimir`)

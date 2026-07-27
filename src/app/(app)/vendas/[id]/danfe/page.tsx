@@ -335,10 +335,8 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
             <div style={{ flex: 7, padding: '3px 5px', fontSize: '0.46rem', color: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>INFORMAÇÕES COMPLEMENTARES</span>
-                DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.
-              </div>
-              <div style={{ fontSize: '0.38rem', color: '#6b7280', marginTop: '4px' }}>
-                Documento emitido por Antigravity ERP | Assistência Técnica
+                DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A<br />
+                CREDITO FISCAL DE ICMS, ISS E IPI
               </div>
             </div>
             <div style={{ flex: 3, borderLeft: '1px solid #000', padding: '3px 5px', display: 'flex', flexDirection: 'column' }}>

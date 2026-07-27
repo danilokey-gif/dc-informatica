@@ -633,7 +633,7 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   const boxHeight = 45
   doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, 375, boxHeight).stroke()
   doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('INFORMAÇÕES COMPLEMENTARES', startX + 4, currentY + 3)
-  doc.fillColor('#000000').font('Helvetica').fontSize(6.5).text("DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.", startX + 4, currentY + 11, { width: 367 })
+  doc.fillColor('#000000').font('Helvetica').fontSize(6.5).text("DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A\nCREDITO FISCAL DE ICMS, ISS E IPI", startX + 4, currentY + 11, { width: 367 })
 
   doc.strokeColor('#000000').lineWidth(0.5).rect(startX + 375, currentY, 160, boxHeight).stroke()
   doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('RESERVA AO FISCO', startX + 375 + 4, currentY + 3)

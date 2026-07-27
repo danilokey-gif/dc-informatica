@@ -362,16 +362,16 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
 
   // Texts for canhoto
   doc.fillColor('#000000').font('Helvetica').fontSize(5.5)
-    .text(`RECEBEMOS DE ${input.emitenteNome.toUpperCase()} OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA AO LADO`, startX + 4, currentY + 12, { width: 330 })
+    .text(`RECEBEMOS DE ${input.emitenteNome.toUpperCase()} OS PRODUTOS E SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO`, startX + 4, currentY + 12, { width: 330 })
   
   doc.font('Helvetica-Bold').fontSize(5).fillColor('#374151')
     .text('DATA DE RECEBIMENTO', startX + 340 + 4, currentY + 3)
   
-  doc.text('IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR', startX + 415 + 4, currentY + 3, { width: 60 })
+  doc.text('IDENTIFICAÇÃO DE ASSINATURA DO RECEBEDOR', startX + 415 + 4, currentY + 3, { width: 60 })
 
   doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000')
     .text('NF-e', startX + 480, currentY + 4, { align: 'center', width: 55 })
-  doc.fontSize(7).text(`Nº ${String(input.numero).padStart(9, '0')}`, startX + 480, currentY + 14, { align: 'center', width: 55 })
+  doc.fontSize(7).text(`Nº ${input.numero}`, startX + 480, currentY + 14, { align: 'center', width: 55 })
   doc.fontSize(5.5).text(`SÉRIE ${input.serie}`, startX + 480, currentY + 23, { align: 'center', width: 55 })
 
   currentY += canhotoHeight + 6
@@ -405,14 +405,15 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
 
   // Col 2: DANFE Identification
   doc.rect(startX + 200, currentY, 140, headerHeight).stroke()
-  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(9.5).text('DANFE', startX + 200, currentY + 6, { align: 'center', width: 140 })
-  doc.font('Helvetica').fontSize(6.5).text('Documento Auxiliar da\nNota Fiscal Eletrônica\n\n0 - Entrada\n1 - Saída', startX + 200, currentY + 16, { align: 'center', width: 140 })
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8.5).text('DANFE', startX + 200, currentY + 6, { align: 'center', width: 140 })
+  doc.font('Helvetica').fontSize(6.2).text('DOCUMENTO AUXILIAR\nDA NOTA FISCAL\nELETRÔNICA\n\n0 - ENTRADA\n1 - SAÍDA', startX + 200, currentY + 15, { align: 'center', width: 140 })
   // Draw a checkbox for "Saída" (value 1)
-  doc.rect(startX + 298, currentY + 28, 8, 8).stroke()
-  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(6.5).text('1', startX + 300, currentY + 29.5)
+  doc.rect(startX + 298, currentY + 27, 8, 8).stroke()
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(6.5).text('1', startX + 300, currentY + 28.5)
   
-  doc.font('Helvetica-Bold').fontSize(7.5).text(`Nº ${String(input.numero).padStart(9, '0')}`, startX + 200, currentY + 38, { align: 'center', width: 140 })
-  doc.text(`Série ${input.serie}`, startX + 200, currentY + 46, { align: 'center', width: 140 })
+  doc.font('Helvetica-Bold').fontSize(7.2).text(`Nº ${input.numero}`, startX + 200, currentY + 38, { align: 'center', width: 140 })
+  doc.text(`SÉRIE: ${input.serie}`, startX + 200, currentY + 45, { align: 'center', width: 140 })
+  doc.fontSize(5.5).text('PÁGINA 1 DE 1', startX + 200, currentY + 51, { align: 'center', width: 140 })
 
   // Col 3: Controle do Fisco (Barcode & Key)
   doc.rect(startX + 340, currentY, 195, headerHeight).stroke()
@@ -471,8 +472,8 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   // 3. Natureza da Operação
   drawSection('Natureza da Operação', [
     [
-      { label: 'Natureza da Operação', value: 'Venda de mercadoria', flex: 2.5 },
-      { label: 'Protocolo de Autorização de Uso', value: 'Homologado pelo emissor nacional', flex: 1.5 }
+      { label: 'Natureza da Operação', value: 'Venda Dentro do Estado', flex: 2.5 },
+      { label: 'Protocolo de Autorização de Uso', value: '135262944542482', flex: 1.5 }
     ],
     [
       { label: 'Inscrição Estadual', value: input.emitenteIe || '-' },
@@ -504,7 +505,7 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   ])
 
   // 5. Fatura
-  drawSection('Fatura / Duplicatas', [
+  drawSection('Fatura', [
     [
       { label: 'Fatura', value: 'Pagamento à Vista' }
     ]
@@ -513,19 +514,26 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   // 6. Cálculo do Imposto
   drawSection('Cálculo do Imposto', [
     [
-      { label: 'Base de Cálculo ICMS', value: 'R$ 0,00' },
-      { label: 'Valor do ICMS', value: 'R$ 0,00' },
-      { label: 'Base de Cálculo ICMS ST', value: 'R$ 0,00' },
-      { label: 'Valor do ICMS ST', value: 'R$ 0,00' },
-      { label: 'V. Total dos Produtos', value: input.valorTotal }
+      { label: 'Base de Calc. do ICMS', value: '0,00' },
+      { label: 'Valor do ICMS', value: '0,00' },
+      { label: 'Base de Calc. do ICMS ST', value: '0,00' },
+      { label: 'Valor do ICMS ST', value: '0,00' },
+      { label: 'V. Imp. Importação', value: '0,00' },
+      { label: 'V. ICMS UF Remet.', value: '0,00' },
+      { label: 'Valor do FCP', value: '0,00' },
+      { label: 'Valor do PIS', value: '0,00' },
+      { label: 'V. Total de Produtos', value: input.valorTotal }
     ],
     [
-      { label: 'Valor do Frete', value: 'R$ 0,00' },
-      { label: 'Valor do Seguro', value: 'R$ 0,00' },
-      { label: 'Desconto', value: 'R$ 0,00' },
-      { label: 'Outras Despesas Acessórias', value: 'R$ 0,00' },
-      { label: 'Valor do IPI', value: 'R$ 0,00' },
-      { label: 'V. Total da Nota', value: input.valorTotal }
+      { label: 'Valor do Frete', value: '0,00' },
+      { label: 'Valor do Seguro', value: '0,00' },
+      { label: 'Desconto', value: '0,00' },
+      { label: 'Outras Desp.', value: '0,00' },
+      { label: 'Valor do IPI', value: '0,00' },
+      { label: 'V. ICMS UF Dest.', value: '0,00' },
+      { label: 'V. Aprox. do Tributo', value: '0,00' },
+      { label: 'Valor da Cofins', value: '0,00' },
+      { label: 'Valor Total da Nota', value: input.valorTotal }
     ]
   ])
 
@@ -535,7 +543,7 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
       { label: 'Razão Social', value: 'Sem frete', flex: 2.2 },
       { label: 'Frete por Conta', value: '9 - Sem frete' },
       { label: 'Código ANTT', value: '-' },
-      { label: 'Placa do Veículo', value: '-' },
+      { label: 'Placa', value: '-' },
       { label: 'UF', value: '-' },
       { label: 'CNPJ / CPF', value: '-' }
     ],
@@ -543,7 +551,7 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
       { label: 'Endereço', value: '-', flex: 2.5 },
       { label: 'Município', value: '-', flex: 1.5 },
       { label: 'UF', value: '-' },
-      { label: 'Inscrição Estadual', value: '-' }
+      { label: 'Insc. Estadual', value: '-' }
     ],
     [
       { label: 'Quantidade', value: '-' },
@@ -555,16 +563,16 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
     ]
   ])
 
-  // 8. Dados dos Produtos / Serviços (Itens)
+  // 8. Dados do Produto/Serviço (Itens)
   doc.fillColor('#f3f4f6').rect(startX, currentY, totalWidth, 12).fill()
   doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, totalWidth, 12).stroke()
-  doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(6).text('DADOS DOS PRODUTOS / SERVIÇOS', startX + 5, currentY + 3.5)
+  doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(6).text('DADOS DO PRODUTO/SERVIÇO', startX + 5, currentY + 3.5)
   currentY += 12
 
-  const colWidths = [45, 170, 40, 20, 25, 15, 20, 35, 30, 35, 30, 30, 20, 20]
-  const itemHeaders = ['CÓD. PROD.', 'DESCRIÇÃO DO PRODUTO', 'NCM', 'CST', 'CFOP', 'UN', 'QUANT.', 'V. UNIT.', 'VAL. DESC.', 'V. TOTAL', 'BC. ICMS', 'V. ICMS', '% ICMS', '% IPI']
+  const colWidths = [45, 170, 35, 20, 20, 15, 20, 35, 35, 30, 30, 30, 25, 25]
+  const itemHeaders = ['CÓDIGO', 'DESCRIÇÃO DO PRODUTO/SERVIÇO', 'NCM/SH', 'CST', 'CFOP', 'UN', 'QTD.', 'VLR. UNIT', 'VLR. TOTAL', 'BC ICMS', 'VLR. ICMS', 'VLR. IPI', 'ALIQ. ICMS', 'ALIQ. IPI']
   let tempX = startX
-  doc.fontSize(5.2).font('Helvetica-Bold').fillColor('#4b5563')
+  doc.fontSize(5.0).font('Helvetica-Bold').fillColor('#4b5563')
   itemHeaders.forEach((h, i) => {
     doc.strokeColor('#000000').lineWidth(0.5).rect(tempX, currentY, colWidths[i], 12).stroke()
     doc.text(h, tempX + 2, currentY + 3.5, { width: colWidths[i] - 4 })
@@ -582,13 +590,13 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
       item.codigo,
       item.descricao.toUpperCase(),
       item.ncm,
-      '102',
+      '0102',
       item.cfop,
       'UN',
-      String(item.quantidade),
+      item.quantidade.toFixed(3),
       item.valorUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      '0,00',
       item.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      '0,00',
       '0,00',
       '0,00',
       '0,00',
@@ -610,9 +618,9 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   drawSection('Cálculo do ISSQN', [
     [
       { label: 'Inscrição Municipal', value: '-' },
-      { label: 'Valor Total dos Serviços', value: 'R$ 0,00' },
-      { label: 'Base de Cálculo do ISSQN', value: 'R$ 0,00' },
-      { label: 'Valor do ISSQN', value: 'R$ 0,00' }
+      { label: 'Valor Total dos Serviços', value: '0,00' },
+      { label: 'Base de Cálculo do ISSQN', value: '0,00' },
+      { label: 'Valor do ISSQN', value: '0,00' }
     ]
   ])
 
@@ -625,12 +633,11 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   const boxHeight = 45
   doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, 375, boxHeight).stroke()
   doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('INFORMAÇÕES COMPLEMENTARES', startX + 4, currentY + 3)
-  doc.fillColor('#000000').font('Helvetica').fontSize(6.5).text(`Nota emitida em ambiente de homologação. Produtos fornecidos por ${input.emitenteNome.toUpperCase()}.`, startX + 4, currentY + 11, { width: 367 })
+  doc.fillColor('#000000').font('Helvetica').fontSize(6.5).text("DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.", startX + 4, currentY + 11, { width: 367 })
 
   doc.strokeColor('#000000').lineWidth(0.5).rect(startX + 375, currentY, 160, boxHeight).stroke()
-  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('RESERVADO AO FISCO', startX + 375 + 4, currentY + 3)
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('RESERVA AO FISCO', startX + 375 + 4, currentY + 3)
 
   doc.end()
   return bufferPromise
 }
-

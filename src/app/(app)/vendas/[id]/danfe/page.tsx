@@ -18,8 +18,8 @@ function Field({ label, value, flex = 1, borderRight = true, align = 'left' }: {
       justifyContent: 'space-between',
       textAlign: align
     }}>
-      <div style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', marginBottom: '1px' }}>{label}</div>
-      <div style={{ fontSize: '0.54rem', fontWeight: 'normal', color: '#000', wordBreak: 'break-all' }}>{value || '-'}</div>
+      <div style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#1f2937', textTransform: 'uppercase', marginBottom: '1px' }}>{label}</div>
+      <div style={{ fontSize: '0.54rem', fontWeight: 'bold', color: '#000', wordBreak: 'break-all' }}>{value || '0,00'}</div>
     </div>
   )
 }
@@ -39,7 +39,7 @@ function SectionHeader({ title }: { title: string }) {
       borderBottom: '1px solid #000',
       padding: '2px 4px',
       fontWeight: 'bold',
-      fontSize: '0.46rem',
+      fontSize: '0.44rem',
       textTransform: 'uppercase',
       color: '#1f2937'
     }}>
@@ -77,7 +77,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
 
     const barcodeDataUrl = await gerarCode128DataUrl(emissao.chaveAcesso)
     const chaveFormatada = emissao.chaveAcesso.match(/.{1,4}/g)?.join(' ') || emissao.chaveAcesso
-    const totalFormatado = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+    const totalFormatado = venda.total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     
     const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}`
     const bairroPrestador = empresa.enderBairro || ''
@@ -87,13 +87,13 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
       ? `${venda.customer.enderLogradouro || ''}${venda.customer.enderNumero ? `, ${venda.customer.enderNumero}` : ''}` 
       : '-'
 
-    const protocolo = "135262864994554 17/07/2026 13:56:52" // Simulado com base no padrão da SEFAZ
+    const protocolo = "135262944542482" // Protocolo simulado do print do usuário
 
     return (
-      <div className="danfe-container" style={{ backgroundColor: 'white', color: 'black', padding: '0.1rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
+      <div className="danfe-container" style={{ backgroundColor: 'white', color: 'black', padding: '0.1rem', width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
         <style>{`
           @media print {
-            @page { size: A4; margin: 3mm 4mm; }
+            @page { size: A4; margin: 3mm 3mm; }
             html, body { height: auto !important; margin: 0 !important; padding: 0 !important; background: white; }
             .danfe-container {
               width: 100% !important;
@@ -116,24 +116,24 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
         <div style={{ border: '1px solid #000', display: 'flex', flexDirection: 'column' }}>
           
           {/* 1. CANHOTO (RECEBIMENTO) */}
-          <div style={{ display: 'flex', borderBottom: '1px dashed #000', minHeight: '38px', backgroundColor: '#fff' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '38px', backgroundColor: '#fff' }}>
             <div style={{ flex: 6.5, padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: '0.42rem', lineHeight: '1.2' }}>
-                RECEBEMOS DE <strong>{empresa.name.toUpperCase()}</strong> OS PRODUTOS E/OU SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA AO LADO
+              <div style={{ fontSize: '0.42rem', lineHeight: '1.2', color: '#000' }}>
+                RECEBEMOS DE <strong>{empresa.name.toUpperCase()}</strong> OS PRODUTOS E SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO
               </div>
             </div>
             <div style={{ flex: 1.5, borderLeft: '1px solid #000', padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#374151' }}>DATA DE RECEBIMENTO</span>
+              <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151' }}>DATA DE RECEBIMENTO</span>
               <div style={{ borderBottom: '1px solid #999', margin: '4px 0 2px 0' }}></div>
             </div>
             <div style={{ flex: 2.2, borderLeft: '1px solid #000', padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#374151' }}>IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR</span>
+              <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151' }}>IDENTIFICAÇÃO DE ASSINATURA DO RECEBEDOR</span>
               <div style={{ borderBottom: '1px solid #999', margin: '4px 0 2px 0' }}></div>
             </div>
             <div style={{ flex: 1.8, borderLeft: '1px solid #000', padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center', fontWeight: 'bold' }}>
-              <div style={{ fontSize: '0.52rem' }}>NF-e</div>
-              <div style={{ fontSize: '0.56rem', marginTop: '1px' }}>Nº {String(emissao.numero).padStart(9, '0')}</div>
-              <div style={{ fontSize: '0.44rem', color: '#374151' }}>SÉRIE {emissao.serie}</div>
+              <div style={{ fontSize: '0.56rem' }}>NF-e</div>
+              <div style={{ fontSize: '0.58rem', marginTop: '1px' }}>Nº {emissao.numero}</div>
+              <div style={{ fontSize: '0.44rem', color: '#374151' }}>Série {emissao.serie}</div>
             </div>
           </div>
 
@@ -150,8 +150,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
                 <div style={{ fontSize: '0.64rem', fontWeight: 'bold' }}>{empresa.name.toUpperCase()}</div>
                 <div style={{ fontSize: '0.42rem', color: '#4b5563', marginTop: '2px' }}>
                   {enderecoPrestador} - {bairroPrestador} - {cepPrestador}<br />
-                  MARILIA - SP<br />
-                  FONE: {empresa.phone || '-'}
+                  MARILIA - SP - FONE: {empresa.phone || '-'}
                 </div>
               </div>
             </div>
@@ -160,16 +159,16 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
             <div style={{ width: '27%', padding: '4px', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
               <div style={{ fontWeight: 'bold', fontSize: '0.82rem', letterSpacing: '0.5px' }}>DANFE</div>
               <div style={{ fontSize: '0.42rem', color: '#4b5563', lineHeight: '1.2', marginTop: '1px' }}>
-                Documento Auxiliar da<br />Nota Fiscal Eletrônica
+                DOCUMENTO AUXILIAR<br />DA NOTA FISCAL<br />ELETRÔNICA
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '0.44rem', border: '1px solid #000', padding: '1px 4px', margin: '3px 0', borderRadius: '1px' }}>
-                <span>0 - Entrada</span>
+                <span>0 - ENTRADA</span>
+                <span>1 - SAÍDA</span>
                 <strong>1</strong>
-                <span>1 - Saída</span>
               </div>
-              <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>Nº {String(emissao.numero).padStart(9, '0')}</div>
-              <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>Série {emissao.serie}</div>
-              <div style={{ fontSize: '0.38rem', color: '#4b5563' }}>FL 1 / 1</div>
+              <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>Nº {emissao.numero}</div>
+              <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>SÉRIE: {emissao.serie}</div>
+              <div style={{ fontSize: '0.38rem', color: '#4b5563' }}>PÁGINA 1 DE 1</div>
             </div>
             
             {/* Col 3: Controle do Fisco */}
@@ -188,7 +187,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
 
           {/* Natureza da Operação */}
           <FieldRow>
-            <Field label="Natureza da Operação" value="Venda de mercadoria" flex={2.5} />
+            <Field label="Natureza da Operação" value="Venda Dentro do Estado" flex={2.5} />
             <Field label="Protocolo de Autorização de Uso" value={protocolo} flex={1.5} borderRight={false} />
           </FieldRow>
           <FieldRow>
@@ -215,11 +214,11 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
             <Field label="Fone / Fax" value={venda.customer?.phone || '-'} />
             <Field label="UF" value={venda.customer?.enderUf?.toUpperCase() || '-'} />
             <Field label="Inscrição Estadual" value="-" />
-            <Field label="Hora da Saída" value={new Date(venda.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} borderRight={false} />
+            <Field label="Hora Entr. / Saída" value={new Date(venda.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} borderRight={false} />
           </FieldRow>
 
-          {/* Fatura / Duplicatas */}
-          <SectionHeader title="Fatura / Duplicatas" />
+          {/* Fatura */}
+          <SectionHeader title="Fatura" />
           <FieldRow minHeight="18px">
             <Field label="Fatura" value={`Pagamento à Vista - Forma: ${venda.paymentMethod.toUpperCase()}`} borderRight={false} />
           </FieldRow>
@@ -227,19 +226,26 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
           {/* Cálculo do Imposto */}
           <SectionHeader title="Cálculo do Imposto" />
           <FieldRow>
-            <Field label="Base de Cálculo ICMS" value="R$ 0,00" />
-            <Field label="Valor do ICMS" value="R$ 0,00" />
-            <Field label="Base de Cálculo ICMS ST" value="R$ 0,00" />
-            <Field label="Valor do ICMS ST" value="R$ 0,00" />
-            <Field label="Valor Total dos Produtos" value={totalFormatado} borderRight={false} />
+            <Field label="Base de Calc. do ICMS" value="0,00" />
+            <Field label="Valor do ICMS" value="0,00" />
+            <Field label="Base de Calc. do ICMS ST" value="0,00" />
+            <Field label="Valor do ICMS ST" value="0,00" />
+            <Field label="V. Imp. Importação" value="0,00" />
+            <Field label="V. ICMS UF Remet." value="0,00" />
+            <Field label="Valor do FCP" value="0,00" />
+            <Field label="Valor do PIS" value="0,00" />
+            <Field label="V. Total de Produtos" value={totalFormatado} borderRight={false} align="right" />
           </FieldRow>
           <FieldRow>
-            <Field label="Valor do Frete" value="R$ 0,00" />
-            <Field label="Valor do Seguro" value="R$ 0,00" />
-            <Field label="Desconto" value="R$ 0,00" />
-            <Field label="Outras Despesas Acessórias" value="R$ 0,00" />
-            <Field label="Valor do IPI" value="R$ 0,00" />
-            <Field label="Valor Total da Nota" value={totalFormatado} borderRight={false} />
+            <Field label="Valor do Frete" value="0,00" />
+            <Field label="Valor do Seguro" value="0,00" />
+            <Field label="Desconto" value="0,00" />
+            <Field label="Outras Desp." value="0,00" />
+            <Field label="Valor do IPI" value="0,00" />
+            <Field label="V. ICMS UF Dest." value="0,00" />
+            <Field label="V. Aprox. do Tributo" value="0,00" />
+            <Field label="Valor da Cofins" value="0,00" />
+            <Field label="Valor Total da Nota" value={totalFormatado} borderRight={false} align="right" />
           </FieldRow>
 
           {/* Transportador / Volumes */}
@@ -248,7 +254,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
             <Field label="Razão Social" value="Sem frete" flex={2.2} />
             <Field label="Frete por Conta" value="9 - Sem frete" />
             <Field label="Código ANTT" value="-" />
-            <Field label="Placa do Veículo" value="-" />
+            <Field label="Placa" value="-" />
             <Field label="UF" value="-" />
             <Field label="CNPJ / CPF" value="-" borderRight={false} />
           </FieldRow>
@@ -256,7 +262,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
             <Field label="Endereço" value="-" flex={2.5} />
             <Field label="Município" value="-" flex={1.5} />
             <Field label="UF" value="-" />
-            <Field label="Inscrição Estadual" value="-" borderRight={false} />
+            <Field label="Insc. Estadual" value="-" borderRight={false} />
           </FieldRow>
           <FieldRow>
             <Field label="Quantidade" value="-" />
@@ -268,27 +274,27 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
           </FieldRow>
 
           {/* Dados dos Produtos / Serviços */}
-          <div style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', fontSize: '0.46rem', textTransform: 'uppercase', color: '#1f2937' }}>
-            Dados dos Produtos / Serviços
+          <div style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000', borderTop: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', fontSize: '0.44rem', textTransform: 'uppercase', color: '#1f2937' }}>
+            Dados do Produto/Serviço
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.50rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.48rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #000' }}>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '9%' }}>CÓD. PROD.</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '31%' }}>DADOS DO PRODUTO / SERVIÇOS</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '7%' }}>NCM</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '12%' }}>CÓDIGO</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '31%' }}>DESCRIÇÃO DO PRODUTO/SERVIÇO</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '8%' }}>NCM/SH</th>
                   <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '4%' }}>CST</th>
                   <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '5%' }}>CFOP</th>
                   <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '3%' }}>UN</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '4%' }}>QUANT.</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '7%' }}>V. UNIT.</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '6%' }}>VAL. DESC.</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '7%' }}>V. TOTAL</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '6%' }}>BC. ICMS</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '6%' }}>V. ICMS</th>
-                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '4%' }}>% ICMS</th>
-                  <th style={{ padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '3%' }}>% IPI</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'left', fontWeight: 'bold', width: '4%' }}>QTD.</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '7%' }}>VLR. UNIT</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '7%' }}>VLR. TOTAL</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '6%' }}>BC ICMS</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '6%' }}>VLR. ICMS</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '4%' }}>VLR. IPI</th>
+                  <th style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '4%' }}>ALIQ. ICMS</th>
+                  <th style={{ padding: '2px 3px', textAlign: 'right', fontWeight: 'bold', width: '3%' }}>ALIQ. IPI</th>
                 </tr>
               </thead>
               <tbody>
@@ -297,13 +303,13 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>{item.product.sku || '-'}</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>{item.product.name.toUpperCase()}</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>{item.product.ncm || '-'}</td>
-                    <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>102</td>
+                    <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>0102</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>{item.product.cfop || '5102'}</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>UN</td>
-                    <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>{item.quantity}</td>
+                    <td style={{ borderRight: '1px solid #000', padding: '2px 3px', color: '#000' }}>{item.quantity.toFixed(3)}</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>{item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>0,00</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>{(item.unitPrice * item.quantity).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>0,00</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>0,00</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>0,00</td>
                     <td style={{ borderRight: '1px solid #000', padding: '2px 3px', textAlign: 'right', color: '#000' }}>0,00</td>
@@ -318,25 +324,25 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
           <SectionHeader title="Cálculo do ISSQN" />
           <FieldRow>
             <Field label="Inscrição Municipal" value="-" />
-            <Field label="Valor Total dos Serviços" value="R$ 0,00" />
-            <Field label="Base de Cálculo do ISSQN" value="R$ 0,00" />
-            <Field label="Valor do ISSQN" value="R$ 0,00" borderRight={false} />
+            <Field label="Valor Total dos Serviços" value="0,00" />
+            <Field label="Base de Cálculo do ISSQN" value="0,00" />
+            <Field label="Valor do ISSQN" value="0,00" borderRight={false} />
           </FieldRow>
 
           {/* Dados Adicionais */}
           <SectionHeader title="Dados Adicionais" />
           <div style={{ display: 'flex', minHeight: '50px' }}>
-            <div style={{ flex: 7, padding: '3px 5px', fontSize: '0.48rem', color: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ flex: 7, padding: '3px 5px', fontSize: '0.46rem', color: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <span style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>INFORMAÇÕES COMPLEMENTARES</span>
-                Nota emitida em ambiente de homologação. Produtos fornecidos por {empresa.name.toUpperCase()}.
+                <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>INFORMAÇÕES COMPLEMENTARES</span>
+                DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.
               </div>
-              <div style={{ fontSize: '0.40rem', color: '#6b7280', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.38rem', color: '#6b7280', marginTop: '4px' }}>
                 Documento emitido por Antigravity ERP | Assistência Técnica
               </div>
             </div>
             <div style={{ flex: 3, borderLeft: '1px solid #000', padding: '3px 5px', display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', marginBottom: '2px' }}>RESERVADO AO FISCO</span>
+              <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151', textTransform: 'uppercase', marginBottom: '2px' }}>RESERVA AO FISCO</span>
             </div>
           </div>
 

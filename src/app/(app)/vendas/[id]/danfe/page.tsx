@@ -177,15 +177,20 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
             </div>
             
             {/* Col 3: Controle do Fisco */}
-            <div style={{ width: '38%', padding: '4px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ width: '38%', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '36px', borderBottom: '1px solid #000', padding: '2px 0' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={barcodeDataUrl} alt="Código de Barras" style={{ height: '24px', width: '92%' }} />
               </div>
-              <div>
-                <div style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#4b5563' }}>CHAVE DE ACESSO</div>
-                <div style={{ fontFamily: 'monospace', fontSize: '0.52rem', fontWeight: 'bold', color: '#000', letterSpacing: '-0.2px' }}>{chaveFormatada}</div>
-                <div style={{ fontSize: '0.38rem', color: '#4b5563', marginTop: '1px' }}>Consulte a autenticidade no portal nacional da NF-e</div>
+              <div style={{ padding: '3px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1 }}>
+                <div>
+                  <div style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#1f2937' }}>CHAVE DE ACESSO</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.50rem', fontWeight: 'bold', color: '#000', letterSpacing: '-0.2px', marginTop: '1px' }}>{chaveFormatada}</div>
+                </div>
+                <div style={{ fontSize: '0.36rem', color: '#4b5563', lineHeight: '1.2', marginTop: '2px' }}>
+                  Consulta de autenticidade no portal nacional da NF-e<br />
+                  <strong>www.nfe.fazenda.gov.br/portal</strong> ou no site da Sefaz Autorizada
+                </div>
               </div>
             </div>
           </div>

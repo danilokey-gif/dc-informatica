@@ -88,6 +88,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
       : '-'
 
     const protocolo = "135262944542482" // Protocolo simulado do print do usuário
+    const nomeEmitente = empresa.name === "11.671.379DANILOCHAVES" ? "DANILO CHAVES" : empresa.name
 
     return (
       <div className="danfe-container" style={{ backgroundColor: 'white', color: 'black', padding: '0.1rem', width: '100%', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
@@ -117,69 +118,73 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
           
           {/* 1. CANHOTO (RECEBIMENTO) */}
           <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '38px', backgroundColor: '#fff' }}>
-            <div style={{ flex: 6.5, padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: '0.42rem', lineHeight: '1.2', color: '#000' }}>
-                RECEBEMOS DE <strong>{empresa.name.toUpperCase()}</strong> OS PRODUTOS E SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO
+            <div style={{ flex: 6.5, padding: '4px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ fontSize: '0.42rem', lineHeight: '1.3', color: '#000' }}>
+                RECEBEMOS DE <strong>{nomeEmitente.toUpperCase()}</strong> OS PRODUTOS E SERVIÇOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO
               </div>
             </div>
-            <div style={{ flex: 1.5, borderLeft: '1px solid #000', padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ flex: 1.5, borderLeft: '1px solid #000', padding: '4px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151' }}>DATA DE RECEBIMENTO</span>
-              <div style={{ borderBottom: '1px solid #999', margin: '4px 0 2px 0' }}></div>
             </div>
-            <div style={{ flex: 2.2, borderLeft: '1px solid #000', padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ flex: 2.2, borderLeft: '1px solid #000', padding: '4px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
               <span style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#374151' }}>IDENTIFICAÇÃO DE ASSINATURA DO RECEBEDOR</span>
-              <div style={{ borderBottom: '1px solid #999', margin: '4px 0 2px 0' }}></div>
             </div>
             <div style={{ flex: 1.8, borderLeft: '1px solid #000', padding: '2px 4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center', fontWeight: 'bold' }}>
-              <div style={{ fontSize: '0.56rem' }}>NF-e</div>
-              <div style={{ fontSize: '0.58rem', marginTop: '1px' }}>Nº {emissao.numero}</div>
+              <div style={{ fontSize: '0.62rem', letterSpacing: '0.5px' }}>NF-e</div>
+              <div style={{ fontSize: '0.62rem', marginTop: '1px' }}>Nº {emissao.numero}</div>
               <div style={{ fontSize: '0.44rem', color: '#374151' }}>Série {emissao.serie}</div>
             </div>
           </div>
 
           {/* 2. CABEÇALHO EMITENTE */}
-          <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '80px' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '82px' }}>
             
             {/* Col 1: Emitente */}
-            <div style={{ width: '38%', padding: '4px 6px', borderRight: '1px solid #000', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '38%', padding: '6px 8px', borderRight: '1px solid #000', display: 'flex', alignItems: 'center', gap: '10px' }}>
               {empresa.logo && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={empresa.logo} alt="Logo" style={{ height: '36px', width: '36px', objectFit: 'contain', flexShrink: 0 }} />
+                <img src={empresa.logo} alt="Logo" style={{ height: '46px', width: '46px', objectFit: 'contain', flexShrink: 0 }} />
               )}
-              <div style={{ lineHeight: 1.15 }}>
-                <div style={{ fontSize: '0.64rem', fontWeight: 'bold' }}>{empresa.name.toUpperCase()}</div>
-                <div style={{ fontSize: '0.42rem', color: '#4b5563', marginTop: '2px' }}>
-                  {enderecoPrestador} - {bairroPrestador} - {cepPrestador}<br />
+              <div style={{ lineHeight: 1.25 }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 'bold' }}>{nomeEmitente.toUpperCase()}</div>
+                <div style={{ fontSize: '0.46rem', color: '#000', marginTop: '1px' }}>
+                  CNPJ: {empresa.document || '-'}<br />
+                  {enderecoPrestador}<br />
+                  {bairroPrestador} - CEP: {cepPrestador}<br />
                   MARILIA - SP - FONE: {empresa.phone || '-'}
                 </div>
               </div>
             </div>
             
             {/* Col 2: DANFE */}
-            <div style={{ width: '27%', padding: '4px', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '0.82rem', letterSpacing: '0.5px' }}>DANFE</div>
-              <div style={{ fontSize: '0.42rem', color: '#4b5563', lineHeight: '1.2', marginTop: '1px' }}>
+            <div style={{ width: '24%', padding: '4px', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '0.78rem', letterSpacing: '0.5px' }}>DANFE</div>
+              <div style={{ fontSize: '0.40rem', color: '#4b5563', lineHeight: '1.2', marginTop: '1px' }}>
                 DOCUMENTO AUXILIAR<br />DA NOTA FISCAL<br />ELETRÔNICA
               </div>
-              <div style={{ display: 'flex', gap: '8px', fontSize: '0.44rem', border: '1px solid #000', padding: '1px 4px', margin: '3px 0', borderRadius: '1px' }}>
-                <span>0 - ENTRADA</span>
-                <span>1 - SAÍDA</span>
-                <strong>1</strong>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #000', padding: '2px 4px', margin: '3px 0', width: '88%', boxSizing: 'border-box' }}>
+                <div style={{ fontSize: '0.36rem', textAlign: 'left', lineHeight: '1.2', fontWeight: 'bold' }}>
+                  0 - ENTRADA<br />
+                  1 - SAÍDA
+                </div>
+                <div style={{ border: '1px solid #000', width: '10px', height: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.42rem' }}>
+                  1
+                </div>
               </div>
-              <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>Nº {emissao.numero}</div>
-              <div style={{ fontSize: '0.52rem', fontWeight: 'bold' }}>SÉRIE: {emissao.serie}</div>
+              <div style={{ fontSize: '0.50rem', fontWeight: 'bold' }}>Nº {emissao.numero}</div>
+              <div style={{ fontSize: '0.50rem', fontWeight: 'bold' }}>SÉRIE: {emissao.serie}</div>
               <div style={{ fontSize: '0.38rem', color: '#4b5563' }}>PÁGINA 1 DE 1</div>
             </div>
             
             {/* Col 3: Controle do Fisco */}
-            <div style={{ width: '35%', padding: '4px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ width: '38%', padding: '4px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={barcodeDataUrl} alt="Código de Barras" style={{ height: '24px', width: '92%' }} />
               </div>
               <div>
                 <div style={{ fontSize: '0.38rem', fontWeight: 'bold', color: '#4b5563' }}>CHAVE DE ACESSO</div>
-                <div style={{ fontFamily: 'monospace', fontSize: '0.56rem', fontWeight: 'bold', color: '#000', letterSpacing: '0.2px' }}>{chaveFormatada}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.52rem', fontWeight: 'bold', color: '#000', letterSpacing: '-0.2px' }}>{chaveFormatada}</div>
                 <div style={{ fontSize: '0.38rem', color: '#4b5563', marginTop: '1px' }}>Consulte a autenticidade no portal nacional da NF-e</div>
               </div>
             </div>

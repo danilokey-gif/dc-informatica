@@ -9,7 +9,8 @@ interface FiscalFieldsHelperProps {
 
 const COMMON_NCMS = [
   { label: 'Outras peças/acessórios (Padrão)', value: '84733099' },
-  { label: 'SSD / HD / Memória Flash', value: '84717012' },
+  { label: 'SSD (Unidade de Estado Sólido)', value: '84717040' },
+  { label: 'Pen drive / Memória USB', value: '85235190' },
   { label: 'Memória RAM', value: '84733042' },
   { label: 'Processador / Placa-Mãe', value: '84733041' },
   { label: 'Periféricos (Teclado/Mouse/Fone)', value: '84716050' },
@@ -38,7 +39,9 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
       if (isManuallyEdited) return
       const text = nameInput.value.toLowerCase()
 
-      if (
+      if (text.includes('pen drive') || text.includes('pendrive') || text.includes('pen-drive')) {
+        setNcm('85235190')
+      } else if (
         text.includes('ssd') ||
         text.includes('hd') ||
         text.includes('disco') ||
@@ -49,7 +52,7 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
         text.includes('western digital') ||
         text.includes('seagate')
       ) {
-        setNcm('84717012')
+        setNcm('84717040')
       } else if (text.includes('memoria') || text.includes('ram') || text.includes('ddr') || text.includes('sodimm') || text.includes('dimm')) {
         setNcm('84733042')
       } else if (

@@ -424,9 +424,9 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   // Divider line 1: under barcode
   doc.strokeColor('#000000').lineWidth(0.5).moveTo(startX + 340, currentY + 23).lineTo(startX + 340 + 195, currentY + 23).stroke()
   
-  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(4.5).text('CHAVE DE ACESSO', startX + 340 + 5, currentY + 26)
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(4.5).text('CHAVE DE ACESSO', startX + 340 + 5, currentY + 26, { width: 185, align: 'center' })
   const formattedKey = input.chaveAcesso.match(/.{1,4}/g)?.join(' ') || input.chaveAcesso
-  doc.fillColor('#000000').font('Courier-Bold').fontSize(6.5).text(formattedKey, startX + 340 + 5, currentY + 31.5, { width: 185 })
+  doc.fillColor('#000000').font('Courier-Bold').fontSize(6.5).text(formattedKey, startX + 340 + 5, currentY + 31.5, { width: 185, align: 'center' })
   
   // Divider line 2: between key and authenticity notice
   doc.strokeColor('#000000').lineWidth(0.5).moveTo(startX + 340, currentY + 41).lineTo(startX + 340 + 195, currentY + 41).stroke()

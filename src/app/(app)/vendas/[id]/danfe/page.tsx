@@ -186,7 +186,7 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
               </div>
               
               {/* Sec 2: Chave de Acesso */}
-              <div style={{ padding: '2px 6px', borderBottom: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '26px' }}>
+              <div style={{ padding: '2px 6px', borderBottom: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '26px', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.36rem', fontWeight: 'bold', color: '#1f2937' }}>CHAVE DE ACESSO</div>
                 <div style={{ fontFamily: 'monospace', fontSize: '0.50rem', fontWeight: 'bold', color: '#000', letterSpacing: '-0.2px', marginTop: '1px' }}>{chaveFormatada}</div>
               </div>

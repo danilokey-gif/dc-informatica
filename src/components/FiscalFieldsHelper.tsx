@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface FiscalFieldsHelperProps {
   defaultNcm?: string
@@ -27,6 +27,97 @@ const COMMON_CFOPS = [
 export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }: FiscalFieldsHelperProps) {
   const [ncm, setNcm] = useState(defaultNcm)
   const [cfop, setCfop] = useState(defaultCfop)
+  const [isManuallyEdited, setIsManuallyEdited] = useState(!!defaultNcm)
+
+  // Identificação automática à medida que o usuário digita o Nome do produto
+  useEffect(() => {
+    const nameInput = document.getElementById('name') as HTMLInputElement
+    if (!nameInput) return
+
+    const handleInput = () => {
+      if (isManuallyEdited) return
+      const text = nameInput.value.toLowerCase()
+
+      if (
+        text.includes('ssd') ||
+        text.includes('hd') ||
+        text.includes('disco') ||
+        text.includes('kingston') ||
+        text.includes('sandisk') ||
+        text.includes('crucial') ||
+        text.includes('corsair') ||
+        text.includes('western digital') ||
+        text.includes('seagate')
+      ) {
+        setNcm('84717012')
+      } else if (text.includes('memoria') || text.includes('ram') || text.includes('ddr') || text.includes('sodimm') || text.includes('dimm')) {
+        setNcm('84733042')
+      } else if (
+        text.includes('processador') ||
+        text.includes('intel') ||
+        text.includes('amd') ||
+        text.includes('ryzen') ||
+        text.includes('core i') ||
+        text.includes('placa mae') ||
+        text.includes('placa-mae') ||
+        text.includes('motherboard') ||
+        text.includes('lga') ||
+        text.includes('am4') ||
+        text.includes('am5')
+      ) {
+        setNcm('84733041')
+      } else if (
+        text.includes('mouse') ||
+        text.includes('teclado') ||
+        text.includes('fone') ||
+        text.includes('headset') ||
+        text.includes('gabinete') ||
+        text.includes('cooler') ||
+        text.includes('periferico') ||
+        text.includes('caixa de som') ||
+        text.includes('microfone')
+      ) {
+        setNcm('84716050')
+      } else if (
+        text.includes('notebook') ||
+        text.includes('computador') ||
+        text.includes('pc') ||
+        text.includes('desktop') ||
+        text.includes('dell') ||
+        text.includes('lenovo') ||
+        text.includes('thinkpad') ||
+        text.includes('acer') ||
+        text.includes('macbook')
+      ) {
+        setNcm('84713019')
+      } else if (
+        text.includes('cabo') ||
+        text.includes('adaptador') ||
+        text.includes('conector') ||
+        text.includes('hdmi') ||
+        text.includes('usb') ||
+        text.includes('vga') ||
+        text.includes('displayport') ||
+        text.includes('sata')
+      ) {
+        setNcm('85444200')
+      } else if (
+        text.includes('roteador') ||
+        text.includes('switch') ||
+        text.includes('wifi') ||
+        text.includes('wi-fi') ||
+        text.includes('access point') ||
+        text.includes('rede') ||
+        text.includes('ethernet') ||
+        text.includes('modem')
+      ) {
+        setNcm('85176277')
+      }
+    }
+
+    nameInput.addEventListener('input', handleInput)
+    return () => nameInput.removeEventListener('input', handleInput)
+  }, [isManuallyEdited])
 
   return (
     <div style={{ marginTop: '1rem', marginBottom: '1rem' }}>
@@ -43,7 +134,10 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
             name="ncm"
             className="input-field"
             value={ncm}
-            onChange={(e) => setNcm(e.target.value.replace(/\D/g, '').slice(0, 8))}
+            onChange={(e) => {
+              setNcm(e.target.value.replace(/\D/g, '').slice(0, 8))
+              setIsManuallyEdited(true)
+            }}
             placeholder="8 dígitos (obrigatório)"
             required
           />
@@ -79,7 +173,7 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
         {/* NCM Helpers */}
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-            ⚡ Clique para preencher o NCM automaticamente:
+            ⚡ Preenchimento rápido ou automático pelo nome (Clique para fixar):
           </div>
           <div style={{ display: 'flex', gap: '0.25rem 0.35rem', flexWrap: 'wrap' }}>
             {COMMON_NCMS.map((opt) => (
@@ -97,7 +191,10 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
                   borderRadius: '4px',
                   cursor: 'pointer'
                 }}
-                onClick={() => setNcm(opt.value)}
+                onClick={() => {
+                  setNcm(opt.value)
+                  setIsManuallyEdited(true)
+                }}
               >
                 {opt.label.split(' (')[0]} ({opt.value})
               </button>

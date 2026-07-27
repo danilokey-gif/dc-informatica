@@ -316,6 +316,29 @@ export default async function DanfePage({ params }: { params: Promise<{ id: stri
                     <td style={{ padding: '2px 3px', textAlign: 'right', color: '#000' }}>0,00</td>
                   </tr>
                 ))}
+                {/* Linha em branco (spacer) para preencher a página e desenhar as grades verticais */}
+                {(() => {
+                  const itemRowsHeight = venda.items.length * 18
+                  const spacerHeight = Math.max(60, 260 - itemRowsHeight)
+                  return (
+                    <tr style={{ height: `${spacerHeight}px` }}>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td style={{ borderRight: '1px solid #000' }}></td>
+                      <td></td>
+                    </tr>
+                  )
+                })()}
               </tbody>
             </table>
           </div>

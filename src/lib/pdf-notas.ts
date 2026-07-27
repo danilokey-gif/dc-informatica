@@ -580,10 +580,12 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   })
   currentY += 12
 
+  let totalRowHeight = 0
   doc.font('Helvetica').fontSize(6.5).fillColor('#000000')
   for (const item of input.itens) {
     const descHeight = doc.heightOfString(item.descricao.toUpperCase(), { width: colWidths[1] - 4 })
     const rowHeight = Math.max(14, descHeight + 4)
+    totalRowHeight += rowHeight
     
     tempX = startX
     const cells = [
@@ -612,6 +614,16 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
     })
     currentY += rowHeight
   }
+
+  // Desenha um grid em branco complementar para preencher a página A4 (mínimo de 20pt)
+  const targetHeight = 180
+  const remainingHeight = Math.max(20, targetHeight - totalRowHeight)
+  tempX = startX
+  colWidths.forEach((width, i) => {
+    doc.strokeColor('#000000').lineWidth(0.5).rect(tempX, currentY, width, remainingHeight).stroke()
+    tempX += width
+  })
+  currentY += remainingHeight
   currentY += 4
 
   // 9. Cálculo do ISSQN

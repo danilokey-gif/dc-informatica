@@ -314,64 +314,212 @@ export interface DanfePdfInput {
   emitenteNome: string
   emitenteCnpj: string
   emitenteIe?: string | null
+  emitenteLogo?: string | null
+  emitenteTelefone?: string | null
+  emitenteEmail?: string | null
+  emitenteEndereco?: string | null
+  emitenteCep?: string | null
   destinatarioNome: string
   destinatarioDocumento?: string | null
+  destinatarioEndereco?: string | null
+  destinatarioBairro?: string | null
+  destinatarioCep?: string | null
+  destinatarioMunicipio?: string | null
+  destinatarioUf?: string | null
   itens: DanfeItemPdf[]
   valorTotal: string
 }
 
+/** Layout do DANFE (Produtos) oficial em grade (boxes) com logomarca em base64 */
 export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
-  const doc = new PDFDocument({ size: 'A4', margin: 40 })
+  const doc = new PDFDocument({ size: 'A4', margin: 35 })
   const bufferPromise = coletarBuffer(doc)
   const barcode = await gerarCode128Buffer(input.chaveAcesso)
 
-  if (input.ambiente !== 'producao') {
-    doc.rect(40, 40, doc.page.width - 80, 30).fillAndStroke('#fee2e2', '#991b1b')
-    doc.fillColor('#991b1b').fontSize(11).font('Helvetica-Bold')
-      .text('NF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL', 40, 49, { width: doc.page.width - 80, align: 'center' })
-    doc.moveDown(2)
+  let logoBuffer: Buffer | null = null
+  if (input.emitenteLogo) {
+    const match = input.emitenteLogo.match(/^data:image\/[a-z+]+;base64,(.+)$/)
+    if (match) {
+      try {
+        logoBuffer = Buffer.from(match[1], 'base64')
+      } catch (e) {}
+    }
   }
 
-  doc.fillColor('black').fontSize(16).font('Helvetica-Bold').text('DANFE', { align: 'center' })
-  doc.fontSize(9).font('Helvetica').text('Documento Auxiliar da Nota Fiscal Eletrônica', { align: 'center' })
-  doc.fontSize(10).text(`Nº ${input.numero} — Série ${input.serie}`, { align: 'center' })
-  doc.moveDown(1)
+  let currentY = 35
+  const startX = 35
+  const totalWidth = 525
 
-  doc.font('Helvetica-Bold').fontSize(10).text('Emitente')
-  doc.font('Helvetica').text(`${input.emitenteNome} — CNPJ: ${input.emitenteCnpj}${input.emitenteIe ? ` — IE: ${input.emitenteIe}` : ''}`)
-  doc.moveDown(0.5)
+  // 1. Homologation header if applicable
+  if (input.ambiente !== 'producao') {
+    doc.rect(startX, currentY, totalWidth, 18).fillAndStroke('#fee2e2', '#991b1b')
+    doc.fillColor('#991b1b').fontSize(7.5).font('Helvetica-Bold')
+      .text('NF-E EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL', startX, currentY + 5.5, { width: totalWidth, align: 'center' })
+    currentY += 22
+  }
 
-  doc.font('Helvetica-Bold').text('Destinatário')
-  doc.font('Helvetica').text(`${input.destinatarioNome}${input.destinatarioDocumento ? ` — Documento: ${input.destinatarioDocumento}` : ''}`)
-  doc.moveDown(1)
+  // 2. Main Header (divided into 3 columns)
+  const headerHeight = 55
+  doc.strokeColor('#000000').lineWidth(0.5)
 
-  doc.font('Helvetica-Bold').fontSize(11).text('Chave de Acesso', { align: 'center' })
-  doc.font('Courier').fontSize(10).text(formatarChave(input.chaveAcesso), { align: 'center' })
-  doc.moveDown(0.3)
-  const barcodeWidth = 280
-  const barcodeHeight = 50
-  const barcodeY = doc.y
-  doc.image(barcode, (doc.page.width - barcodeWidth) / 2, barcodeY, { width: barcodeWidth, height: barcodeHeight })
-  doc.y = barcodeY + barcodeHeight + 10
+  // Col 1: Emitente Info (Logo + Details)
+  doc.rect(startX, currentY, 195, headerHeight).stroke()
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, startX + 6, currentY + 6, { width: 42, height: 42, fit: [42, 42] })
+    } catch (e) {}
+  }
+  const textX = logoBuffer ? startX + 54 : startX + 6
+  const textWidth = logoBuffer ? 135 : 183
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8).text(input.emitenteNome, textX, currentY + 8, { width: textWidth })
+  doc.font('Helvetica').fontSize(6).text(`CNPJ: ${input.emitenteCnpj}\nIE: ${input.emitenteIe || '-'}\n${input.emitenteEndereco || ''}`, textX, currentY + 21, { width: textWidth })
 
-  // Tabela de itens
-  const startX = 40
-  let y = doc.y
-  const colWidths = [70, 150, 55, 45, 40, 65, 65]
-  const headers = ['Código', 'Descrição', 'NCM', 'CFOP', 'Qtd.', 'Vl. Unit.', 'Vl. Total']
+  // Col 2: DANFE Identification
+  doc.rect(startX + 195, currentY, 140, headerHeight).stroke()
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(9.5).text('DANFE', startX + 195, currentY + 6, { align: 'center', width: 140 })
+  doc.font('Helvetica').fontSize(6.5).text('Documento Auxiliar da\nNota Fiscal Eletrônica\n\n0 - Entrada\n1 - Saída', startX + 195, currentY + 16, { align: 'center', width: 140 })
+  // Draw a checkbox for "Saída" (value 1)
+  doc.rect(startX + 292, currentY + 28, 8, 8).stroke()
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(6.5).text('1', startX + 294, currentY + 29.5)
+  
+  doc.font('Helvetica-Bold').fontSize(7.5).text(`Nº ${input.numero}`, startX + 195, currentY + 38, { align: 'center', width: 140 })
+  doc.text(`Série ${input.serie}`, startX + 195, currentY + 46, { align: 'center', width: 140 })
 
-  doc.fontSize(8).font('Helvetica-Bold')
-  let x = startX
-  headers.forEach((h, i) => {
-    doc.text(h, x, y, { width: colWidths[i] })
-    x += colWidths[i]
+  // Col 3: Controle do Fisco (Barcode & Key)
+  doc.rect(startX + 335, currentY, 190, headerHeight).stroke()
+  try {
+    doc.image(barcode, startX + 335 + 15, currentY + 5, { width: 160, height: 24 })
+  } catch (e) {}
+  
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(4.5).text('CHAVE DE ACESSO DA NF-e', startX + 335 + 5, currentY + 31)
+  const formattedKey = input.chaveAcesso.match(/.{1,4}/g)?.join(' ') || input.chaveAcesso
+  doc.fillColor('#000000').font('Courier-Bold').fontSize(6.8).text(formattedKey, startX + 335 + 5, currentY + 37, { width: 180 })
+  doc.font('Helvetica').fontSize(5.5).fillColor('#6b7280').text('Consulte a autenticidade em www.nfe.fazenda.gov.br', startX + 335 + 5, currentY + 46, { width: 180 })
+
+  currentY += headerHeight + 4
+
+  // Helper to draw a bordered section for NFe
+  function drawSection(title: string, rows: PdfField[][]) {
+    // 1. Draw Title
+    doc.fillColor('#f3f4f6').rect(startX, currentY, totalWidth, 12).fill()
+    doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, totalWidth, 12).stroke()
+    doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(6).text(title.toUpperCase(), startX + 5, currentY + 3.5)
+    currentY += 12
+
+    // 2. Draw Rows
+    for (const row of rows) {
+      const totalFlex = row.reduce((sum, field) => sum + (field.flex || 1), 0)
+      
+      // Calculate row height
+      let maxRowHeight = 22 // minimum height
+      for (const field of row) {
+        const fieldWidth = ((field.flex || 1) / totalFlex) * totalWidth
+        const valStr = String(field.value ?? '-')
+        doc.font('Helvetica').fontSize(8)
+        const textHeight = doc.heightOfString(valStr, { width: fieldWidth - 8 })
+        const fieldHeight = textHeight + 11
+        if (fieldHeight > maxRowHeight) {
+          maxRowHeight = fieldHeight
+        }
+      }
+
+      // Draw fields
+      let tempX = startX
+      for (const field of row) {
+        const fieldWidth = ((field.flex || 1) / totalFlex) * totalWidth
+        
+        doc.strokeColor('#000000').lineWidth(0.5).rect(tempX, currentY, fieldWidth, maxRowHeight).stroke()
+        doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text(field.label.toUpperCase(), tempX + 4, currentY + 3, { width: fieldWidth - 8 })
+        doc.fillColor('#000000').font('Helvetica').fontSize(7.5).text(String(field.value ?? '-'), tempX + 4, currentY + 11.5, { width: fieldWidth - 8 })
+        
+        tempX += fieldWidth
+      }
+      currentY += maxRowHeight
+    }
+    currentY += 4
+  }
+
+  // 3. Natureza da Operação
+  drawSection('Natureza da Operação', [
+    [
+      { label: 'Natureza da Operação', value: 'Venda de mercadoria', flex: 2 },
+      { label: 'Protocolo de Autorização de Uso', value: 'Homologado pelo emissor nacional', flex: 2 }
+    ]
+  ])
+
+  // 4. Destinatário / Remetente
+  drawSection('Destinatário / Remetente', [
+    [
+      { label: 'Nome / Razão Social', value: input.destinatarioNome, flex: 2 },
+      { label: 'CNPJ / CPF', value: input.destinatarioDocumento || '-', flex: 1 },
+      { label: 'Data Emissão', value: new Date().toLocaleDateString('pt-BR'), flex: 1 }
+    ],
+    [
+      { label: 'Endereço', value: input.destinatarioEndereco || '-', flex: 2 },
+      { label: 'Bairro / Distrito', value: input.destinatarioBairro || '-', flex: 1 },
+      { label: 'CEP', value: input.destinatarioCep || '-', flex: 1 }
+    ],
+    [
+      { label: 'Município', value: input.destinatarioMunicipio || '-', flex: 2 },
+      { label: 'UF', value: input.destinatarioUf || '-', flex: 1 },
+      { label: 'Inscrição Estadual', value: '-', flex: 1 }
+    ]
+  ])
+
+  // 5. Cálculo do Imposto
+  drawSection('Cálculo do Imposto', [
+    [
+      { label: 'Base de Cálculo ICMS', value: 'R$ 0,00' },
+      { label: 'Valor do ICMS', value: 'R$ 0,00' },
+      { label: 'Base de Cálculo ICMS ST', value: 'R$ 0,00' },
+      { label: 'Valor do ICMS ST', value: 'R$ 0,00' },
+      { label: 'V. Total dos Produtos', value: input.valorTotal }
+    ],
+    [
+      { label: 'Valor do Frete', value: 'R$ 0,00' },
+      { label: 'Valor do Seguro', value: 'R$ 0,00' },
+      { label: 'Desconto', value: 'R$ 0,00' },
+      { label: 'Outras Despesas', value: 'R$ 0,00' },
+      { label: 'Valor do IPI', value: 'R$ 0,00' },
+      { label: 'V. Total da Nota', value: input.valorTotal }
+    ]
+  ])
+
+  // 6. Transportador / Volumes
+  drawSection('Transportador / Volumes Transportados', [
+    [
+      { label: 'Razão Social', value: 'Sem frete', flex: 2 },
+      { label: 'Frete por Conta', value: '9 - Sem frete', flex: 1 },
+      { label: 'Placa do Veículo', value: '-', flex: 1 },
+      { label: 'UF', value: '-', flex: 1 },
+      { label: 'CNPJ / CPF', value: '-', flex: 1 }
+    ]
+  ])
+
+  // 7. Dados dos Produtos / Serviços
+  doc.fillColor('#f3f4f6').rect(startX, currentY, totalWidth, 12).fill()
+  doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, totalWidth, 12).stroke()
+  doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(6).text('DADOS DOS PRODUTOS / SERVIÇOS', startX + 5, currentY + 3.5)
+  currentY += 12
+
+  const colWidths = [60, 195, 45, 40, 35, 75, 75]
+  const itemHeaders = ['CÓDIGO', 'DESCRIÇÃO DO PRODUTO', 'NCM', 'CFOP', 'QTD.', 'V. UNIT.', 'V. TOTAL']
+  let tempX = startX
+  doc.fontSize(5.5).font('Helvetica-Bold').fillColor('#4b5563')
+  itemHeaders.forEach((h, i) => {
+    doc.strokeColor('#000000').lineWidth(0.5).rect(tempX, currentY, colWidths[i], 12).stroke()
+    doc.text(h, tempX + 4, currentY + 3.5, { width: colWidths[i] - 8 })
+    tempX += colWidths[i]
   })
-  y += 15
-  doc.font('Helvetica')
+  currentY += 12
 
+  doc.font('Helvetica').fontSize(7.5).fillColor('#000000')
   for (const item of input.itens) {
-    x = startX
-    const linha = [
+    const descHeight = doc.heightOfString(item.descricao, { width: colWidths[1] - 8 })
+    const rowHeight = Math.max(16, descHeight + 6)
+    
+    tempX = startX
+    const cells = [
       item.codigo,
       item.descricao,
       item.ncm,
@@ -380,15 +528,23 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
       item.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
       item.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
     ]
-    linha.forEach((val, i) => {
-      doc.text(val, x, y, { width: colWidths[i] })
-      x += colWidths[i]
+    
+    cells.forEach((val, i) => {
+      doc.strokeColor('#000000').lineWidth(0.5).rect(tempX, currentY, colWidths[i], rowHeight).stroke()
+      const textY = currentY + (rowHeight - doc.heightOfString(val, { width: colWidths[i] - 8 })) / 2
+      doc.text(val, tempX + 4, textY, { width: colWidths[i] - 8 })
+      tempX += colWidths[i]
     })
-    y += 15
+    currentY += rowHeight
   }
+  currentY += 4
 
-  doc.moveDown(2)
-  doc.fontSize(11).font('Helvetica-Bold').text(`Valor Total da Nota: ${input.valorTotal}`, { align: 'right' })
+  // 8. Dados Adicionais
+  drawSection('Dados Adicionais', [
+    [
+      { label: 'Informações Complementares', value: `Nota emitida em ambiente de homologação. Produtos fornecidos por ${input.emitenteNome}.` }
+    ]
+  ])
 
   doc.end()
   return bufferPromise

@@ -8,6 +8,7 @@ import { NfeSoapClient } from "@/lib/nfe/soap-client"
 import { montarXmlNfe, assinarNfe } from "@/lib/nfe/xml"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
+import { gerarPdfDanfe } from "@/lib/pdf-notas"
 
 const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'> = {
   'Dinheiro': 'dinheiro',
@@ -160,7 +161,10 @@ export async function emitirNfeVenda(saleId: string) {
 
 export async function enviarNfeEmail(saleId: string) {
   const [venda, empresa, emissao] = await Promise.all([
-    prisma.sale.findUniqueOrThrow({ where: { id: saleId }, include: { customer: true } }),
+    prisma.sale.findUniqueOrThrow({
+      where: { id: saleId },
+      include: { customer: true, items: { include: { product: true } } }
+    }),
     getCompanySettings(),
     prisma.nfeEmissao.findFirst({ where: { saleId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
   ])
@@ -173,6 +177,35 @@ export async function enviarNfeEmail(saleId: string) {
   }
 
   const valor = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  const pdfBuffer = await gerarPdfDanfe({
+    ambiente: emissao.ambiente,
+    numero: emissao.numero,
+    serie: emissao.serie,
+    chaveAcesso: emissao.chaveAcesso || '',
+    emitenteNome: empresa.name,
+    emitenteCnpj: empresa.document || '',
+    emitenteIe: empresa.inscricaoEstadual,
+    emitenteLogo: empresa.logo,
+    emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
+    destinatarioNome: venda.customer?.name || 'Consumidor',
+    destinatarioDocumento: venda.customer?.document,
+    destinatarioEndereco: venda.customer ? `${venda.customer.enderLogradouro || ''}${venda.customer.enderNumero ? `, ${venda.customer.enderNumero}` : ''}` : '-',
+    destinatarioBairro: venda.customer?.enderBairro || '-',
+    destinatarioCep: venda.customer?.enderCep || '-',
+    destinatarioMunicipio: venda.customer?.enderMunicipio || '-',
+    destinatarioUf: venda.customer?.enderUf || '-',
+    itens: venda.items.map(item => ({
+      codigo: item.product.sku || item.productId.slice(-8),
+      descricao: item.product.name,
+      ncm: item.product.ncm || '-',
+      cfop: item.product.cfop || '-',
+      quantidade: item.quantity,
+      valorUnitario: item.unitPrice,
+      valorTotal: item.unitPrice * item.quantity,
+    })),
+    valorTotal: valor,
+  })
 
   await enviarEmail({
     to: venda.customer.email,
@@ -187,11 +220,18 @@ export async function enviarNfeEmail(saleId: string) {
       <p>${empresa.name}${empresa.phone ? ` - ${empresa.phone}` : ''}</p>
     `,
     logoDataUrl: empresa.logo,
-    arquivos: emissao.xmlNfe ? [{
-      filename: `NFe-${emissao.chaveAcesso}.xml`,
-      content: emissao.xmlNfe,
-      contentType: 'application/xml',
-    }] : [],
+    arquivos: [
+      ...(emissao.xmlNfe ? [{
+        filename: `NFe-${emissao.chaveAcesso}.xml`,
+        content: emissao.xmlNfe,
+        contentType: 'application/xml',
+      }] : []),
+      {
+        filename: `DANFE-${emissao.chaveAcesso}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      }
+    ],
   })
 
   revalidatePath(`/vendas/${saleId}/imprimir`)

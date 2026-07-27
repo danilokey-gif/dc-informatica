@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { updateProduct } from "../actions"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import FiscalFieldsHelper from "@/components/FiscalFieldsHelper"
 
 export default async function EditarProdutoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -65,16 +66,7 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
             <input type="number" step="1" min="0" id="minStockAlert" name="minStockAlert" className="input-field" defaultValue={produto.minStockAlert} />
           </div>
 
-          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
-              <label className="input-label" htmlFor="ncm">NCM (para NF-e)</label>
-              <input type="text" id="ncm" name="ncm" className="input-field" defaultValue={produto.ncm || ''} placeholder="8 dígitos, ex: 84733090" />
-            </div>
-            <div className="input-group" style={{ flex: 1, minWidth: '150px' }}>
-              <label className="input-label" htmlFor="cfop">CFOP (para NF-e)</label>
-              <input type="text" id="cfop" name="cfop" className="input-field" defaultValue={produto.cfop || ''} placeholder="Deixe em branco p/ usar o padrão" />
-            </div>
-          </div>
+          <FiscalFieldsHelper defaultNcm={produto.ncm || ''} defaultCfop={produto.cfop || ''} />
 
           <div style={{ marginTop: '2rem' }}>
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export default async function VendasPage() {
   const vendas = await prisma.sale.findMany({
     orderBy: { createdAt: 'desc' },
-    include: { customer: true, items: true }
+    include: { customer: true, items: true, nfeEmissoes: { orderBy: { createdAt: 'desc' } } }
   })
 
   return (
@@ -42,10 +42,28 @@ export default async function VendasPage() {
                 <td>{venda.items.reduce((acc, item) => acc + item.quantity, 0)}</td>
                 <td>{venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                 <td>{venda.paymentMethod}</td>
-                <td>
-                  {venda.invoiceNumber
-                    ? <span>{venda.invoiceType} {venda.invoiceNumber}</span>
-                    : <span className="text-muted">Não emitida</span>}
+                 <td>
+                  {(() => {
+                    const ultimaNfe = venda.nfeEmissoes?.[0]
+                    if (ultimaNfe) {
+                      if (ultimaNfe.status === 'AUTORIZADA') {
+                        return <span className="badge badge-success" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>NF-e nº {ultimaNfe.numero}</span>
+                      }
+                      if (ultimaNfe.status === 'CANCELADA') {
+                        return <span className="badge badge-danger" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, backgroundColor: '#dc2626', color: 'white' }}>NF-e nº {ultimaNfe.numero} (Cancelada)</span>
+                      }
+                      if (ultimaNfe.status === 'PROCESSANDO') {
+                        return <span className="badge badge-warning" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Processando...</span>
+                      }
+                      if (ultimaNfe.status === 'REJEITADA') {
+                        return <span className="badge badge-danger" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, backgroundColor: '#dc2626', color: 'white' }}>Rejeitada</span>
+                      }
+                    }
+                    if (venda.invoiceNumber) {
+                      return <span>{venda.invoiceType} {venda.invoiceNumber}</span>
+                    }
+                    return <span className="text-muted">Não emitida</span>
+                  })()}
                 </td>
                 <td>
                   <Link href={`/vendas/${venda.id}/imprimir`} className="text-primary" style={{ fontWeight: 500 }}>Ver Recibo</Link>

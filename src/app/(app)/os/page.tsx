@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function OSPage() {
   const ordens = await prisma.serviceOrder.findMany({
-    include: { customer: true, technician: true },
+    include: { customer: true, technician: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } } },
     orderBy: { createdAt: 'desc' }
   })
 
@@ -48,6 +48,7 @@ export default async function OSPage() {
               <th>Aparelho</th>
               <th>Técnico</th>
               <th>Status</th>
+              <th>Nota Fiscal</th>
               <th>Data</th>
               <th>Ações</th>
             </tr>
@@ -55,7 +56,7 @@ export default async function OSPage() {
           <tbody>
             {ordens.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-muted">Nenhuma ordem de serviço cadastrada.</td>
+                <td colSpan={8} className="text-center text-muted">Nenhuma ordem de serviço cadastrada.</td>
               </tr>
             )}
             {ordens.map(os => {
@@ -77,6 +78,26 @@ export default async function OSPage() {
                     }}>
                       {getStatusName(os.status)}
                     </span>
+                  </td>
+                  <td>
+                    {(() => {
+                      const ultimaNfse = os.nfseEmissoes?.[0]
+                      if (ultimaNfse) {
+                        if (ultimaNfse.status === 'AUTORIZADA') {
+                          return <span className="badge badge-success" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>NFS-e nº {ultimaNfse.numeroDps}</span>
+                        }
+                        if (ultimaNfse.status === 'CANCELADA') {
+                          return <span className="badge badge-danger" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, backgroundColor: '#dc2626', color: 'white' }}>NFS-e (Cancelada)</span>
+                        }
+                        if (ultimaNfse.status === 'PROCESSANDO') {
+                          return <span className="badge badge-warning" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Processando...</span>
+                        }
+                        if (ultimaNfse.status === 'REJEITADA') {
+                          return <span className="badge badge-danger" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, backgroundColor: '#dc2626', color: 'white' }}>Rejeitada</span>
+                        }
+                      }
+                      return <span className="text-muted">-</span>
+                    })()}
                   </td>
                   <td>{new Date(os.createdAt).toLocaleDateString('pt-BR')}</td>
                   <td>

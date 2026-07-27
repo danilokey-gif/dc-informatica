@@ -25,6 +25,9 @@ export async function updateSettings(formData: FormData) {
   const removeLogo = formData.get('removeLogo') === '1'
   const logoFile = formData.get('logo') as File | null
   const localDrivePath = (formData.get('localDrivePath') as string) || null
+  const gdriveFolderId = (formData.get('gdriveFolderId') as string) || null
+  const gdriveEmail = (formData.get('gdriveEmail') as string) || null
+  const gdrivePrivateKey = (formData.get('gdrivePrivateKey') as string) || null
 
   let logo: string | null | undefined = undefined
 
@@ -44,8 +47,8 @@ export async function updateSettings(formData: FormData) {
 
   await prisma.companySettings.upsert({
     where: { id: 'main' },
-    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath },
-    update: { name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath }
+    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey },
+    update: { name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey }
   })
 
   revalidatePath('/', 'layout')

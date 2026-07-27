@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache"
 import { gerarPdfDanfse } from "@/lib/pdf-notas"
 import fs from 'fs'
 import path from 'path'
-import { salvarNotaNoDrive } from "@/lib/drive"
+import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
 
 export async function emitirNfseServiceOrder(serviceOrderId: string) {
   let emissaoId: string | null = null
@@ -283,6 +283,14 @@ export async function cancelarNfseServiceOrder(serviceOrderId: string) {
       }
     } catch (fsError) {
       console.warn('[Drive] Falha ao mover arquivos no drive local (provavelmente rodando na nuvem/Vercel):', fsError)
+    }
+
+    // Mover no Google Drive se configurado
+    try {
+      const key = emissao.chaveAcesso || String(emissao.numeroDps)
+      await moverNotaNoGoogleDriveCancelada('NFSe', key)
+    } catch (gdriveError) {
+      console.error('[Google Drive] Falha ao processar cancelamento no Google Drive:', gdriveError)
     }
   } catch (error: any) {
     throw new Error(error.message || String(error))

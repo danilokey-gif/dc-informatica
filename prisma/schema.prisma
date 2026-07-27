@@ -114,6 +114,9 @@ model CompanySettings {
   enderBairro       String?
   enderCep          String?
   localDrivePath    String?
+  gdriveFolderId    String?
+  gdriveEmail       String?
+  gdrivePrivateKey  String?
   updatedAt         DateTime @updatedAt
 }
 

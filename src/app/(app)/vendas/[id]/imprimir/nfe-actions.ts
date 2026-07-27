@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache"
 import { gerarPdfDanfe } from "@/lib/pdf-notas"
 import fs from 'fs'
 import path from 'path'
-import { salvarNotaNoDrive } from "@/lib/drive"
+import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
 
 const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'> = {
   'Dinheiro': 'dinheiro',
@@ -334,6 +334,15 @@ export async function cancelarNfeVenda(saleId: string) {
       }
     } catch (fsError) {
       console.warn('[Drive] Falha ao mover arquivos no drive local (provavelmente rodando na nuvem/Vercel):', fsError)
+    }
+
+    // Mover no Google Drive se configurado
+    try {
+      if (emissao.chaveAcesso) {
+        await moverNotaNoGoogleDriveCancelada('NFe', emissao.chaveAcesso)
+      }
+    } catch (gdriveError) {
+      console.error('[Google Drive] Falha ao processar cancelamento no Google Drive:', gdriveError)
     }
   } catch (error: any) {
     throw new Error(error.message || String(error))

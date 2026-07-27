@@ -6,7 +6,7 @@ import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
 import { updateSaleInvoice } from "../../actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "../../../os/[id]/imprimir/CopyPixButton"
-import { emitirNfeVenda, enviarNfeEmail } from "./nfe-actions"
+import { emitirNfeVenda, enviarNfeEmail, cancelarNfeVenda } from "./nfe-actions"
 import StatusBadge from "@/components/StatusBadge"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +30,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
   const nfeAutorizada = ultimaEmissaoNfe?.status === 'AUTORIZADA'
   const emitirNfeAction = emitirNfeVenda.bind(null, venda.id)
   const enviarNfeEmailAction = enviarNfeEmail.bind(null, venda.id)
+  const cancelarNfeAction = cancelarNfeVenda.bind(null, venda.id)
 
   const numeroVenda = venda.id.slice(-6).toUpperCase()
   const totalFormatado = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -196,14 +197,19 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
         )}
 
         <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-          {!nfeAutorizada && (
+          {ultimaEmissaoNfe?.status === 'CANCELADA' && (
+            <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
+              🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
+            </p>
+          )}
+          {!nfeAutorizada && ultimaEmissaoNfe?.status !== 'CANCELADA' && (
             <form action={emitirNfeAction}>
               <button type="submit" className="btn btn-primary" disabled={!nfeConfigurada}>
                 {ultimaEmissaoNfe?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NF-e'}
               </button>
             </form>
           )}
-          {nfeAutorizada && (
+           {nfeAutorizada && (
             <>
               <a href={`/vendas/${venda.id}/danfe`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
                 🖨️ Ver / Imprimir DANFE
@@ -213,6 +219,11 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
                   ✉️ Enviar Nota por E-mail
                 </button>
                 {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+              </form>
+              <form action={cancelarNfeAction}>
+                <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white' }}>
+                  🚫 Cancelar NF-e
+                </button>
               </form>
             </>
           )}

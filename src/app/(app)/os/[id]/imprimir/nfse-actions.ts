@@ -9,6 +9,9 @@ import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 import { gerarPdfDanfse } from "@/lib/pdf-notas"
+import fs from 'fs'
+import path from 'path'
+import { salvarNotaNoDrive } from "@/lib/drive"
 
 export async function emitirNfseServiceOrder(serviceOrderId: string) {
   let emissaoId: string | null = null
@@ -93,6 +96,45 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
         data: { proximoNumeroDps: { increment: 1 } }
       })
     ])
+
+    try {
+      const valor = os.price ? os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''
+      const numeroNfse = resposta.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || String(numeroDps)
+      const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
+      const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
+      
+      const pdfBuffer = await gerarPdfDanfse({
+        ambiente,
+        numeroNfse,
+        numeroDps,
+        serieDps: nfseConfig.serieDps,
+        chaveAcesso: resposta.chaveAcesso || '',
+        dataEmissao: new Date(),
+        prestadorNome: empresa.name,
+        prestadorCnpj: empresa.document || '',
+        prestadorTelefone: empresa.phone,
+        prestadorEmail: empresa.email,
+        prestadorEndereco: enderecoPrestador,
+        prestadorCep: empresa.enderCep,
+        tomadorNome: os.customer.name,
+        tomadorDocumento: os.customer.document,
+        tomadorTelefone: os.customer.phone,
+        tomadorEmail: os.customer.email,
+        tomadorEndereco: os.customer.address,
+        descricaoServico: `${os.device} — ${os.issue}`,
+        codigoServico: nfseConfig.codigoServico,
+        descricaoCodServico: nfseConfig.descricaoCodServico,
+        municipioLabel,
+        regimeTributario: nfseConfig.regimeTributario,
+        aliquotaIss: nfseConfig.aliquotaIss,
+        valorTotal: valor,
+      })
+
+      const key = resposta.chaveAcesso || String(numeroDps)
+      await salvarNotaNoDrive('NFSe', key, resposta.xmlNfse || null, pdfBuffer)
+    } catch (err) {
+      console.error('[Drive] Erro ao gerar/salvar PDF da NFSe no drive local:', err)
+    }
   } catch (error: any) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     if (emissaoId) {
@@ -193,5 +235,54 @@ export async function enviarNfseEmail(serviceOrderId: string) {
     ],
   })
 
+  revalidatePath(`/os/${serviceOrderId}/imprimir`)
+}
+
+export async function cancelarNfseServiceOrder(serviceOrderId: string) {
+  try {
+    const emissao = await prisma.nfseEmissao.findFirst({
+      where: { serviceOrderId, status: 'AUTORIZADA' },
+      orderBy: { createdAt: 'desc' }
+    })
+    
+    if (!emissao) {
+      throw new Error('Nenhuma nota fiscal de serviço autorizada encontrada para cancelar.')
+    }
+    
+    // 1. Atualizar o status no banco de dados para CANCELADA
+    await prisma.nfseEmissao.update({
+      where: { id: emissao.id },
+      data: { status: 'CANCELADA' }
+    })
+    
+    // 2. Mover os arquivos no drive local para a pasta Canceladas
+    const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
+    const baseDir = empresa?.localDrivePath || 'C:\\dc-informatica-corrigido_1\\arquivos_notas'
+    const nfseFolder = path.join(baseDir, 'NFSe')
+    
+    const key = emissao.chaveAcesso || String(emissao.numeroDps)
+    const xmlName = `${key}.xml`
+    const pdfName = `${key}.pdf`
+    
+    const cancelFolder = path.join(nfseFolder, 'Canceladas')
+    if (!fs.existsSync(cancelFolder)) {
+      fs.mkdirSync(cancelFolder, { recursive: true })
+    }
+    
+    // Mover XML se existir
+    const oldXmlPath = path.join(nfseFolder, xmlName)
+    if (fs.existsSync(oldXmlPath)) {
+      fs.renameSync(oldXmlPath, path.join(cancelFolder, xmlName))
+    }
+    
+    // Mover PDF se existir
+    const oldPdfPath = path.join(nfseFolder, pdfName)
+    if (fs.existsSync(oldPdfPath)) {
+      fs.renameSync(oldPdfPath, path.join(cancelFolder, pdfName))
+    }
+  } catch (error: any) {
+    throw new Error(error.message || String(error))
+  }
+  
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
 }

@@ -98,6 +98,12 @@ export default async function ConfiguracoesPage() {
           </div>
 
           <div className="input-group">
+            <label className="input-label" htmlFor="localDrivePath">Diretório de Exportação das Notas (Drive Local)</label>
+            <input type="text" id="localDrivePath" name="localDrivePath" className="input-field" defaultValue={settings.localDrivePath || ''} placeholder="Ex: C:\dc-informatica-corrigido_1\arquivos_notas" />
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>As Notas Fiscais (PDF e XML) serão salvas em pastas separadas por tipo ("NFe" e "NFSe") neste caminho.</p>
+          </div>
+
+          <div className="input-group">
             <label className="input-label">Logo Atual</label>
             {settings.logo ? (
               <div className="flex items-center gap-4" style={{ marginBottom: '0.75rem' }}>

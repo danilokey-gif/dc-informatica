@@ -24,6 +24,7 @@ export async function updateSettings(formData: FormData) {
   const enderCep = (formData.get('enderCep') as string) || null
   const removeLogo = formData.get('removeLogo') === '1'
   const logoFile = formData.get('logo') as File | null
+  const localDrivePath = (formData.get('localDrivePath') as string) || null
 
   let logo: string | null | undefined = undefined
 
@@ -43,8 +44,8 @@ export async function updateSettings(formData: FormData) {
 
   await prisma.companySettings.upsert({
     where: { id: 'main' },
-    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined },
-    update: { name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}) }
+    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath },
+    update: { name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath }
   })
 
   revalidatePath('/', 'layout')

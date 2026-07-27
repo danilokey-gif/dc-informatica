@@ -3,7 +3,7 @@ import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { notFound } from "next/navigation"
 import PrintButton from "./PrintButton"
 import WhatsAppButton from "./WhatsAppButton"
-import { emitirNfseServiceOrder, enviarNfseEmail } from "./nfse-actions"
+import { emitirNfseServiceOrder, enviarNfseEmail, cancelarNfseServiceOrder } from "./nfse-actions"
 import { gerarContaReceberOS } from "../../../financeiro/actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "./CopyPixButton"
@@ -33,6 +33,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   const nfseAutorizada = ultimaEmissao?.status === 'AUTORIZADA'
   const emitirNfseAction = emitirNfseServiceOrder.bind(null, os.id)
   const enviarNfseEmailAction = enviarNfseEmail.bind(null, os.id)
+  const cancelarNfseAction = cancelarNfseServiceOrder.bind(null, os.id)
 
   const tipoDocumento = os.status === 'BUDGET' ? 'ORÇAMENTO' : (os.status === 'DELIVERED' ? 'RECIBO / GARANTIA' : 'ORDEM DE SERVIÇO')
   const numeroOS = os.id.slice(-6).toUpperCase()
@@ -196,7 +197,12 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         )}
 
         <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-          {!nfseAutorizada && (
+          {ultimaEmissao?.status === 'CANCELADA' && (
+            <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
+              🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
+            </p>
+          )}
+          {!nfseAutorizada && ultimaEmissao?.status !== 'CANCELADA' && (
             <form action={emitirNfseAction}>
               <button type="submit" className="btn btn-primary" disabled={!nfseConfigurada}>
                 {ultimaEmissao?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NFS-e'}
@@ -213,6 +219,11 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
                   ✉️ Enviar Nota por E-mail
                 </button>
                 {!os.customer.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+              </form>
+              <form action={cancelarNfseAction}>
+                <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white' }}>
+                  🚫 Cancelar NFS-e
+                </button>
               </form>
             </>
           )}

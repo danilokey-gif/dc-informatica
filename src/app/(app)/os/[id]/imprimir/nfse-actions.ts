@@ -256,29 +256,33 @@ export async function cancelarNfseServiceOrder(serviceOrderId: string) {
     })
     
     // 2. Mover os arquivos no drive local para a pasta Canceladas
-    const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
-    const baseDir = empresa?.localDrivePath || 'C:\\dc-informatica-corrigido_1\\arquivos_notas'
-    const nfseFolder = path.join(baseDir, 'NFSe')
-    
-    const key = emissao.chaveAcesso || String(emissao.numeroDps)
-    const xmlName = `${key}.xml`
-    const pdfName = `${key}.pdf`
-    
-    const cancelFolder = path.join(nfseFolder, 'Canceladas')
-    if (!fs.existsSync(cancelFolder)) {
-      fs.mkdirSync(cancelFolder, { recursive: true })
-    }
-    
-    // Mover XML se existir
-    const oldXmlPath = path.join(nfseFolder, xmlName)
-    if (fs.existsSync(oldXmlPath)) {
-      fs.renameSync(oldXmlPath, path.join(cancelFolder, xmlName))
-    }
-    
-    // Mover PDF se existir
-    const oldPdfPath = path.join(nfseFolder, pdfName)
-    if (fs.existsSync(oldPdfPath)) {
-      fs.renameSync(oldPdfPath, path.join(cancelFolder, pdfName))
+    try {
+      const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
+      const baseDir = empresa?.localDrivePath || 'C:\\dc-informatica-corrigido_1\\arquivos_notas'
+      const nfseFolder = path.join(baseDir, 'NFSe')
+      
+      const key = emissao.chaveAcesso || String(emissao.numeroDps)
+      const xmlName = `${key}.xml`
+      const pdfName = `${key}.pdf`
+      
+      const cancelFolder = path.join(nfseFolder, 'Canceladas')
+      if (!fs.existsSync(cancelFolder)) {
+        fs.mkdirSync(cancelFolder, { recursive: true })
+      }
+      
+      // Mover XML se existir
+      const oldXmlPath = path.join(nfseFolder, xmlName)
+      if (fs.existsSync(oldXmlPath)) {
+        fs.renameSync(oldXmlPath, path.join(cancelFolder, xmlName))
+      }
+      
+      // Mover PDF se existir
+      const oldPdfPath = path.join(nfseFolder, pdfName)
+      if (fs.existsSync(oldPdfPath)) {
+        fs.renameSync(oldPdfPath, path.join(cancelFolder, pdfName))
+      }
+    } catch (fsError) {
+      console.warn('[Drive] Falha ao mover arquivos no drive local (provavelmente rodando na nuvem/Vercel):', fsError)
     }
   } catch (error: any) {
     throw new Error(error.message || String(error))

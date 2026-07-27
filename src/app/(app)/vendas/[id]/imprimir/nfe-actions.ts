@@ -308,28 +308,32 @@ export async function cancelarNfeVenda(saleId: string) {
     })
     
     // 2. Mover os arquivos no drive local para a pasta Canceladas
-    const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
-    const baseDir = empresa?.localDrivePath || 'C:\\dc-informatica-corrigido_1\\arquivos_notas'
-    const nfeFolder = path.join(baseDir, 'NFe')
-    
-    const xmlName = `${emissao.chaveAcesso}.xml`
-    const pdfName = `${emissao.chaveAcesso}.pdf`
-    
-    const cancelFolder = path.join(nfeFolder, 'Canceladas')
-    if (!fs.existsSync(cancelFolder)) {
-      fs.mkdirSync(cancelFolder, { recursive: true })
-    }
-    
-    // Mover XML se existir
-    const oldXmlPath = path.join(nfeFolder, xmlName)
-    if (fs.existsSync(oldXmlPath)) {
-      fs.renameSync(oldXmlPath, path.join(cancelFolder, xmlName))
-    }
-    
-    // Mover PDF se existir
-    const oldPdfPath = path.join(nfeFolder, pdfName)
-    if (fs.existsSync(oldPdfPath)) {
-      fs.renameSync(oldPdfPath, path.join(cancelFolder, pdfName))
+    try {
+      const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
+      const baseDir = empresa?.localDrivePath || 'C:\\dc-informatica-corrigido_1\\arquivos_notas'
+      const nfeFolder = path.join(baseDir, 'NFe')
+      
+      const xmlName = `${emissao.chaveAcesso}.xml`
+      const pdfName = `${emissao.chaveAcesso}.pdf`
+      
+      const cancelFolder = path.join(nfeFolder, 'Canceladas')
+      if (!fs.existsSync(cancelFolder)) {
+        fs.mkdirSync(cancelFolder, { recursive: true })
+      }
+      
+      // Mover XML se existir
+      const oldXmlPath = path.join(nfeFolder, xmlName)
+      if (fs.existsSync(oldXmlPath)) {
+        fs.renameSync(oldXmlPath, path.join(cancelFolder, xmlName))
+      }
+      
+      // Mover PDF se existir
+      const oldPdfPath = path.join(nfeFolder, pdfName)
+      if (fs.existsSync(oldPdfPath)) {
+        fs.renameSync(oldPdfPath, path.join(cancelFolder, pdfName))
+      }
+    } catch (fsError) {
+      console.warn('[Drive] Falha ao mover arquivos no drive local (provavelmente rodando na nuvem/Vercel):', fsError)
     }
   } catch (error: any) {
     throw new Error(error.message || String(error))

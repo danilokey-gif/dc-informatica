@@ -56,7 +56,7 @@ interface PdfField {
   flex?: number
 }
 
-/** Layout do DANFSe oficial padrão nacional (grades e blocos) com logotipos e maior tamanho de página */
+/** Layout do DANFSe oficial padrão nacional (grades e blocos) com logotipos e maior compactação para caber sempre em 1 página */
 export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
   // A4 dimensions: 595.28 x 841.89 points
   // Margins: 35 points (giving 525.28 points printable width)
@@ -86,82 +86,82 @@ export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
 
   // 1. Homologation header if applicable
   if (input.ambiente !== 'producao') {
-    doc.rect(startX, currentY, totalWidth, 20).fillAndStroke('#fee2e2', '#991b1b')
+    doc.rect(startX, currentY, totalWidth, 18).fillAndStroke('#fee2e2', '#991b1b')
     doc.fillColor('#991b1b').fontSize(7.5).font('Helvetica-Bold')
-      .text('NFS-e EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL', startX, currentY + 6.5, { width: totalWidth, align: 'center' })
-    currentY += 24
+      .text('NFS-e EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL', startX, currentY + 5.5, { width: totalWidth, align: 'center' })
+    currentY += 22
   }
 
   // 2. Main Header (divided into 3 columns)
-  const headerHeight = 55
+  const headerHeight = 50
   doc.strokeColor('#000000').lineWidth(0.5)
 
   // Col 1: NFSe Logo & Title
   doc.rect(startX, currentY, 155, headerHeight).stroke()
   if (logoNfse) {
     try {
-      doc.image(logoNfse, startX + 8, currentY + 7, { height: 40 })
+      doc.image(logoNfse, startX + 8, currentY + 5, { height: 38 })
     } catch (e) {}
   }
-  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(10).text('NFS-e', startX + 50, currentY + 14)
-  doc.font('Helvetica').fontSize(6.5).text('Nota Fiscal de Serviço eletrônica', startX + 50, currentY + 26, { width: 100 })
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(9.5).text('NFS-e', startX + 48, currentY + 12)
+  doc.font('Helvetica').fontSize(6).text('Nota Fiscal de Serviço eletrônica', startX + 48, currentY + 23, { width: 100 })
 
   // Col 2: DANFSe Documento Auxiliar
   doc.rect(startX + 155, currentY, 215, headerHeight).stroke()
-  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('DANFSe', startX + 155, currentY + 15, { align: 'center', width: 215 })
-  doc.font('Helvetica').fontSize(8).text('Documento Auxiliar da NFS-e', startX + 155, currentY + 28, { align: 'center', width: 215 })
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(10.5).text('DANFSe', startX + 155, currentY + 13, { align: 'center', width: 215 })
+  doc.font('Helvetica').fontSize(7.5).text('Documento Auxiliar da NFS-e', startX + 155, currentY + 25, { align: 'center', width: 215 })
 
   // Col 3: Prefeitura de Marília Logo & Title
   doc.rect(startX + 370, currentY, 155, headerHeight).stroke()
   if (logoMarilia) {
     try {
-      doc.image(logoMarilia, startX + 370 + 8, currentY + 7, { height: 40 })
+      doc.image(logoMarilia, startX + 370 + 8, currentY + 5, { height: 38 })
     } catch (e) {}
   }
-  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('MUNICÍPIO DE', startX + 370 + 52, currentY + 15, { width: 100 })
-  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8.5).text('MARÍLIA - SP', startX + 370 + 52, currentY + 24, { width: 100 })
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5).text('MUNICÍPIO DE', startX + 370 + 50, currentY + 13, { width: 100 })
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8).text('MARÍLIA - SP', startX + 370 + 50, currentY + 22, { width: 100 })
 
-  currentY += headerHeight + 5
+  currentY += headerHeight + 4
 
   // 3. Access Key & QR Code Row
-  const accessRowHeight = 65
+  const accessRowHeight = 60
   doc.rect(startX, currentY, 450, accessRowHeight).stroke()
-  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(6).text('CHAVE DE ACESSO DA NFS-e', startX + 5, currentY + 5)
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('CHAVE DE ACESSO DA NFS-e', startX + 5, currentY + 4)
   const formattedKey = input.chaveAcesso.match(/.{1,4}/g)?.join(' ') || input.chaveAcesso
-  doc.fillColor('#000000').font('Courier-Bold').fontSize(9).text(formattedKey, startX + 5, currentY + 16, { width: 440 })
-  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('CONSULTA DE AUTENTICIDADE', startX + 5, currentY + 36)
-  doc.font('Helvetica').fontSize(6.5).fillColor('#6b7280').text('Consulte a autenticidade deste documento em www.nfse.gov.br/consultapublica', startX + 5, currentY + 45)
+  doc.fillColor('#000000').font('Courier-Bold').fontSize(8.5).text(formattedKey, startX + 5, currentY + 14, { width: 440 })
+  doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text('CONSULTA DE AUTENTICIDADE', startX + 5, currentY + 33)
+  doc.font('Helvetica').fontSize(6).fillColor('#6b7280').text('Consulte a autenticidade deste documento em www.nfse.gov.br/consultapublica', startX + 5, currentY + 41)
 
   doc.rect(startX + 450, currentY, 75, accessRowHeight).stroke()
   try {
-    doc.image(qrCode, startX + 450 + 10, currentY + 5, { width: 55, height: 55 })
+    doc.image(qrCode, startX + 450 + 12, currentY + 5, { width: 50, height: 50 })
   } catch (e) {}
 
-  currentY += accessRowHeight + 5
+  currentY += accessRowHeight + 4
 
   // Helper to draw a bordered section
   function drawSection(title: string, rows: PdfField[][]) {
     // 1. Draw Title
-    doc.fillColor('#f3f4f6').rect(startX, currentY, totalWidth, 14).fill()
-    doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, totalWidth, 14).stroke()
-    doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(6.5).text(title.toUpperCase(), startX + 5, currentY + 4)
-    currentY += 14
+    doc.fillColor('#f3f4f6').rect(startX, currentY, totalWidth, 12).fill()
+    doc.strokeColor('#000000').lineWidth(0.5).rect(startX, currentY, totalWidth, 12).stroke()
+    doc.fillColor('#1f2937').font('Helvetica-Bold').fontSize(6).text(title.toUpperCase(), startX + 5, currentY + 3.5)
+    currentY += 12
 
     // 2. Draw Rows
     for (const row of rows) {
       const totalFlex = row.reduce((sum, field) => sum + (field.flex || 1), 0)
       
       // Calculate row height
-      let maxRowHeight = 26 // minimum height
+      let maxRowHeight = 24 // minimum height
       if (title.toUpperCase().includes('SERVIÇO PRESTADO') && row.some(f => f.label.toUpperCase().includes('DESCRIÇÃO'))) {
-        maxRowHeight = 110 // larger space for service description
+        maxRowHeight = 90 // larger space for service description
       } else {
         for (const field of row) {
           const fieldWidth = ((field.flex || 1) / totalFlex) * totalWidth
           const valStr = String(field.value ?? '-')
-          doc.font('Helvetica').fontSize(8.5)
+          doc.font('Helvetica').fontSize(8)
           const textHeight = doc.heightOfString(valStr, { width: fieldWidth - 8 })
-          const fieldHeight = textHeight + 13 // spacing for label and padding
+          const fieldHeight = textHeight + 11 // spacing for label and padding
           if (fieldHeight > maxRowHeight) {
             maxRowHeight = fieldHeight
           }
@@ -174,14 +174,14 @@ export async function gerarPdfDanfse(input: DanfsePdfInput): Promise<Buffer> {
         const fieldWidth = ((field.flex || 1) / totalFlex) * totalWidth
         
         doc.strokeColor('#000000').lineWidth(0.5).rect(tempX, currentY, fieldWidth, maxRowHeight).stroke()
-        doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text(field.label.toUpperCase(), tempX + 4, currentY + 3.5, { width: fieldWidth - 8 })
-        doc.fillColor('#000000').font('Helvetica').fontSize(8.5).text(String(field.value ?? '-'), tempX + 4, currentY + 11.5, { width: fieldWidth - 8 })
+        doc.fillColor('#4b5563').font('Helvetica-Bold').fontSize(5.5).text(field.label.toUpperCase(), tempX + 4, currentY + 3, { width: fieldWidth - 8 })
+        doc.fillColor('#000000').font('Helvetica').fontSize(8).text(String(field.value ?? '-'), tempX + 4, currentY + 11, { width: fieldWidth - 8 })
         
         tempX += fieldWidth
       }
       currentY += maxRowHeight
     }
-    currentY += 5
+    currentY += 4
   }
 
   // 4. Identificação da NFS-e / DPS

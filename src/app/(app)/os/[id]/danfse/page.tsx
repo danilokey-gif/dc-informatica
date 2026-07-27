@@ -10,22 +10,22 @@ function Field({ label, value, flex = 1, borderRight = true }: { label: string; 
   return (
     <div style={{
       flex,
-      padding: '6px 8px',
+      padding: '4px 6px',
       minWidth: 0,
       borderRight: borderRight ? '1px solid #000' : 'none',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between'
     }}>
-      <div style={{ fontSize: '0.46rem', fontWeight: 'bold', color: '#4b5563', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
-      <div style={{ fontSize: '0.62rem', fontWeight: 'normal', color: '#000', wordBreak: 'break-all' }}>{value || '-'}</div>
+      <div style={{ fontSize: '0.44rem', fontWeight: 'bold', color: '#4b5563', textTransform: 'uppercase', marginBottom: '1px' }}>{label}</div>
+      <div style={{ fontSize: '0.58rem', fontWeight: 'normal', color: '#000', wordBreak: 'break-all' }}>{value || '-'}</div>
     </div>
   )
 }
 
 function FieldRow({ children, borderBottom = true }: { children: React.ReactNode; borderBottom?: boolean }) {
   return (
-    <div style={{ display: 'flex', borderBottom: borderBottom ? '1px solid #000' : 'none', minHeight: '34px' }}>
+    <div style={{ display: 'flex', borderBottom: borderBottom ? '1px solid #000' : 'none', minHeight: '28px' }}>
       {children}
     </div>
   )
@@ -36,14 +36,14 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
     <div style={{
       backgroundColor: '#f3f4f6',
       borderBottom: '1px solid #000',
-      padding: '5px 8px',
+      padding: '4px 6px',
       fontWeight: 'bold',
-      fontSize: '0.54rem',
+      fontSize: '0.50rem',
       textTransform: 'uppercase',
       color: '#1f2937'
     }}>
       {title}
-      {subtitle && <span style={{ fontWeight: 'normal', fontSize: '0.48rem', marginLeft: '4px', color: '#4b5563' }}>— {subtitle}</span>}
+      {subtitle && <span style={{ fontWeight: 'normal', fontSize: '0.44rem', marginLeft: '4px', color: '#4b5563' }}>— {subtitle}</span>}
     </div>
   )
 }
@@ -86,10 +86,10 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
   const codigoServicoFormatado = `${nfseConfig.codigoServico?.replace(/(\d{2})(\d{2})(\d{2})/, '$1.$2.$3')}${nfseConfig.descricaoCodServico ? ` - ${nfseConfig.descricaoCodServico}` : ''}`
 
   return (
-    <div className="danfse-container" style={{ backgroundColor: 'white', color: 'black', padding: '0.4rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
+    <div className="danfse-container" style={{ backgroundColor: 'white', color: 'black', padding: '0.2rem', maxWidth: '780px', margin: '0 auto', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
       <style>{`
         @media print {
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: 4mm 5mm; }
           html, body { height: auto !important; margin: 0 !important; padding: 0 !important; background: white; }
           .danfse-container {
             width: 100% !important;
@@ -103,7 +103,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
       `}</style>
 
       {emissao.ambiente !== 'producao' && (
-        <div style={{ textAlign: 'center', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', padding: '0.25rem', border: '1px solid #991b1b', fontSize: '0.6rem', marginBottom: '0.4rem' }}>
+        <div style={{ textAlign: 'center', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold', padding: '0.2rem', border: '1px solid #991b1b', fontSize: '0.58rem', marginBottom: '0.3rem' }}>
           NFS-e EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL
         </div>
       )}
@@ -112,51 +112,51 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
       <div style={{ border: '1px solid #000', display: 'flex', flexDirection: 'column' }}>
         
         {/* Cabeçalho Oficial */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '60px' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '52px' }}>
           {/* Col 1: NFSe Logo */}
-          <div style={{ width: '30%', padding: '6px 10px', borderRight: '1px solid #000', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '30%', padding: '4px 8px', borderRight: '1px solid #000', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-nfse.png" alt="NFS-e Nacional" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/logo-nfse.png" alt="NFS-e Nacional" style={{ height: '36px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
             <div style={{ lineHeight: 1.15 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>NFS-e</div>
-              <div style={{ fontSize: '0.48rem', color: '#4b5563' }}>Nota Fiscal de Serviço eletrônica</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 'bold' }}>NFS-e</div>
+              <div style={{ fontSize: '0.44rem', color: '#4b5563' }}>Nota Fiscal de Serviço eletrônica</div>
             </div>
           </div>
           
           {/* Col 2: DANFSe */}
-          <div style={{ width: '40%', padding: '6px', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '0.9rem', letterSpacing: '0.5px' }}>DANFSe</div>
-            <div style={{ fontSize: '0.58rem', color: '#4b5563', marginTop: '2px' }}>Documento Auxiliar da NFS-e</div>
+          <div style={{ width: '40%', padding: '4px', borderRight: '1px solid #000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '0.8rem', letterSpacing: '0.5px' }}>DANFSe</div>
+            <div style={{ fontSize: '0.52rem', color: '#4b5563', marginTop: '1px' }}>Documento Auxiliar da NFS-e</div>
           </div>
           
           {/* Col 3: Prefeitura de Marília Logo */}
-          <div style={{ width: '30%', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '30%', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-marilia.jpg" alt="Marília" style={{ height: '42px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+            <img src="/logo-marilia.jpg" alt="Marília" style={{ height: '36px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
             <div style={{ lineHeight: 1.15 }}>
-              <div style={{ fontSize: '0.48rem', fontWeight: 'bold', color: '#4b5563' }}>MUNICÍPIO DE</div>
-              <div style={{ fontSize: '0.68rem', fontWeight: 'bold', color: '#000' }}>MARÍLIA - SP</div>
+              <div style={{ fontSize: '0.44rem', fontWeight: 'bold', color: '#4b5563' }}>MUNICÍPIO DE</div>
+              <div style={{ fontSize: '0.62rem', fontWeight: 'bold', color: '#000' }}>MARÍLIA - SP</div>
             </div>
           </div>
         </div>
 
         {/* Chave de acesso + QR */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '75px' }}>
-          <div style={{ flex: 1, padding: '6px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #000', minHeight: '65px' }}>
+          <div style={{ flex: 1, padding: '4px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontSize: '0.46rem', fontWeight: 'bold', color: '#4b5563' }}>CHAVE DE ACESSO DA NFS-e</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '0.72rem', fontWeight: 'bold', marginTop: '4px', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '0.44rem', fontWeight: 'bold', color: '#4b5563' }}>CHAVE DE ACESSO DA NFS-e</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.66rem', fontWeight: 'bold', marginTop: '2px', letterSpacing: '0.5px' }}>
                 {emissao.chaveAcesso.match(/.{1,4}/g)?.join(' ') || emissao.chaveAcesso}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '0.46rem', fontWeight: 'bold', color: '#4b5563' }}>CONSULTA DE AUTENTICIDADE</div>
-              <div style={{ fontSize: '0.48rem', color: '#6b7280', marginTop: '1px' }}>Consulte a autenticidade deste documento em www.nfse.gov.br/consultapublica</div>
+              <div style={{ fontSize: '0.44rem', fontWeight: 'bold', color: '#4b5563' }}>CONSULTA DE AUTENTICIDADE</div>
+              <div style={{ fontSize: '0.46rem', color: '#6b7280' }}>Consulte a autenticidade deste documento em www.nfse.gov.br/consultapublica</div>
             </div>
           </div>
-          <div style={{ width: '85px', flexShrink: 0, padding: '4px', borderLeft: '1px solid #000', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ width: '75px', flexShrink: 0, padding: '2px', borderLeft: '1px solid #000', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrCodeDataUrl} alt="QR Code" style={{ width: '64px', height: '64px' }} />
+            <img src={qrCodeDataUrl} alt="QR Code" style={{ width: '56px', height: '56px' }} />
           </div>
         </div>
 
@@ -224,7 +224,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
         </FieldRow>
         <FieldRow>
           <Field label="Descrição do Serviço" value={
-            <div style={{ minHeight: '140px', fontSize: '0.65rem', whiteSpace: 'pre-wrap', lineHeight: 1.3 }}>
+            <div style={{ minHeight: '90px', fontSize: '0.62rem', whiteSpace: 'pre-wrap', lineHeight: 1.25 }}>
               {os.device} — {os.issue}
             </div>
           } borderRight={false} />
@@ -265,7 +265,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
 
       </div>
 
-      <div className="no-print" style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+      <div className="no-print" style={{ marginTop: '1.2rem', textAlign: 'center' }}>
         <PrintButton />
       </div>
     </div>

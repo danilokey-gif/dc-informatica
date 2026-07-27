@@ -5,7 +5,18 @@ import { prisma } from './prisma'
 
 // Obter token de acesso para a API do Google Drive usando JWT (sem dependências externas)
 async function getGoogleAccessToken(email: string, privateKey: string): Promise<string> {
-  const cleanKey = privateKey.replace(/\\n/g, '\n')
+  let cleanKey = privateKey.trim()
+  if (cleanKey.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(cleanKey)
+      if (parsed.private_key) {
+        cleanKey = parsed.private_key
+      }
+    } catch (e) {
+      console.error('[Google Drive] Falha ao parsear chave privada como JSON:', e)
+    }
+  }
+  cleanKey = cleanKey.replace(/\\n/g, '\n')
   
   const header = {
     alg: 'RS256',

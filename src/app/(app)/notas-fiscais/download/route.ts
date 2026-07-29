@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       tomadorTelefone: os.customer.phone,
       tomadorEmail: os.customer.email,
       tomadorEndereco: os.customer.address,
-      descricaoServico: `${os.device} — ${os.issue}`,
+      descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
       codigoServico: nfseConfig.codigoServico,
       descricaoCodServico: nfseConfig.descricaoCodServico,
       municipioLabel,

@@ -36,7 +36,10 @@ export default async function OSPage() {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4">
         <h2>Ordens de Serviço</h2>
-        <Link href="/os/novo" className="btn btn-primary">Nova OS</Link>
+        <div className="flex gap-4">
+          <Link href="/os/rapida" className="btn btn-outline">Nota de Serviço Avulsa</Link>
+          <Link href="/os/novo" className="btn btn-primary">Nova OS</Link>
+        </div>
       </div>
 
       <div className="table-container">

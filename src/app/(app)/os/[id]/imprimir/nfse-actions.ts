@@ -58,7 +58,7 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
       },
       servico: {
         codigoTributacaoNacional: nfseConfig.codigoServico,
-        descricao: `${os.device} - ${os.issue}`.slice(0, 2000),
+        descricao: [os.device, os.issue].filter(Boolean).join(' - ').slice(0, 2000),
         valor: os.price,
       },
       aliquotaIss: nfseConfig.aliquotaIss,
@@ -121,7 +121,7 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
         tomadorTelefone: os.customer.phone,
         tomadorEmail: os.customer.email,
         tomadorEndereco: os.customer.address,
-        descricaoServico: `${os.device} — ${os.issue}`,
+        descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
         codigoServico: nfseConfig.codigoServico,
         descricaoCodServico: nfseConfig.descricaoCodServico,
         municipioLabel,
@@ -199,7 +199,7 @@ export async function enviarNfseEmail(serviceOrderId: string) {
     tomadorTelefone: os.customer.phone,
     tomadorEmail: os.customer.email,
     tomadorEndereco: os.customer.address,
-    descricaoServico: `${os.device} — ${os.issue}`,
+    descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
     codigoServico: nfseConfig.codigoServico,
     descricaoCodServico: nfseConfig.descricaoCodServico,
     municipioLabel,
@@ -213,7 +213,7 @@ export async function enviarNfseEmail(serviceOrderId: string) {
     subject: `Nota Fiscal de Serviço - ${empresa.name}`,
     html: `
       <p>Olá, ${os.customer.name}!</p>
-      <p>Segue a Nota Fiscal de Serviço referente ao atendimento do seu ${os.device}.</p>
+      <p>Segue a Nota Fiscal de Serviço referente ao atendimento${os.device ? ` do seu ${os.device}` : ''}.</p>
       <p><strong>Chave de acesso:</strong> ${emissao.chaveAcesso}</p>
       ${valor ? `<p><strong>Valor:</strong> ${valor}</p>` : ''}
       <p><strong>Ambiente:</strong> ${emissao.ambiente === 'producao' ? 'Produção' : 'Homologação (sem valor fiscal)'}</p>

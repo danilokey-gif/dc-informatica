@@ -18,6 +18,19 @@ export async function createOS(formData: FormData) {
   redirect('/os')
 }
 
+export async function createOSRapida(formData: FormData) {
+  const customerId = formData.get('customerId') as string
+  const descricao = formData.get('descricao') as string
+  const precoRaw = formData.get('price') as string
+  const price = precoRaw ? parseFloat(precoRaw) : null
+
+  const os = await prisma.serviceOrder.create({
+    data: { customerId, device: '', issue: descricao, price, status: 'COMPLETED' }
+  })
+
+  redirect(`/os/${os.id}/imprimir`)
+}
+
 export async function updateOS(id: string, formData: FormData) {
   const customerId = formData.get('customerId') as string
   const device = formData.get('device') as string

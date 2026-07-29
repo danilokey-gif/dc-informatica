@@ -47,8 +47,8 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
     `Segue o resumo da sua *${tipoDocumento}* na *${settings.name}*:`,
     ``,
     `🔧 *OS Nº:* ${numeroOS}`,
-    `💻 *Aparelho:* ${os.device}`,
-    `📋 *Defeito:* ${os.issue}`,
+    os.device ? `💻 *Aparelho:* ${os.device}` : '',
+    `📋 *${os.device ? 'Defeito' : 'Serviço'}:* ${os.issue}`,
     os.technicalReport ? `✅ *Solução:* ${os.technicalReport}` : '',
     `💰 *Valor:* ${valor}`,
     ``,
@@ -113,9 +113,9 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       <div style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
         <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Detalhes do Serviço</h3>
         <div style={{ fontSize: '0.9rem' }}>
-          <p style={{ marginBottom: '0.5rem' }}><strong>Aparelho / Marca / Modelo:</strong><br /> {os.device}</p>
+          {os.device && <p style={{ marginBottom: '0.5rem' }}><strong>Aparelho / Marca / Modelo:</strong><br /> {os.device}</p>}
           {os.technician && <p style={{ marginBottom: '0.5rem' }}><strong>Técnico Responsável:</strong><br /> {os.technician.name}</p>}
-          <p style={{ marginBottom: '0.5rem' }}><strong>Defeito Relatado:</strong><br /> {os.issue}</p>
+          <p style={{ marginBottom: '0.5rem' }}><strong>{os.device ? 'Defeito Relatado' : 'Descrição do Serviço'}:</strong><br /> {os.issue}</p>
           <p style={{ marginBottom: '0.5rem' }}><strong>Laudo Técnico / Solução:</strong><br /> {os.technicalReport || 'Aguardando avaliação técnica.'}</p>
         </div>
       </div>
@@ -236,7 +236,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />
         {os.customer.email && (
           <a
-            href={`mailto:${os.customer.email}?subject=OS ${numeroOS} - ${settings.name}&body=${encodeURIComponent(`Olá ${os.customer.name},\n\nSegue o resumo da sua ${tipoDocumento}:\n\nOS Nº: ${numeroOS}\nAparelho: ${os.device}\nDefeito: ${os.issue}\nValor: ${valor}\n\nQualquer dúvida, entre em contato:\n${settings.phone || ''}`)}`}
+            href={`mailto:${os.customer.email}?subject=OS ${numeroOS} - ${settings.name}&body=${encodeURIComponent(`Olá ${os.customer.name},\n\nSegue o resumo da sua ${tipoDocumento}:\n\nOS Nº: ${numeroOS}\n${os.device ? `Aparelho: ${os.device}\n` : ''}${os.device ? 'Defeito' : 'Serviço'}: ${os.issue}\nValor: ${valor}\n\nQualquer dúvida, entre em contato:\n${settings.phone || ''}`)}`}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600,

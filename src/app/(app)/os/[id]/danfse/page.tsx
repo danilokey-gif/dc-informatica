@@ -226,7 +226,7 @@ export default async function DanfsePage({ params }: { params: Promise<{ id: str
           <FieldRow>
             <Field label="Descrição do Serviço" value={
               <div style={{ minHeight: '90px', fontSize: '0.62rem', whiteSpace: 'pre-wrap', lineHeight: 1.25 }}>
-                {os.device} — {os.issue}
+                {[os.device, os.issue].filter(Boolean).join(' — ')}
               </div>
             } borderRight={false} />
           </FieldRow>

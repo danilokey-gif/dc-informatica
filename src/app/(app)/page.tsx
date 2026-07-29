@@ -54,6 +54,7 @@ export default async function Dashboard() {
           <Link href="/clientes" className="btn btn-outline">Buscar Clientes</Link>
           <Link href="/produtos/novo" className="btn btn-outline">Cadastrar Produto</Link>
           <Link href="/os" className="btn btn-outline">Ver todas as OS</Link>
+          <Link href="/os/rapida" className="btn btn-outline">Nota de Serviço Avulsa</Link>
         </div>
       </div>
     </div>

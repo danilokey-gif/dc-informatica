@@ -23,7 +23,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
   const updateAction = updateOS.bind(null, id)
 
   // WhatsApp e Email Sharing info
-  const textMsg = `Olá ${os.customer.name}! O status do seu aparelho (${os.device}) na Dc Informática mudou. Verifique conosco.\n\nNúmero da OS: ${os.id.slice(-6).toUpperCase()}`
+  const textMsg = `Olá ${os.customer.name}! O status do seu atendimento${os.device ? ` (${os.device})` : ''} na Dc Informática mudou. Verifique conosco.\n\nNúmero da OS: ${os.id.slice(-6).toUpperCase()}`
   const wppUrl = os.customer.phone ? `https://wa.me/55${os.customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(textMsg)}` : '#'
 
   return (
@@ -57,8 +57,8 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="input-group">
-            <label className="input-label" htmlFor="device">Aparelho / Marca / Modelo *</label>
-            <input type="text" id="device" name="device" className="input-field" required defaultValue={os.device} />
+            <label className="input-label" htmlFor="device">Aparelho / Marca / Modelo</label>
+            <input type="text" id="device" name="device" className="input-field" defaultValue={os.device} placeholder="Deixe em branco para uma nota de serviço avulsa" />
           </div>
 
           <div className="input-group">

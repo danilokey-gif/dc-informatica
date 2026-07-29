@@ -139,18 +139,21 @@ model NfseConfig {
 }
 
 model NfseEmissao {
-  id             String       @id @default(cuid())
-  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id])
-  serviceOrderId String
-  ambiente       String
-  numeroDps      Int
-  serieDps       String
-  status         String       @default("PROCESSANDO")
-  chaveAcesso    String?
-  xmlDps         String?
-  xmlNfse        String?
-  motivoErro     String?
-  createdAt      DateTime     @default(now())
+  id                     String       @id @default(cuid())
+  serviceOrder           ServiceOrder @relation(fields: [serviceOrderId], references: [id])
+  serviceOrderId         String
+  ambiente               String
+  numeroDps              Int
+  serieDps               String
+  status                 String       @default("PROCESSANDO")
+  chaveAcesso            String?
+  xmlDps                 String?
+  xmlNfse                String?
+  motivoErro             String?
+  xmlPedRegEventoCancel  String?
+  xmlEventoCancelamento  String?
+  motivoCancelamento     String?
+  createdAt              DateTime     @default(now())
 }
 
 model NfeConfig {

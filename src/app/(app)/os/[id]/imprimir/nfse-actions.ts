@@ -6,6 +6,7 @@ import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfseClient } from "@/lib/nfse/client"
 import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
+import { montarXmlPedRegEventoCancelamento, assinarPedRegEvento } from "@/lib/nfse/evento"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 import { gerarPdfDanfse } from "@/lib/pdf-notas"
@@ -238,23 +239,58 @@ export async function enviarNfseEmail(serviceOrderId: string) {
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
 }
 
-export async function cancelarNfseServiceOrder(serviceOrderId: string) {
+export async function cancelarNfseServiceOrder(serviceOrderId: string, formData: FormData) {
+  const cMotivo = (formData.get('cMotivo') as string) || '9'
+  const xMotivo = (formData.get('xMotivo') as string) || 'Cancelamento solicitado pelo prestador'
+
   try {
-    const emissao = await prisma.nfseEmissao.findFirst({
-      where: { serviceOrderId, status: 'AUTORIZADA' },
-      orderBy: { createdAt: 'desc' }
-    })
-    
+    const [emissao, empresa, nfseConfig] = await Promise.all([
+      prisma.nfseEmissao.findFirst({ where: { serviceOrderId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
+      getCompanySettings(),
+      getNfseConfig(),
+    ])
+
     if (!emissao) {
       throw new Error('Nenhuma nota fiscal de serviço autorizada encontrada para cancelar.')
     }
-    
-    // 1. Atualizar o status no banco de dados para CANCELADA
+    if (!emissao.chaveAcesso) {
+      throw new Error('Esta NFS-e não tem chave de acesso registrada, não é possível cancelar.')
+    }
+    if (!nfseConfig.certificado || !nfseConfig.certificadoSenha) {
+      throw new Error('Certificado digital não configurado. Vá em Configurações > Nota Fiscal de Serviço.')
+    }
+    if (!empresa.document) {
+      throw new Error('CNPJ/CPF da empresa não configurado.')
+    }
+
+    const pfxBuffer = Buffer.from(nfseConfig.certificado, 'base64')
+    const certSenha = decryptSecret(nfseConfig.certificadoSenha)
+    const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
+    const ambiente = emissao.ambiente === 'producao' ? 'producao' : 'homologacao'
+
+    const { xml, id } = montarXmlPedRegEventoCancelamento({
+      ambiente,
+      chaveAcesso: emissao.chaveAcesso,
+      documentoAutor: empresa.document,
+      cMotivo: (cMotivo as '1' | '2' | '9'),
+      xMotivo,
+    })
+    const xmlAssinado = assinarPedRegEvento(xml, id, certMaterial)
+
     await prisma.nfseEmissao.update({
       where: { id: emissao.id },
-      data: { status: 'CANCELADA' }
+      data: { xmlPedRegEventoCancel: xmlAssinado, motivoCancelamento: xMotivo }
     })
-    
+
+    const client = new NfseClient({ ambiente, pfxBuffer, certPassword: certSenha })
+    const { xmlEvento } = await client.registrarEvento(emissao.chaveAcesso, xmlAssinado)
+
+    // 1. Atualizar o status no banco de dados para CANCELADA, só depois de confirmado pelo governo
+    await prisma.nfseEmissao.update({
+      where: { id: emissao.id },
+      data: { status: 'CANCELADA', xmlEventoCancelamento: xmlEvento }
+    })
+
     // 2. Mover os arquivos no drive local para a pasta Canceladas
     try {
       const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })

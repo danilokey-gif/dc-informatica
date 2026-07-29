@@ -220,9 +220,21 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
                 </button>
                 {!os.customer.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
               </form>
-              <form action={cancelarNfseAction}>
-                <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white' }}>
-                  🚫 Cancelar NFS-e
+              <form action={cancelarNfseAction} style={{ border: '1px solid #fecaca', borderRadius: '0.5rem', padding: '0.75rem', maxWidth: '360px' }}>
+                <div className="input-group">
+                  <label className="input-label" htmlFor="cMotivo">Motivo do Cancelamento</label>
+                  <select id="cMotivo" name="cMotivo" className="input-field" defaultValue="9">
+                    <option value="1">Erro na Emissão</option>
+                    <option value="2">Serviço não Prestado</option>
+                    <option value="9">Outros</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label className="input-label" htmlFor="xMotivo">Descreva o motivo *</label>
+                  <textarea id="xMotivo" name="xMotivo" className="input-field" rows={2} required placeholder="Ex: Nota emitida com valor incorreto" />
+                </div>
+                <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white', width: '100%' }}>
+                  🚫 Cancelar NFS-e (envia ao governo)
                 </button>
               </form>
             </>

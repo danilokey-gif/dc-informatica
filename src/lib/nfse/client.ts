@@ -90,6 +90,33 @@ export class NfseClient {
     return { chaveAcesso: data.chaveAcesso, xmlNfse }
   }
 
+  /**
+   * Envia o Pedido de Registro de Evento (ex: cancelamento) compactado em gZip/base64.
+   * Caminho e nome do campo do corpo inferidos por analogia com `/nfse` (dpsXmlGZipB64) — não
+   * confirmados ainda contra o Swagger real da SEFIN Nacional (certificado local não decifrou
+   * para consultar em runtime). Ajustar aqui se a primeira chamada real retornar 404/400 de rota.
+   */
+  async registrarEvento(chaveAcesso: string, pedRegEventoXmlAssinado: string): Promise<{ xmlEvento: string }> {
+    const pedRegEventoXmlGZipB64 = gzipSync(Buffer.from(pedRegEventoXmlAssinado, 'utf-8')).toString('base64')
+
+    const { status, data } = await this.request<{ eventoXmlGZipB64: string } & NfsePostResponseErro>(`/nfse/${chaveAcesso}/eventos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pedRegEventoXmlGZipB64 }),
+    })
+
+    if (status !== 200 && status !== 201) {
+      const erros = data?.erros || []
+      const message = erros.length > 0
+        ? erros.map(e => `[${e.Codigo}] ${e.Descricao}${e.Complemento ? ` — ${e.Complemento}` : ''}`).join('; ')
+        : `Erro HTTP ${status} ao registrar evento da NFS-e`
+      throw new Error(message)
+    }
+
+    const xmlEvento = gunzipSync(Buffer.from(data.eventoXmlGZipB64, 'base64')).toString('utf-8')
+    return { xmlEvento }
+  }
+
   /** Consulta uma NFS-e já emitida pela chave de acesso. */
   async consultarNfse(chaveAcesso: string): Promise<{ xmlNfse: string }> {
     const { status, data } = await this.request<{ nfseXmlGZipB64: string } & NfsePostResponseErro>(`/nfse/${chaveAcesso}`)

@@ -34,6 +34,13 @@ const navItems = [
       <path d="M10.6 5.4 4 12v3.25h3.25L14 8.65" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   ) },
+  { href: '/os/rapida', label: 'Nota de Serviço', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M13 3v3h3M7.5 11.5h5M9 15h3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.4 8.6 8.3 9.5l1.9-1.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) },
   { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -93,7 +100,11 @@ export default function Sidebar({ companyName, logo, role }: { companyName: stri
 
       <nav className="sidebar-nav">
         {visibleItems.map(item => {
-          const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+          const isActive = item.href === '/'
+            ? pathname === '/'
+            : item.href === '/os'
+              ? pathname === '/os' || (pathname.startsWith('/os/') && !pathname.startsWith('/os/rapida'))
+              : pathname.startsWith(item.href)
           const Icon = item.icon
           return (
             <Link key={item.href} href={item.href} className={`sidebar-link${isActive ? ' active' : ''}`}>

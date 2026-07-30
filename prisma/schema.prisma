@@ -158,6 +158,9 @@ model NfseEmissao {
   tomadorNome            String?
   tomadorDocumento       String?
   valorTotal             Float?
+  /** Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
+   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo). */
+  dataEmissao            DateTime?
   createdAt              DateTime      @default(now())
 }
 
@@ -194,6 +197,9 @@ model NfeEmissao {
   destinatarioNome      String?
   destinatarioDocumento String?
   valorTotal            Float?
+  /** Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
+   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo). */
+  dataEmissao           DateTime?
   createdAt             DateTime @default(now())
 }
 

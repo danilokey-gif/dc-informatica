@@ -21,21 +21,21 @@ export interface ResultadoSincronizacao {
   novos: number
   mensagem: string
   erro?: string
-  /** Só presente quando a busca é por período: NSU onde a busca parou, pra continuar no próximo clique. */
+  /** Só presente quando a busca é por período: NSU onde a busca no governo parou, pra continuar no próximo clique. */
   proximoNsu?: string
-  /** Só presente quando a busca é por período: true se ainda pode haver mais documentos além do NSU alcançado. */
+  /** Só presente quando a busca é por período: true se ainda pode haver mais documentos no governo além do NSU alcançado. */
   temMais?: boolean
-  /** Só presente quando a busca é por período: chaves de acesso de todas as notas do período encontradas
-   * nessa chamada (novas ou já existentes), pra poder baixar um .zip só delas. */
+  /** Só presente quando a busca é por período: chaves de acesso de todas as notas do período (já existentes no
+   * sistema + novas encontradas agora no governo), pra poder baixar um .zip com tudo. */
   chaves?: string[]
 }
 
 export interface OpcoesSincronizacao {
-  /** Data (YYYY-MM-DD) — quando informada (com ou sem `fim`), entra no "modo período": não usa nem
-   * atualiza o cursor incremental normal, começa de `nsuInicial` e filtra pela data de emissão. */
+  /** Data (YYYY-MM-DD) — quando informada (com ou sem `fim`), entra no "modo período": primeiro busca no
+   * próprio banco (instantâneo) e depois verifica novidades no governo a partir de `nsuInicial`. */
   inicio?: string
   fim?: string
-  /** De onde continuar no modo período (retornado como `proximoNsu` da chamada anterior). */
+  /** De onde continuar a verificação no governo (retornado como `proximoNsu` da chamada anterior). */
   nsuInicial?: string
 }
 
@@ -62,16 +62,27 @@ function formatarErro(error: unknown): string {
   return partes.join(' | ')
 }
 
-/** Extrai a data (YYYY-MM-DD) do <dhEmi> do XML (NF-e e NFS-e usam a mesma tag). */
-function extrairDataEmissao(xml: string): string | null {
-  return xml.match(/<dhEmi>(\d{4}-\d{2}-\d{2})/)?.[1] || null
+/** Extrai a data/hora de emissão (<dhEmi>) do XML (NF-e e NFS-e usam a mesma tag). */
+function extrairDataEmissao(xml: string): Date | null {
+  const valor = xml.match(/<dhEmi>([^<]+)</)?.[1]
+  if (!valor) return null
+  const data = new Date(valor)
+  return isNaN(data.getTime()) ? null : data
 }
 
-function dentroDoPeriodo(dataDoc: string | null, inicio?: string, fim?: string): boolean {
+function dentroDoPeriodo(dataDoc: Date | null, inicio?: string, fim?: string): boolean {
   if (!dataDoc) return true // sem data extraída, não filtra (melhor importar do que perder)
-  if (inicio && dataDoc < inicio) return false
-  if (fim && dataDoc > fim) return false
+  const dataStr = dataDoc.toISOString().slice(0, 10)
+  if (inicio && dataStr < inicio) return false
+  if (fim && dataStr > fim) return false
   return true
+}
+
+function limitesPeriodo(inicio?: string, fim?: string) {
+  return {
+    gte: inicio ? new Date(`${inicio}T00:00:00.000Z`) : undefined,
+    lt: fim ? new Date(new Date(`${fim}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000) : undefined,
+  }
 }
 
 export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promise<ResultadoSincronizacao> {
@@ -86,6 +97,19 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
     }
 
     const modoPeriodo = !!(opcoes?.inicio || opcoes?.fim)
+
+    // Modo período: primeiro busca o que já está salvo no sistema (instantâneo, sem chamar o governo).
+    const chavesDoPeriodo: string[] = []
+    let jaExistentes = 0
+    if (modoPeriodo) {
+      const existentes = await prisma.nfeEmissao.findMany({
+        where: { dataEmissao: limitesPeriodo(opcoes?.inicio, opcoes?.fim), chaveAcesso: { not: null } },
+        select: { chaveAcesso: true },
+      })
+      for (const e of existentes) if (e.chaveAcesso) chavesDoPeriodo.push(e.chaveAcesso)
+      jaExistentes = chavesDoPeriodo.length
+    }
+
     const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
     const certSenha = decryptSecret(nfeConfig.certificadoSenha)
     const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
@@ -94,7 +118,6 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
     let ultNsu = modoPeriodo ? (opcoes?.nsuInicial || '000000000000000') : (nfeConfig.ultimoNsu || '000000000000000')
     let novos = 0
     let chegouAoFim = false
-    const chavesDoPeriodo: string[] = []
 
     for (let pagina = 0; pagina < MAX_PAGINAS_NFE; pagina++) {
       const respostaXml = await client.consultarDistribuicaoDFe(
@@ -111,11 +134,15 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
       }
 
       for (const doc of resultado.documentos) {
-        if (modoPeriodo && !dentroDoPeriodo(extrairDataEmissao(doc.xml), opcoes?.inicio, opcoes?.fim)) continue
-        if (modoPeriodo) chavesDoPeriodo.push(doc.chaveAcesso)
+        const dataEmissao = extrairDataEmissao(doc.xml)
+        if (modoPeriodo && !dentroDoPeriodo(dataEmissao, opcoes?.inicio, opcoes?.fim)) continue
 
         const existente = await prisma.nfeEmissao.findUnique({ where: { chaveAcesso: doc.chaveAcesso } })
-        if (existente) continue
+        if (existente) {
+          if (modoPeriodo && !chavesDoPeriodo.includes(doc.chaveAcesso)) chavesDoPeriodo.push(doc.chaveAcesso)
+          continue
+        }
+        if (modoPeriodo) chavesDoPeriodo.push(doc.chaveAcesso)
 
         await prisma.nfeEmissao.create({
           data: {
@@ -129,6 +156,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
             destinatarioNome: doc.destinatarioNome,
             destinatarioDocumento: doc.destinatarioDocumento,
             valorTotal: doc.valorTotal,
+            dataEmissao,
           }
         })
         novos++
@@ -146,7 +174,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
     if (modoPeriodo) {
       return {
         novos,
-        mensagem: `${novos} nota(s) de produto importada(s) no período. Verificado até o NSU ${ultNsu}.${chegouAoFim ? '' : ' Ainda há mais documentos além desse ponto — clique em "Continuar" para buscar mais.'}`,
+        mensagem: `${jaExistentes} nota(s) de produto já estavam no sistema nesse período. ${novos} nova(s) encontrada(s) agora no governo (verificado até o NSU ${ultNsu}).${chegouAoFim ? '' : ' Ainda pode haver mais no governo além desse ponto — clique em "Continuar" para verificar.'}`,
         proximoNsu: ultNsu,
         temMais: !chegouAoFim,
         chaves: chavesDoPeriodo,
@@ -167,6 +195,19 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     }
 
     const modoPeriodo = !!(opcoes?.inicio || opcoes?.fim)
+
+    // Modo período: primeiro busca o que já está salvo no sistema (instantâneo, sem chamar o governo).
+    const chavesDoPeriodo: string[] = []
+    let jaExistentes = 0
+    if (modoPeriodo) {
+      const existentes = await prisma.nfseEmissao.findMany({
+        where: { dataEmissao: limitesPeriodo(opcoes?.inicio, opcoes?.fim), chaveAcesso: { not: null } },
+        select: { chaveAcesso: true },
+      })
+      for (const e of existentes) if (e.chaveAcesso) chavesDoPeriodo.push(e.chaveAcesso)
+      jaExistentes = chavesDoPeriodo.length
+    }
+
     const pfxBuffer = Buffer.from(nfseConfig.certificado, 'base64')
     const certSenha = decryptSecret(nfseConfig.certificadoSenha)
     const ambiente = nfseConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
@@ -177,7 +218,6 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     let novos = 0
     let naoEncontradosSeguidos = 0
     let chegouAoFim = false
-    const chavesDoPeriodo: string[] = []
 
     for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE; tentativa++) {
       const nsuStr = nsuAtual.toString().padStart(15, '0')
@@ -195,34 +235,39 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
         if (doc.TipoDocumento !== 'NFSE') continue // ignora eventos/outros tipos por enquanto
 
         const xml = gunzipSync(Buffer.from(doc.ArquivoXml, 'base64')).toString('utf-8')
-        if (modoPeriodo && !dentroDoPeriodo(extrairDataEmissao(xml), opcoes?.inicio, opcoes?.fim)) continue
+        const dataEmissao = extrairDataEmissao(xml)
+        if (modoPeriodo && !dentroDoPeriodo(dataEmissao, opcoes?.inicio, opcoes?.fim)) continue
 
         const chaveAcesso = doc.ChaveAcesso
-        if (modoPeriodo) chavesDoPeriodo.push(chaveAcesso)
         const existente = await prisma.nfseEmissao.findUnique({ where: { chaveAcesso } })
-        if (!existente) {
-          const numeroDps = parseInt(xml.match(/<nDPS>(\d+)<\/nDPS>/)?.[1] || '0', 10)
-          const serieDps = xml.match(/<serie>([^<]+)<\/serie>/)?.[1] || '0'
-          const valorTotal = parseFloat(xml.match(/<vLiq>([^<]+)<\/vLiq>/)?.[1] || xml.match(/<vServ>([^<]+)<\/vServ>/)?.[1] || '0') || null
-          const tomadorNome = xml.match(/<toma>[\s\S]*?<xNome>([^<]+)<\/xNome>/)?.[1] || null
-          const tomadorDocumento = xml.match(/<toma>[\s\S]*?<(?:CNPJ|CPF)>(\d+)<\/(?:CNPJ|CPF)>/)?.[1] || null
-
-          await prisma.nfseEmissao.create({
-            data: {
-              ambiente,
-              numeroDps,
-              serieDps,
-              status: 'AUTORIZADA',
-              chaveAcesso,
-              xmlNfse: xml,
-              origem: 'IMPORTADA_GOVERNO',
-              tomadorNome,
-              tomadorDocumento,
-              valorTotal,
-            }
-          })
-          novos++
+        if (existente) {
+          if (modoPeriodo && !chavesDoPeriodo.includes(chaveAcesso)) chavesDoPeriodo.push(chaveAcesso)
+          continue
         }
+        if (modoPeriodo) chavesDoPeriodo.push(chaveAcesso)
+
+        const numeroDps = parseInt(xml.match(/<nDPS>(\d+)<\/nDPS>/)?.[1] || '0', 10)
+        const serieDps = xml.match(/<serie>([^<]+)<\/serie>/)?.[1] || '0'
+        const valorTotal = parseFloat(xml.match(/<vLiq>([^<]+)<\/vLiq>/)?.[1] || xml.match(/<vServ>([^<]+)<\/vServ>/)?.[1] || '0') || null
+        const tomadorNome = xml.match(/<toma>[\s\S]*?<xNome>([^<]+)<\/xNome>/)?.[1] || null
+        const tomadorDocumento = xml.match(/<toma>[\s\S]*?<(?:CNPJ|CPF)>(\d+)<\/(?:CNPJ|CPF)>/)?.[1] || null
+
+        await prisma.nfseEmissao.create({
+          data: {
+            ambiente,
+            numeroDps,
+            serieDps,
+            status: 'AUTORIZADA',
+            chaveAcesso,
+            xmlNfse: xml,
+            origem: 'IMPORTADA_GOVERNO',
+            tomadorNome,
+            tomadorDocumento,
+            valorTotal,
+            dataEmissao,
+          }
+        })
+        novos++
       }
 
       if (!modoPeriodo) {
@@ -236,7 +281,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     if (modoPeriodo) {
       return {
         novos,
-        mensagem: `${novos} nota(s) de serviço importada(s) no período. Verificado até o NSU ${nsuFinal}.${chegouAoFim ? '' : ' Ainda há mais documentos além desse ponto — clique em "Continuar" para buscar mais.'}`,
+        mensagem: `${jaExistentes} nota(s) de serviço já estavam no sistema nesse período. ${novos} nova(s) encontrada(s) agora no governo (verificado até o NSU ${nsuFinal}).${chegouAoFim ? '' : ' Ainda pode haver mais no governo além desse ponto — clique em "Continuar" para verificar.'}`,
         proximoNsu: nsuFinal,
         temMais: !chegouAoFim,
         chaves: chavesDoPeriodo,

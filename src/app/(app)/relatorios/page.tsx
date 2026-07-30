@@ -14,8 +14,14 @@ function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default async function RelatoriosPage() {
-  const [vendasAgg, osAgg, saleItems, osPorStatus] = await Promise.all([
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+export default async function RelatoriosPage({ searchParams }: { searchParams: Promise<{ ano?: string }> }) {
+  const { ano: anoParam } = await searchParams
+  const anoAtual = new Date().getFullYear()
+  const ano = anoParam && /^\d{4}$/.test(anoParam) ? parseInt(anoParam, 10) : anoAtual
+
+  const [vendasAgg, osAgg, saleItems, osPorStatus, nfseEmissoes, nfeEmissoes] = await Promise.all([
     prisma.sale.aggregate({ _sum: { total: true }, _count: true }),
     prisma.serviceOrder.aggregate({
       _sum: { price: true },
@@ -28,7 +34,17 @@ export default async function RelatoriosPage() {
     prisma.serviceOrder.groupBy({
       by: ['status'],
       _count: true
-    })
+    }),
+    // Só notas de serviço AUTORIZADAS entram no relatório de faturamento fiscal —
+    // OS sem NFS-e emitida não conta, mesmo que já concluída/paga.
+    prisma.nfseEmissao.findMany({
+      where: { status: 'AUTORIZADA' },
+      include: { serviceOrder: { select: { price: true, createdAt: true } } },
+    }),
+    prisma.nfeEmissao.findMany({
+      where: { status: 'AUTORIZADA' },
+      include: { sale: { select: { total: true, createdAt: true } } },
+    }),
   ])
 
   const faturamentoVendas = vendasAgg._sum.total || 0
@@ -47,6 +63,30 @@ export default async function RelatoriosPage() {
   const produtosMaisVendidos = Array.from(produtosVendidosMap.values())
     .sort((a, b) => b.quantidade - a.quantidade)
     .slice(0, 5)
+
+  // Relatório mensal de valores faturados em nota fiscal (NFS-e + NF-e), só notas AUTORIZADAS.
+  // valorTotal/dataEmissao só vêm preenchidos direto no registro pras notas importadas do
+  // governo; pras emitidas pelo próprio sistema, o valor/data vêm da OS/Venda vinculada.
+  const nfsePorMes = Array(12).fill(0)
+  const nfePorMes = Array(12).fill(0)
+
+  for (const e of nfseEmissoes) {
+    const data = e.dataEmissao || e.serviceOrder?.createdAt
+    const valor = e.valorTotal ?? e.serviceOrder?.price ?? 0
+    if (!data || data.getFullYear() !== ano) continue
+    nfsePorMes[data.getMonth()] += valor
+  }
+
+  for (const e of nfeEmissoes) {
+    const data = e.dataEmissao || e.sale?.createdAt
+    const valor = e.valorTotal ?? e.sale?.total ?? 0
+    if (!data || data.getFullYear() !== ano) continue
+    nfePorMes[data.getMonth()] += valor
+  }
+
+  const totalNfseAno = nfsePorMes.reduce((a, b) => a + b, 0)
+  const totalNfeAno = nfePorMes.reduce((a, b) => a + b, 0)
+  const totalGeralAno = totalNfseAno + totalNfeAno
 
   return (
     <div className="animate-fade-in">
@@ -75,6 +115,48 @@ export default async function RelatoriosPage() {
         <div className="card text-center" style={{ borderTop: '4px solid #f59e0b' }}>
           <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>OS Concluídas/Entregues</h3>
           <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{osAgg._count}</p>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+          <h3 style={{ margin: 0 }}>📅 Relatório Mensal de Notas Fiscais Emitidas</h3>
+          <form method="get" className="flex gap-4" style={{ alignItems: 'center' }}>
+            <label className="input-label" htmlFor="ano" style={{ marginBottom: 0 }}>Ano</label>
+            <input type="number" id="ano" name="ano" className="input-field" defaultValue={ano} min={2020} max={anoAtual + 1} style={{ width: '100px', padding: '0.35rem 0.6rem' }} />
+            <button type="submit" className="btn btn-outline" style={{ padding: '0.35rem 0.75rem' }}>Ver</button>
+          </form>
+        </div>
+        <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
+          Considera apenas o valor de notas fiscais efetivamente <strong>emitidas e autorizadas</strong> (NFS-e de serviço + NF-e de produto) — orçamentos, OS ou vendas sem nota emitida não entram nesta soma.
+        </p>
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Mês</th>
+                <th>NFS-e (Serviço)</th>
+                <th>NF-e (Produto)</th>
+                <th>Total do Mês</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MESES.map((nome, i) => (
+                <tr key={nome}>
+                  <td>{nome}</td>
+                  <td>{formatarMoeda(nfsePorMes[i])}</td>
+                  <td>{formatarMoeda(nfePorMes[i])}</td>
+                  <td style={{ fontWeight: 600 }}>{formatarMoeda(nfsePorMes[i] + nfePorMes[i])}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+                <td>Total do Ano {ano}</td>
+                <td>{formatarMoeda(totalNfseAno)}</td>
+                <td>{formatarMoeda(totalNfeAno)}</td>
+                <td style={{ color: 'var(--accent-green)' }}>{formatarMoeda(totalGeralAno)}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 

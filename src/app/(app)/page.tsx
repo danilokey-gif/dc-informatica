@@ -18,43 +18,43 @@ export default async function Dashboard() {
         <Link href="/os/novo" className="btn btn-primary">Nova Ordem de Serviço</Link>
       </div>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-        
-        <div className="card text-center" style={{ borderTop: '4px solid var(--primary)' }}>
-          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Total de Clientes</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{customerCount}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+
+        <div className="card">
+          <div className="stat-label">Clientes</div>
+          <div className="stat-value accent-blue">{customerCount}</div>
         </div>
 
-        <div className="card text-center" style={{ borderTop: '4px solid var(--primary)' }}>
-          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Ordens de Serviço</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{osCount}</p>
+        <div className="card">
+          <div className="stat-label">Ordens de Serviço</div>
+          <div className="stat-value accent-blue">{osCount}</div>
         </div>
 
-        <div className="card text-center" style={{ borderTop: '4px solid #f59e0b' }}>
-          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Orçamentos Pendentes</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{pendingOs}</p>
+        <div className="card">
+          <div className="stat-label">Orçamentos Pendentes</div>
+          <div className="stat-value accent-orange">{pendingOs}</div>
         </div>
 
-        <div className="card text-center" style={{ borderTop: '4px solid var(--primary)' }}>
-          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Total de Produtos</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{productCount}</p>
+        <div className="card">
+          <div className="stat-label">Produtos</div>
+          <div className="stat-value accent-blue">{productCount}</div>
         </div>
 
-        <div className="card text-center" style={{ borderTop: '4px solid #dc2626' }}>
-          <h3 className="text-muted" style={{ fontSize: '1rem', fontWeight: 500 }}>Estoque Baixo</h3>
-          <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-main)' }}>{lowStockCount}</p>
+        <div className="card">
+          <div className="stat-label">Estoque Baixo</div>
+          <div className={`stat-value ${lowStockCount > 0 ? 'accent-red' : 'accent-green'}`}>{lowStockCount}</div>
         </div>
 
       </div>
       
-      <div className="card">
+      <div className="card" style={{ maxWidth: '420px' }}>
         <h3 className="mb-4">Ações Rápidas</h3>
-        <div className="flex gap-4">
-          <Link href="/clientes/novo" className="btn btn-outline">Cadastrar Cliente</Link>
-          <Link href="/clientes" className="btn btn-outline">Buscar Clientes</Link>
-          <Link href="/produtos/novo" className="btn btn-outline">Cadastrar Produto</Link>
-          <Link href="/os" className="btn btn-outline">Ver todas as OS</Link>
-          <Link href="/os/rapida" className="btn btn-outline">Nota de Serviço Avulsa</Link>
+        <div className="flex" style={{ flexDirection: 'column', gap: '0.6rem' }}>
+          <Link href="/os/novo" className="btn btn-primary" style={{ justifyContent: 'flex-start' }}>+ Nova OS</Link>
+          <Link href="/clientes/novo" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>+ Novo Cliente</Link>
+          <Link href="/produtos/novo" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>+ Novo Produto</Link>
+          <Link href="/os/rapida" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>+ Nota de Serviço Avulsa</Link>
+          <Link href="/os" className="btn btn-outline" style={{ justifyContent: 'flex-start' }}>Ver todas as OS</Link>
         </div>
       </div>
     </div>

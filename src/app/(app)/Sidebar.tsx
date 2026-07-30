@@ -3,88 +3,138 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-const navItems = [
-  { href: '/', label: 'Dashboard', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M3 10.5 10 4l7 6.5M5 9v7h10V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) },
-  { href: '/clientes', label: 'Clientes', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3.5 17c0-3.038 2.91-5.5 6.5-5.5s6.5 2.462 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  ) },
-  { href: '/produtos', label: 'Produtos', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M3 6.5 10 3l7 3.5-7 3.5-7-3.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M3 6.5V14l7 3.5 7-3.5V6.5M10 10v7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) },
-  { href: '/vendas', label: 'Vendas', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M3 4h1.6l1.1 8.6a1.6 1.6 0 0 0 1.6 1.4h6.8a1.6 1.6 0 0 0 1.58-1.35L17 6.5H5.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="8" cy="17" r="1.1" fill="currentColor" />
-      <circle cx="14.5" cy="17" r="1.1" fill="currentColor" />
-    </svg>
-  ) },
-  { href: '/os', label: 'Ordens de Serviço', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M12.4 3.6a2.3 2.3 0 0 1 3.25 3.25l-.7.7-3.25-3.25.7-.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M10.6 5.4 4 12v3.25h3.25L14 8.65" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  ) },
-  { href: '/os/rapida', label: 'Nota de Serviço', adminOnly: false, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M13 3v3h3M7.5 11.5h5M9 15h3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M7.4 8.6 8.3 9.5l1.9-1.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) },
-  { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M13 3v3h3M7 10h6M7 13h6M7 7h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) },
-  { href: '/fornecedores', label: 'Fornecedores', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M3 16V8l7-4 7 4v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M7.5 16v-4.5h5V16" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-    </svg>
-  ) },
-  { href: '/financeiro', label: 'Financeiro', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <circle cx="10" cy="10" r="6.75" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M10 6v8M12.25 8.1c0-.94-1.007-1.7-2.25-1.7s-2.25.76-2.25 1.7S8.757 9.8 10 9.8s2.25.76 2.25 1.7-1.007 1.7-2.25 1.7-2.25-.76-2.25-1.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  ) },
-  { href: '/relatorios', label: 'Relatórios', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <path d="M4 16.5V11m5 5.5V6.5m5 10V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M3.5 16.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  ) },
-  { href: '/usuarios', label: 'Usuários', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <circle cx="7" cy="6.5" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M2.8 16c0-2.6 1.9-4.5 4.2-4.5s4.2 1.9 4.2 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="14" cy="7.5" r="1.9" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M12.3 11.6c1.9.2 3.4 1.8 3.4 4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ) },
-  { href: '/configuracoes', label: 'Configurações', adminOnly: true, icon: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
-      <circle cx="10" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M10 3.5v1.4M10 15.1v1.4M16.5 10h-1.4M4.9 10H3.5M14.6 5.4l-1 1M6.4 13.6l-1 1M14.6 14.6l-1-1M6.4 6.4l-1-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  ) },
+type Icon = (props: React.SVGProps<SVGSVGElement>) => React.ReactElement
+type NavItem = { href: string; label: string; adminOnly: boolean; icon: Icon }
+
+const IconDashboard: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M3 10.5 10 4l7 6.5M5 9v7h10V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+const IconClientes: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M3.5 17c0-3.038 2.91-5.5 6.5-5.5s6.5 2.462 6.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+)
+const IconProdutos: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M3 6.5 10 3l7 3.5-7 3.5-7-3.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M3 6.5V14l7 3.5 7-3.5V6.5M10 10v7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+const IconVendas: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M3 4h1.6l1.1 8.6a1.6 1.6 0 0 0 1.6 1.4h6.8a1.6 1.6 0 0 0 1.58-1.35L17 6.5H5.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="8" cy="17" r="1.1" fill="currentColor" />
+    <circle cx="14.5" cy="17" r="1.1" fill="currentColor" />
+  </svg>
+)
+const IconOS: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M12.4 3.6a2.3 2.3 0 0 1 3.25 3.25l-.7.7-3.25-3.25.7-.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M10.6 5.4 4 12v3.25h3.25L14 8.65" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+  </svg>
+)
+const IconNotaServico: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M13 3v3h3M7.5 11.5h5M9 15h3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7.4 8.6 8.3 9.5l1.9-1.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+const IconNotasFiscais: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M13 3v3h3M7 10h6M7 13h6M7 7h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+const IconFornecedores: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M3 16V8l7-4 7 4v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M7.5 16v-4.5h5V16" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+  </svg>
+)
+const IconFinanceiro: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <circle cx="10" cy="10" r="6.75" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M10 6v8M12.25 8.1c0-.94-1.007-1.7-2.25-1.7s-2.25.76-2.25 1.7S8.757 9.8 10 9.8s2.25.76 2.25 1.7-1.007 1.7-2.25 1.7-2.25-.76-2.25-1.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+)
+const IconRelatorios: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M4 16.5V11m5 5.5V6.5m5 10V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M3.5 16.5h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+)
+const IconUsuarios: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <circle cx="7" cy="6.5" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M2.8 16c0-2.6 1.9-4.5 4.2-4.5s4.2 1.9 4.2 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <circle cx="14" cy="7.5" r="1.9" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M12.3 11.6c1.9.2 3.4 1.8 3.4 4.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
+const IconConfiguracoes: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <circle cx="10" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M10 3.5v1.4M10 15.1v1.4M16.5 10h-1.4M4.9 10H3.5M14.6 5.4l-1 1M6.4 13.6l-1 1M14.6 14.6l-1-1M6.4 6.4l-1-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+)
+
+const topItems: NavItem[] = [
+  { href: '/', label: 'Dashboard', adminOnly: false, icon: IconDashboard },
 ]
+
+const sections: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Cadastros',
+    items: [
+      { href: '/clientes', label: 'Clientes', adminOnly: false, icon: IconClientes },
+      { href: '/fornecedores', label: 'Fornecedores', adminOnly: true, icon: IconFornecedores },
+      { href: '/produtos', label: 'Produtos', adminOnly: false, icon: IconProdutos },
+    ],
+  },
+  {
+    label: 'Operações',
+    items: [
+      { href: '/vendas', label: 'Vendas', adminOnly: false, icon: IconVendas },
+      { href: '/os', label: 'Ordens de Serviço', adminOnly: false, icon: IconOS },
+      { href: '/os/rapida', label: 'Nota de Serviço', adminOnly: false, icon: IconNotaServico },
+      { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: IconNotasFiscais },
+    ],
+  },
+  {
+    label: 'Gestão',
+    items: [
+      { href: '/financeiro', label: 'Financeiro', adminOnly: true, icon: IconFinanceiro },
+      { href: '/relatorios', label: 'Relatórios', adminOnly: true, icon: IconRelatorios },
+      { href: '/usuarios', label: 'Usuários', adminOnly: true, icon: IconUsuarios },
+      { href: '/configuracoes', label: 'Configurações', adminOnly: true, icon: IconConfiguracoes },
+    ],
+  },
+]
+
+function isItemActive(pathname: string, href: string) {
+  if (href === '/') return pathname === '/'
+  if (href === '/os') return pathname === '/os' || (pathname.startsWith('/os/') && !pathname.startsWith('/os/rapida'))
+  return pathname.startsWith(href)
+}
+
+function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const isActive = isItemActive(pathname, item.href)
+  const Icon = item.icon
+  return (
+    <Link href={item.href} className={`sidebar-link${isActive ? ' active' : ''}`}>
+      <Icon className="sidebar-icon" />
+      <span>{item.label}</span>
+    </Link>
+  )
+}
 
 export default function Sidebar({ companyName, logo, role }: { companyName: string; logo: string | null; role: string }) {
   const pathname = usePathname()
   const isAdmin = role === 'ADMIN'
-  const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin)
 
   return (
     <aside className="sidebar no-print">
@@ -99,18 +149,20 @@ export default function Sidebar({ companyName, logo, role }: { companyName: stri
       </div>
 
       <nav className="sidebar-nav">
-        {visibleItems.map(item => {
-          const isActive = item.href === '/'
-            ? pathname === '/'
-            : item.href === '/os'
-              ? pathname === '/os' || (pathname.startsWith('/os/') && !pathname.startsWith('/os/rapida'))
-              : pathname.startsWith(item.href)
-          const Icon = item.icon
+        {topItems.filter(item => !item.adminOnly || isAdmin).map(item => (
+          <NavLink key={item.href} item={item} pathname={pathname} />
+        ))}
+
+        {sections.map(section => {
+          const visibleItems = section.items.filter(item => !item.adminOnly || isAdmin)
+          if (visibleItems.length === 0) return null
           return (
-            <Link key={item.href} href={item.href} className={`sidebar-link${isActive ? ' active' : ''}`}>
-              <Icon className="sidebar-icon" />
-              <span>{item.label}</span>
-            </Link>
+            <div key={section.label}>
+              <div className="sidebar-section-label">{section.label}</div>
+              {visibleItems.map(item => (
+                <NavLink key={item.href} item={item} pathname={pathname} />
+              ))}
+            </div>
           )
         })}
       </nav>

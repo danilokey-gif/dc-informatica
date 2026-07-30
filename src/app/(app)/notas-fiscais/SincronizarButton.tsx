@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import type { ResultadoSincronizacao } from './sync-actions'
 
-export default function SincronizarButton({ tipo, action }: { tipo: 'NFS-e' | 'NF-e'; action: () => Promise<{ novos: number; mensagem: string }> }) {
+export default function SincronizarButton({ tipo, action }: { tipo: 'NFS-e' | 'NF-e'; action: () => Promise<ResultadoSincronizacao> }) {
   const [isPending, startTransition] = useTransition()
   const [resultado, setResultado] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
@@ -12,8 +13,12 @@ export default function SincronizarButton({ tipo, action }: { tipo: 'NFS-e' | 'N
     setErro(null)
     startTransition(async () => {
       try {
-        const { mensagem } = await action()
-        setResultado(mensagem)
+        const { mensagem, erro: erroRetornado } = await action()
+        if (erroRetornado) {
+          setErro(erroRetornado)
+        } else {
+          setResultado(mensagem)
+        }
       } catch (e) {
         setErro(e instanceof Error ? e.message : String(e))
       }
@@ -26,7 +31,7 @@ export default function SincronizarButton({ tipo, action }: { tipo: 'NFS-e' | 'N
         {isPending ? 'Sincronizando…' : `🔄 Buscar notas de ${tipo} no governo`}
       </button>
       {resultado && <p style={{ color: 'var(--accent-green)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{resultado}</p>}
-      {erro && <p style={{ color: 'var(--accent-red)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{erro}</p>}
+      {erro && <p style={{ color: 'var(--accent-red)', fontSize: '0.85rem', marginTop: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{erro}</p>}
     </div>
   )
 }

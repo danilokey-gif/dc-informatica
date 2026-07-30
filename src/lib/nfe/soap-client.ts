@@ -93,6 +93,37 @@ export class NfeSoapClient {
     return res.text()
   }
 
+  /**
+   * Envia uma requisição SOAP 1.1 (envelope + Content-Type + header SOAPAction diferentes do
+   * SOAP 1.2 usado pelos outros métodos) — alguns serviços legados da Sefaz só aceitam esse formato.
+   * Lança erro incluindo o XML enviado junto com a resposta, pra facilitar diagnóstico se rejeitar de novo.
+   */
+  private async soapRequest11(url: string, servico: string, metodo: string, corpo: string, wrapperTag: string): Promise<string> {
+    const envelope =
+      `<?xml version="1.0" encoding="utf-8"?>` +
+      `<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">` +
+        `<soap:Body>` +
+          `<${wrapperTag} xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/${servico}">${corpo}</${wrapperTag}>` +
+        `</soap:Body>` +
+      `</soap:Envelope>`
+
+    const action = `http://www.portalfiscal.inf.br/nfe/wsdl/${servico}/${metodo}`
+
+    const res = await fetch(url, {
+      method: 'POST',
+      // @ts-expect-error -- dispatcher e extensao do undici para mTLS
+      dispatcher: this.agent,
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', SOAPAction: `"${action}"` },
+      body: envelope,
+    })
+
+    const texto = await res.text()
+    if (texto.includes('<soap') && texto.includes('Fault')) {
+      throw new Error(`Rejeição SOAP (HTTP ${res.status}). Enviado: ${envelope} | Recebido: ${texto}`)
+    }
+    return texto
+  }
+
   /** Consulta o status do serviço da Sefaz-SP (chamada simples, sem XML de NF-e). */
   async consultarStatusServico(cUF: string, tpAmb: '1' | '2'): Promise<string> {
     const corpo =
@@ -142,6 +173,8 @@ export class NfeSoapClient {
         `<CNPJ>${cnpj}</CNPJ>` +
         `<distNSU><ultNSU>${ultNsuConsultado.padStart(15, '0')}</ultNSU></distNSU>` +
       `</distDFeInt>`
-    return this.soapRequest(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo, 'nfeDistDFeInteresseXML')
+    // Serviço nacional legado — testado com SOAP 1.2 e deu NullReferenceException no servidor
+    // (provavelmente só aceita SOAP 1.1). Se rejeitar de novo, o erro agora inclui o XML enviado.
+    return this.soapRequest11(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo, 'nfeDistDFeInteresseXML')
   }
 }

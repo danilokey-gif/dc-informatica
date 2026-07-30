@@ -1,12 +1,19 @@
 import { Agent } from 'undici'
 import path from 'path'
 import fs from 'fs'
+import tls from 'tls'
 import { extractCertMaterial } from '../nfse/certificate'
 
 // A Sefaz-SP usa certificado TLS ICP-Brasil (AC SOLUTI, raiz "Autoridade Certificadora Raiz
 // Brasileira v10") que nao esta na lista de CAs confiaveis padrao do Node — so funciona em
 // navegadores porque o Windows ja tem essa raiz instalada no repositorio do sistema.
 const caIcpBrasil = fs.readFileSync(path.join(process.cwd(), 'src/lib/nfe/ca-icp-brasil.pem'), 'utf-8')
+
+// Passar `ca` no tls.connect SUBSTITUI a lista padrão de raízes confiáveis do Node (não soma) —
+// por isso hosts com certificado normal (assinado por CA pública padrão), como o da Distribuição
+// DFe nacional, davam "unable to get local issuer certificate" com só a raiz ICP-Brasil na lista.
+// Combinando as raízes padrão do Node com a raiz ICP-Brasil, os dois tipos de host validam.
+const caCombinada = [...tls.rootCertificates, caIcpBrasil]
 
 const BASE_URLS = {
   producao: {
@@ -55,7 +62,7 @@ export class NfeSoapClient {
     this.urls = BASE_URLS[config.ambiente]
     const { privateKeyPem, certificatePem } = extractCertMaterial(config.pfxBuffer, config.certPassword)
     this.agent = new Agent({
-      connect: { key: privateKeyPem, cert: certificatePem, ca: caIcpBrasil },
+      connect: { key: privateKeyPem, cert: certificatePem, ca: caCombinada },
     })
   }
 

@@ -197,7 +197,12 @@ export default async function NotasFiscaisPage() {
                       </td>
                       <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.createdAt.toLocaleDateString('pt-BR')}</td>
                       <td style={{ padding: '0.5rem' }}>
-                        <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
+                        <div className="flex gap-4">
+                          <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
+                          {linha.chaveAcesso && (
+                            <Link href={`/notas-fiscais/ver-xml?tipo=nfse&id=${linha.id}`} className="text-muted" style={{ textDecoration: 'underline' }}>Ver XML</Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -248,7 +253,12 @@ export default async function NotasFiscaisPage() {
                       </td>
                       <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.createdAt.toLocaleDateString('pt-BR')}</td>
                       <td style={{ padding: '0.5rem' }}>
-                        <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
+                        <div className="flex gap-4">
+                          <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
+                          {linha.chaveAcesso && (
+                            <Link href={`/notas-fiscais/ver-xml?tipo=nfe&id=${linha.id}`} className="text-muted" style={{ textDecoration: 'underline' }}>Ver XML</Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

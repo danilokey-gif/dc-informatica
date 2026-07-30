@@ -139,16 +139,21 @@ export class NfeSoapClient {
    */
   async consultarDistribuicaoDFe(cnpj: string, uf: string, tpAmb: '1' | '2', ultNsuConsultado: string): Promise<string> {
     const cUFAutor = CODIGO_UF[uf] || '35'
-    const corpo =
+    const wsdlNs = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe'
+    const distDFeInt =
       `<distDFeInt xmlns="${NFE_NS}" versao="1.01">` +
         `<tpAmb>${tpAmb}</tpAmb>` +
         `<cUFAutor>${cUFAutor}</cUFAutor>` +
         `<CNPJ>${cnpj}</CNPJ>` +
         `<distNSU><ultNSU>${ultNsuConsultado.padStart(15, '0')}</ultNSU></distNSU>` +
       `</distDFeInt>`
-    // Confirmado contra a lib de referência nfephp-org/sped-nfe (storage/wsnfe_4.00_mod55.xml):
-    // o nome do wrapper é igual ao "method" do serviço, "nfeDistDFeInteresse" (sem sufixo "XML"),
-    // e o protocolo é SOAP 1.2 mesmo — minhas duas tentativas anteriores erraram o wrapper.
+    // Confirmado contra a lib de referência nfephp-org/sped-nfe (Tools::sefazDistDFe): este
+    // serviço tem um nível de aninhamento a mais que os outros — o conteúdo vai dentro de
+    // <nfeDadosMsg>, que por sua vez vai dentro de <nfeDistDFeInteresse>. Nos demais serviços
+    // (NFeAutorizacao4 etc) o <nfeDadosMsg> é o próprio wrapper do Body, sem esse nível extra.
+    // Sem o <nfeDadosMsg> no meio, o servidor não encontra o parâmetro e devolve
+    // "Object reference not set to an instance of an object" (NullReferenceException).
+    const corpo = `<nfeDadosMsg xmlns="${wsdlNs}">${distDFeInt}</nfeDadosMsg>`
     return this.soapRequest(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo, 'nfeDistDFeInteresse')
   }
 }

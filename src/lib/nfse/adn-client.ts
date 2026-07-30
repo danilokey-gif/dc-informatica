@@ -1,9 +1,8 @@
 import { buildMtlsAgent } from './certificate'
 
-// Fonte: "Manual dos Contribuintes - Guia para utilização das API's do ADN" (gov.br/nfse),
-// que documenta apenas o endpoint de produção restrita para testes. A URL de produção segue
-// o mesmo padrão de host usado pela SEFIN Nacional (sefin.nfse.gov.br / sefin.producaorestrita
-// .nfse.gov.br) — não confirmada ainda em uma chamada real, ajustar se retornar 404.
+// Fonte: "Manual dos Contribuintes - Guia para utilização das API's do ADN" (gov.br/nfse).
+// URL e formato de resposta confirmados em chamada real de produção em 2026-07-30
+// (StatusProcessamento: "DOCUMENTOS_LOCALIZADOS", com LoteDFe[].ArquivoXml).
 const ADN_BASE_URLS = {
   producao: 'https://adn.nfse.gov.br/contribuintes',
   homologacao: 'https://adn.producaorestrita.nfse.gov.br/contribuintes',
@@ -15,6 +14,20 @@ interface AdnClientConfig {
   ambiente: AdnAmbiente
   pfxBuffer: Buffer
   certPassword: string
+}
+
+export interface DocumentoLoteDFe {
+  NSU: number
+  ChaveAcesso: string
+  TipoDocumento: string
+  ArquivoXml: string
+}
+
+export interface RespostaConsultaDFe {
+  StatusProcessamento: string
+  LoteDFe: DocumentoLoteDFe[]
+  Alertas?: unknown[]
+  Erros?: { Codigo?: string; Descricao?: string }[]
 }
 
 /**
@@ -34,11 +47,8 @@ export class AdnClient {
   /**
    * Consulta o documento fiscal de serviço associado a um NSU (Número Sequencial Único).
    * Retorna `null` quando não há documento nesse NSU (fim da lista / NSU ainda não usado).
-   * Formato exato do corpo da resposta não confirmado em chamada real ainda (o manual não
-   * documenta o schema, só aponta pro Swagger) — retorna o JSON bruto pra quem chamar decidir
-   * como interpretar, com fallback pros nomes de campo mais prováveis.
    */
-  async consultarDFePorNsu(nsu: string): Promise<Record<string, unknown> | null> {
+  async consultarDFePorNsu(nsu: string): Promise<RespostaConsultaDFe | null> {
     const res = await fetch(`${this.baseUrl}/DFe/${nsu}`, {
       // @ts-expect-error -- dispatcher é extensão do undici para mTLS
       dispatcher: this.agent,
@@ -52,6 +62,8 @@ export class AdnClient {
 
     const text = await res.text()
     if (!text) return null
-    return JSON.parse(text)
+    const json = JSON.parse(text) as RespostaConsultaDFe
+    if (json.StatusProcessamento !== 'DOCUMENTOS_LOCALIZADOS' || !json.LoteDFe?.length) return null
+    return json
   }
 }

@@ -24,6 +24,24 @@ export interface ResultadoSincronizacao {
 // impossível diagnosticar problemas reais dessas integrações novas. Por isso capturam o erro
 // internamente e devolvem no campo `erro` do objeto de retorno, que chega intacto ao cliente.
 
+/** Formata um erro incluindo a cadeia de `cause` — o `fetch` do Node embrulha erros de rede/TLS
+ * num TypeError genérico ("fetch failed") e só o `.cause` tem o motivo real (DNS, TLS, timeout). */
+function formatarErro(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const partes = [`${error.name}: ${error.message}`]
+  let causa = (error as { cause?: unknown }).cause
+  while (causa) {
+    if (causa instanceof Error) {
+      partes.push(`causa: ${causa.name}: ${causa.message}`)
+      causa = (causa as { cause?: unknown }).cause
+    } else {
+      partes.push(`causa: ${String(causa)}`)
+      break
+    }
+  }
+  return partes.join(' | ')
+}
+
 export async function sincronizarNfeGoverno(): Promise<ResultadoSincronizacao> {
   try {
     const [nfeConfig, empresa] = await Promise.all([getNfeConfig(), getCompanySettings()])
@@ -87,7 +105,7 @@ export async function sincronizarNfeGoverno(): Promise<ResultadoSincronizacao> {
     revalidatePath('/notas-fiscais')
     return { novos, mensagem: `${novos} nota(s) de produto importada(s) do governo.` }
   } catch (error) {
-    return { novos: 0, mensagem: '', erro: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }
+    return { novos: 0, mensagem: '', erro: formatarErro(error) }
   }
 }
 
@@ -120,18 +138,12 @@ export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> 
       }
       naoEncontradosSeguidos = 0
 
-      // Formato exato do JSON ainda não confirmado contra uma chamada real — tenta os nomes de
-      // campo mais prováveis, seguindo a convenção já usada na emissão (`nfseXmlGZipB64`).
-      const conteudoBase64 = (resposta.arquivoXmlGZipB64 || resposta.nfseXmlGZipB64 || resposta.documentoXmlGZipB64 || resposta.arquivo || resposta.conteudo) as string | undefined
+      for (const doc of resposta.LoteDFe) {
+        if (doc.TipoDocumento !== 'NFSE') continue // ignora eventos/outros tipos por enquanto
 
-      if (!conteudoBase64) {
-        return { novos, mensagem: '', erro: `Formato de resposta do ADN não reconhecido no NSU ${nsuStr}. Campos recebidos: ${Object.keys(resposta).join(', ')}. JSON bruto: ${JSON.stringify(resposta).slice(0, 800)}` }
-      }
+        const xml = gunzipSync(Buffer.from(doc.ArquivoXml, 'base64')).toString('utf-8')
+        const chaveAcesso = doc.ChaveAcesso
 
-      const xml = gunzipSync(Buffer.from(conteudoBase64, 'base64')).toString('utf-8')
-      const chaveAcesso = xml.match(/<chNFSe>(\d{50})<\/chNFSe>/)?.[1] || xml.match(/Id="NFSe(\d{50})"/)?.[1] || ''
-
-      if (chaveAcesso) {
         const existente = await prisma.nfseEmissao.findUnique({ where: { chaveAcesso } })
         if (!existente) {
           const numeroDps = parseInt(xml.match(/<nDPS>(\d+)<\/nDPS>/)?.[1] || '0', 10)
@@ -165,6 +177,6 @@ export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> 
     revalidatePath('/notas-fiscais')
     return { novos, mensagem: `${novos} nota(s) de serviço importada(s) do governo.` }
   } catch (error) {
-    return { novos: 0, mensagem: '', erro: error instanceof Error ? `${error.name}: ${error.message}` : String(error) }
+    return { novos: 0, mensagem: '', erro: formatarErro(error) }
   }
 }

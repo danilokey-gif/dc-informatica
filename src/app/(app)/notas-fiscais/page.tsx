@@ -11,25 +11,39 @@ export const dynamic = 'force-dynamic'
 // sincronização com o governo, que fazem varias chamadas HTTP sequenciais.
 export const maxDuration = 60
 
-export default async function NotasFiscaisPage() {
+function limitesDoMes(mes?: string) {
+  if (!mes || !/^\d{4}-\d{2}$/.test(mes)) return undefined
+  const inicio = new Date(`${mes}-01T00:00:00.000Z`)
+  const fim = new Date(inicio.getFullYear(), inicio.getUTCMonth() + 1, 1)
+  return { gte: inicio, lt: fim }
+}
+
+export default async function NotasFiscaisPage({ searchParams }: { searchParams: Promise<{ mesNfse?: string; mesNfe?: string }> }) {
+  const { mesNfse, mesNfe } = await searchParams
+  const filtroNfse = limitesDoMes(mesNfse)
+  const filtroNfe = limitesDoMes(mesNfe)
+
   const [nfseConfig, nfeConfig, empresa, emissoesNfse, emissoesNfe] = await Promise.all([
     getNfseConfig(),
     getNfeConfig(),
     getCompanySettings(),
     prisma.nfseEmissao.findMany({
+      where: filtroNfse ? { dataEmissao: filtroNfse } : undefined,
       include: { serviceOrder: { include: { customer: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
+      orderBy: { dataEmissao: 'desc' },
+      take: filtroNfse ? undefined : 30,
     }),
     prisma.nfeEmissao.findMany({
+      where: filtroNfe ? { dataEmissao: filtroNfe } : undefined,
       include: { sale: { include: { customer: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 30,
+      orderBy: { dataEmissao: 'desc' },
+      take: filtroNfe ? undefined : 30,
     }),
   ])
 
   const hoje = new Date().toISOString().slice(0, 10)
   const primeiroDiaMes = `${hoje.slice(0, 7)}-01`
+  const mesAtual = hoje.slice(0, 7)
 
   const nfseConfigurada = !!(nfseConfig.certificado && nfseConfig.codigoMunicipio && nfseConfig.codigoServico && nfseConfig.aliquotaIss !== null)
   const nfeConfigurada = !!(nfeConfig.certificado && empresa.inscricaoEstadual && empresa.enderLogradouro && nfeConfig.codigoMunicipio)
@@ -43,7 +57,7 @@ export default async function NotasFiscaisPage() {
     chaveAcesso: string | null
     motivoErro: string | null
     ambiente: string
-    createdAt: Date
+    dataExibida: Date
     clienteNome: string
     href: string
     importada: boolean
@@ -58,11 +72,11 @@ export default async function NotasFiscaisPage() {
     chaveAcesso: e.chaveAcesso,
     motivoErro: e.motivoErro,
     ambiente: e.ambiente,
-    createdAt: e.createdAt,
+    dataExibida: e.dataEmissao || e.createdAt,
     clienteNome: e.serviceOrder?.customer.name || e.tomadorNome || 'Não identificado',
     href: e.serviceOrderId ? `/os/${e.serviceOrderId}/imprimir` : `/notas-fiscais/xml?tipo=nfse&id=${e.id}`,
     importada: e.origem === 'IMPORTADA_GOVERNO',
-  })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  })).sort((a, b) => b.dataExibida.getTime() - a.dataExibida.getTime())
 
   const linhasNfe: Linha[] = emissoesNfe.map(e => ({
     id: e.id,
@@ -73,11 +87,11 @@ export default async function NotasFiscaisPage() {
     chaveAcesso: e.chaveAcesso,
     motivoErro: e.motivoErro,
     ambiente: e.ambiente,
-    createdAt: e.createdAt,
+    dataExibida: e.dataEmissao || e.createdAt,
     clienteNome: e.sale?.customer?.name || e.destinatarioNome || 'Consumidor não identificado',
     href: e.saleId ? `/vendas/${e.saleId}/imprimir` : `/notas-fiscais/xml?tipo=nfe&id=${e.id}`,
     importada: e.origem === 'IMPORTADA_GOVERNO',
-  })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  })).sort((a, b) => b.dataExibida.getTime() - a.dataExibida.getTime())
 
   return (
     <div className="animate-fade-in">
@@ -155,15 +169,23 @@ export default async function NotasFiscaisPage() {
 
       {/* Lista Separada de Notas Fiscais */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        
+
         {/* Seção 1: NFS-e */}
         <div className="card">
-          <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-            <h3 style={{ margin: 0 }}>🧾 Notas Fiscais de Serviços Recentes (NFS-e)</h3>
-            <span className="text-muted" style={{ fontSize: '0.8rem' }}>Últimas 30 emissões</span>
+          <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h3 style={{ margin: 0 }}>🧾 Notas Fiscais de Serviços (NFS-e)</h3>
+            <form method="get" className="flex gap-4" style={{ alignItems: 'center' }}>
+              <input type="hidden" name="mesNfe" value={mesNfe || ''} />
+              <input type="month" name="mesNfse" className="input-field" defaultValue={mesNfse || ''} style={{ padding: '0.35rem 0.6rem' }} max={mesAtual} />
+              <button type="submit" className="btn btn-outline" style={{ padding: '0.35rem 0.75rem' }}>Filtrar</button>
+              {mesNfse && <Link href={`/notas-fiscais${mesNfe ? `?mesNfe=${mesNfe}` : ''}`} className="text-muted" style={{ fontSize: '0.8rem' }}>Limpar</Link>}
+            </form>
           </div>
+          <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '-0.5rem', marginBottom: '0.75rem' }}>
+            {mesNfse ? `Notas emitidas em ${mesNfse.split('-').reverse().join('/')}` : 'Últimas 30 emissões (sem filtro de período)'}
+          </p>
           {linhasNfse.length === 0 ? (
-            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Nenhuma nota fiscal de serviço emitida ainda.</p>
+            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Nenhuma nota fiscal de serviço encontrada{mesNfse ? ' nesse período' : ' ainda'}.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
@@ -195,7 +217,7 @@ export default async function NotasFiscaisPage() {
                           <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem', maxWidth: '260px' }}>{linha.motivoErro}</div>
                         )}
                       </td>
-                      <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.createdAt.toLocaleDateString('pt-BR')}</td>
+                      <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.dataExibida.toLocaleDateString('pt-BR')}</td>
                       <td style={{ padding: '0.5rem' }}>
                         <div className="flex gap-4">
                           <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
@@ -217,12 +239,20 @@ export default async function NotasFiscaisPage() {
 
         {/* Seção 2: NF-e */}
         <div className="card">
-          <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-            <h3 style={{ margin: 0 }}>📦 Notas Fiscais de Produtos Recentes (NF-e)</h3>
-            <span className="text-muted" style={{ fontSize: '0.8rem' }}>Últimas 30 emissões</span>
+          <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <h3 style={{ margin: 0 }}>📦 Notas Fiscais de Produtos (NF-e)</h3>
+            <form method="get" className="flex gap-4" style={{ alignItems: 'center' }}>
+              <input type="hidden" name="mesNfse" value={mesNfse || ''} />
+              <input type="month" name="mesNfe" className="input-field" defaultValue={mesNfe || ''} style={{ padding: '0.35rem 0.6rem' }} max={mesAtual} />
+              <button type="submit" className="btn btn-outline" style={{ padding: '0.35rem 0.75rem' }}>Filtrar</button>
+              {mesNfe && <Link href={`/notas-fiscais${mesNfse ? `?mesNfse=${mesNfse}` : ''}`} className="text-muted" style={{ fontSize: '0.8rem' }}>Limpar</Link>}
+            </form>
           </div>
+          <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '-0.5rem', marginBottom: '0.75rem' }}>
+            {mesNfe ? `Notas emitidas em ${mesNfe.split('-').reverse().join('/')}` : 'Últimas 30 emissões (sem filtro de período)'}
+          </p>
           {linhasNfe.length === 0 ? (
-            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Nenhuma nota fiscal de produto emitida ainda.</p>
+            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Nenhuma nota fiscal de produto encontrada{mesNfe ? ' nesse período' : ' ainda'}.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
@@ -254,7 +284,7 @@ export default async function NotasFiscaisPage() {
                           <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem', maxWidth: '260px' }}>{linha.motivoErro}</div>
                         )}
                       </td>
-                      <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.createdAt.toLocaleDateString('pt-BR')}</td>
+                      <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.dataExibida.toLocaleDateString('pt-BR')}</td>
                       <td style={{ padding: '0.5rem' }}>
                         <div className="flex gap-4">
                           <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>

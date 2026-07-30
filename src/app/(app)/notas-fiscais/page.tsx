@@ -200,7 +200,10 @@ export default async function NotasFiscaisPage() {
                         <div className="flex gap-4">
                           <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
                           {linha.chaveAcesso && (
-                            <Link href={`/notas-fiscais/ver-xml?tipo=nfse&id=${linha.id}`} className="text-muted" style={{ textDecoration: 'underline' }}>Ver XML</Link>
+                            <>
+                              <Link href={`/notas-fiscais/ver-danfse?id=${linha.id}`} target="_blank" className="text-primary" style={{ textDecoration: 'underline' }}>Ver DANFSe</Link>
+                              <Link href={`/notas-fiscais/ver-xml?tipo=nfse&id=${linha.id}`} className="text-muted" style={{ textDecoration: 'underline' }}>Ver XML</Link>
+                            </>
                           )}
                         </div>
                       </td>
@@ -256,7 +259,10 @@ export default async function NotasFiscaisPage() {
                         <div className="flex gap-4">
                           <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
                           {linha.chaveAcesso && (
-                            <Link href={`/notas-fiscais/ver-xml?tipo=nfe&id=${linha.id}`} className="text-muted" style={{ textDecoration: 'underline' }}>Ver XML</Link>
+                            <>
+                              <Link href={`/notas-fiscais/ver-danfe?id=${linha.id}`} target="_blank" className="text-primary" style={{ textDecoration: 'underline' }}>Ver DANFE</Link>
+                              <Link href={`/notas-fiscais/ver-xml?tipo=nfe&id=${linha.id}`} className="text-muted" style={{ textDecoration: 'underline' }}>Ver XML</Link>
+                            </>
                           )}
                         </div>
                       </td>

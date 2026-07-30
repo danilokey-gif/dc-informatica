@@ -21,6 +21,9 @@ export interface ResultadoSincronizacao {
   proximoNsu?: string
   /** Só presente quando a busca é por período: true se ainda pode haver mais documentos além do NSU alcançado. */
   temMais?: boolean
+  /** Só presente quando a busca é por período: chaves de acesso de todas as notas do período encontradas
+   * nessa chamada (novas ou já existentes), pra poder baixar um .zip só delas. */
+  chaves?: string[]
 }
 
 export interface OpcoesSincronizacao {
@@ -87,6 +90,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
     let ultNsu = modoPeriodo ? (opcoes?.nsuInicial || '000000000000000') : (nfeConfig.ultimoNsu || '000000000000000')
     let novos = 0
     let chegouAoFim = false
+    const chavesDoPeriodo: string[] = []
 
     for (let pagina = 0; pagina < MAX_PAGINAS_NFE; pagina++) {
       const respostaXml = await client.consultarDistribuicaoDFe(
@@ -104,6 +108,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
 
       for (const doc of resultado.documentos) {
         if (modoPeriodo && !dentroDoPeriodo(extrairDataEmissao(doc.xml), opcoes?.inicio, opcoes?.fim)) continue
+        if (modoPeriodo) chavesDoPeriodo.push(doc.chaveAcesso)
 
         const existente = await prisma.nfeEmissao.findUnique({ where: { chaveAcesso: doc.chaveAcesso } })
         if (existente) continue
@@ -140,6 +145,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
         mensagem: `${novos} nota(s) de produto importada(s) no período. Verificado até o NSU ${ultNsu}.${chegouAoFim ? '' : ' Ainda há mais documentos além desse ponto — clique em "Continuar" para buscar mais.'}`,
         proximoNsu: ultNsu,
         temMais: !chegouAoFim,
+        chaves: chavesDoPeriodo,
       }
     }
     return { novos, mensagem: `${novos} nota(s) de produto importada(s) do governo.` }
@@ -167,6 +173,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     let novos = 0
     let naoEncontradosSeguidos = 0
     let chegouAoFim = false
+    const chavesDoPeriodo: string[] = []
 
     for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE; tentativa++) {
       const nsuStr = nsuAtual.toString().padStart(15, '0')
@@ -187,6 +194,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
         if (modoPeriodo && !dentroDoPeriodo(extrairDataEmissao(xml), opcoes?.inicio, opcoes?.fim)) continue
 
         const chaveAcesso = doc.ChaveAcesso
+        if (modoPeriodo) chavesDoPeriodo.push(chaveAcesso)
         const existente = await prisma.nfseEmissao.findUnique({ where: { chaveAcesso } })
         if (!existente) {
           const numeroDps = parseInt(xml.match(/<nDPS>(\d+)<\/nDPS>/)?.[1] || '0', 10)
@@ -227,6 +235,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
         mensagem: `${novos} nota(s) de serviço importada(s) no período. Verificado até o NSU ${nsuFinal}.${chegouAoFim ? '' : ' Ainda há mais documentos além desse ponto — clique em "Continuar" para buscar mais.'}`,
         proximoNsu: nsuFinal,
         temMais: !chegouAoFim,
+        chaves: chavesDoPeriodo,
       }
     }
     return { novos, mensagem: `${novos} nota(s) de serviço importada(s) do governo.` }

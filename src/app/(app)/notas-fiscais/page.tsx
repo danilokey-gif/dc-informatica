@@ -7,6 +7,9 @@ import SincronizarPeriodoButton from "./SincronizarPeriodoButton"
 import { sincronizarNfseGoverno, sincronizarNfeGoverno } from "./sync-actions"
 
 export const dynamic = 'force-dynamic'
+// Dá mais tempo de execução (onde o plano da Vercel permitir) pras Server Actions de
+// sincronização com o governo, que fazem varias chamadas HTTP sequenciais.
+export const maxDuration = 60
 
 export default async function NotasFiscaisPage() {
   const [nfseConfig, nfeConfig, empresa, emissoesNfse, emissoesNfe] = await Promise.all([

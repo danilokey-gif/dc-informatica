@@ -9,8 +9,12 @@ import { AdnClient } from "@/lib/nfse/adn-client"
 import { gunzipSync } from "zlib"
 import { revalidatePath } from "next/cache"
 
-const MAX_PAGINAS_NFE = 20 // até 50 documentos por página -> até 1000 por clique
-const MAX_TENTATIVAS_NFSE = 200 // NSU consultado um a um -> limite de chamadas por clique
+// Limites baixos de propósito: a função roda dentro do tempo limite de execução da Vercel.
+// A NFS-e em especial consulta o governo um NSU por vez (não em lote), então qualquer limite
+// alto vira dezenas/centenas de chamadas sequenciais e estoura o tempo antes de terminar.
+// Prefira cliques mais curtos e repetidos (via "Continuar buscando mais") a um clique gigante.
+const MAX_PAGINAS_NFE = 6 // até 50 documentos por página -> até 300 por clique
+const MAX_TENTATIVAS_NFSE = 25 // NSU consultado um a um -> limite de chamadas por clique
 const MAX_NAO_ENCONTRADOS_SEGUIDOS = 10 // pára de tentar depois de N NSUs vazios seguidos
 
 export interface ResultadoSincronizacao {

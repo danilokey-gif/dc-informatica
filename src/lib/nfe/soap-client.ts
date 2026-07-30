@@ -71,12 +71,12 @@ export class NfeSoapClient {
    * O ASP.NET dessas web services exige o parâmetro `action` no Content-Type (equivalente ao
    * SOAPAction do SOAP 1.1) pra rotear pro método certo — sem isso ele responde 400 vazio.
    */
-  private async soapRequest(url: string, servico: string, metodo: string, corpo: string): Promise<string> {
+  private async soapRequest(url: string, servico: string, metodo: string, corpo: string, wrapperTag = 'nfeDadosMsg'): Promise<string> {
     const envelope =
       `<?xml version="1.0" encoding="utf-8"?>` +
       `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
         `<soap12:Body>` +
-          `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/${servico}">${corpo}</nfeDadosMsg>` +
+          `<${wrapperTag} xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/${servico}">${corpo}</${wrapperTag}>` +
         `</soap12:Body>` +
       `</soap12:Envelope>`
 
@@ -142,6 +142,6 @@ export class NfeSoapClient {
         `<CNPJ>${cnpj}</CNPJ>` +
         `<distNSU><ultNSU>${ultNsuConsultado.padStart(15, '0')}</ultNSU></distNSU>` +
       `</distDFeInt>`
-    return this.soapRequest(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo)
+    return this.soapRequest(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo, 'nfeDistDFeInteresseXML')
   }
 }

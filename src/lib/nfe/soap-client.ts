@@ -14,12 +14,15 @@ const BASE_URLS = {
     retAutorizacao: 'https://nfe.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx',
     statusServico: 'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
     consultaProtocolo: 'https://nfe.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
+    // Serviço nacional (SVAN), único endpoint pra todo o país, diferente dos serviços acima que são da Sefaz-SP.
+    distribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
   },
   homologacao: {
     autorizacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx',
     retAutorizacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx',
     statusServico: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
     consultaProtocolo: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
+    distribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
   },
 } as const
 
@@ -30,7 +33,11 @@ interface NfeUrls {
   retAutorizacao: string
   statusServico: string
   consultaProtocolo: string
+  distribuicaoDFe: string
 }
+
+// Código da UF (IBGE) usado em cUFAutor — só SP é usado aqui.
+const CODIGO_UF: Record<string, string> = { SP: '35' }
 
 interface NfeSoapClientConfig {
   ambiente: NfeAmbiente
@@ -110,5 +117,24 @@ export class NfeSoapClient {
         `<chNFe>${chaveAcesso}</chNFe>` +
       `</consSitNFe>`
     return this.soapRequest(this.urls.consultaProtocolo, 'NFeConsultaProtocolo4', 'nfeConsultaNF', corpo)
+  }
+
+  /**
+   * Consulta o serviço nacional de Distribuição de DF-e (documentos fiscais eletrônicos):
+   * traz todas as NF-e em que o CNPJ informado é parte (emitente ou destinatário), inclusive
+   * as emitidas fora do nosso sistema. Pagina pelo NSU (Número Sequencial Único) — cada chamada
+   * retorna até 50 documentos a partir de `ultNsuConsultado`; repita usando o `ultNSU` retornado
+   * até que ele seja igual ao `maxNSU` (não há mais documentos novos).
+   */
+  async consultarDistribuicaoDFe(cnpj: string, uf: string, tpAmb: '1' | '2', ultNsuConsultado: string): Promise<string> {
+    const cUFAutor = CODIGO_UF[uf] || '35'
+    const corpo =
+      `<distDFeInt xmlns="${NFE_NS}" versao="1.01">` +
+        `<tpAmb>${tpAmb}</tpAmb>` +
+        `<cUFAutor>${cUFAutor}</cUFAutor>` +
+        `<CNPJ>${cnpj}</CNPJ>` +
+        `<distNSU><ultNSU>${ultNsuConsultado.padStart(15, '0')}</ultNSU></distNSU>` +
+      `</distDFeInt>`
+    return this.soapRequest(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo)
   }
 }

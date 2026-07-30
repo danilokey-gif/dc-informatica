@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma"
 import { getNfseConfig, getNfeConfig, getCompanySettings } from "@/lib/settings"
 import Link from "next/link"
 import StatusBadge from "@/components/StatusBadge"
+import SincronizarButton from "./SincronizarButton"
+import { sincronizarNfseGoverno, sincronizarNfeGoverno } from "./sync-actions"
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +42,7 @@ export default async function NotasFiscaisPage() {
     createdAt: Date
     clienteNome: string
     href: string
+    importada: boolean
   }
 
   const linhasNfse: Linha[] = emissoesNfse.map(e => ({
@@ -52,8 +55,9 @@ export default async function NotasFiscaisPage() {
     motivoErro: e.motivoErro,
     ambiente: e.ambiente,
     createdAt: e.createdAt,
-    clienteNome: e.serviceOrder.customer.name,
-    href: `/os/${e.serviceOrderId}/imprimir`,
+    clienteNome: e.serviceOrder?.customer.name || e.tomadorNome || 'Não identificado',
+    href: e.serviceOrderId ? `/os/${e.serviceOrderId}/imprimir` : `/notas-fiscais/xml?tipo=nfse&id=${e.id}`,
+    importada: e.origem === 'IMPORTADA_GOVERNO',
   })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
   const linhasNfe: Linha[] = emissoesNfe.map(e => ({
@@ -66,8 +70,9 @@ export default async function NotasFiscaisPage() {
     motivoErro: e.motivoErro,
     ambiente: e.ambiente,
     createdAt: e.createdAt,
-    clienteNome: e.sale.customer?.name || 'Consumidor não identificado',
-    href: `/vendas/${e.saleId}/imprimir`,
+    clienteNome: e.sale?.customer?.name || e.destinatarioNome || 'Consumidor não identificado',
+    href: e.saleId ? `/vendas/${e.saleId}/imprimir` : `/notas-fiscais/xml?tipo=nfe&id=${e.id}`,
+    importada: e.origem === 'IMPORTADA_GOVERNO',
   })).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
   return (
@@ -92,7 +97,14 @@ export default async function NotasFiscaisPage() {
           <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
             NFS-e Nacional para Ordens de Serviço concluídas. Ambiente atual: <strong>{nfseConfig.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong>.
           </p>
-          <Link href="/configuracoes#nfse" className="btn btn-outline">Configurar NFS-e</Link>
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <Link href="/configuracoes#nfse" className="btn btn-outline">Configurar NFS-e</Link>
+          </div>
+          {nfseConfigurada && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <SincronizarButton tipo="NFS-e" action={sincronizarNfseGoverno} />
+            </div>
+          )}
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid #dc2626' }}>
@@ -105,7 +117,14 @@ export default async function NotasFiscaisPage() {
           <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
             NF-e para vendas de produtos. Ambiente atual: <strong>{nfeConfig.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong>.
           </p>
-          <Link href="/configuracoes#nfe" className="btn btn-outline">Configurar NF-e</Link>
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <Link href="/configuracoes#nfe" className="btn btn-outline">Configurar NF-e</Link>
+          </div>
+          {nfeConfigurada && (
+            <div style={{ marginTop: '0.75rem' }}>
+              <SincronizarButton tipo="NF-e" action={sincronizarNfeGoverno} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -146,6 +165,7 @@ export default async function NotasFiscaisPage() {
                   <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
                     <th style={{ padding: '0.5rem' }}>DPS / Série</th>
                     <th style={{ padding: '0.5rem' }}>Cliente</th>
+                    <th style={{ padding: '0.5rem' }}>Origem</th>
                     <th style={{ padding: '0.5rem' }}>Ambiente</th>
                     <th style={{ padding: '0.5rem' }}>Status</th>
                     <th style={{ padding: '0.5rem' }}>Data de Emissão</th>
@@ -157,6 +177,11 @@ export default async function NotasFiscaisPage() {
                     <tr key={linha.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{linha.numero} / {linha.serie}</td>
                       <td style={{ padding: '0.5rem' }}>{linha.clienteNome}</td>
+                      <td style={{ padding: '0.5rem' }}>
+                        {linha.importada
+                          ? <span className="badge badge-neutral">Importada</span>
+                          : <span className="text-muted" style={{ fontSize: '0.8rem' }}>Sistema</span>}
+                      </td>
                       <td style={{ padding: '0.5rem' }}>{linha.ambiente === 'producao' ? 'Produção' : 'Homologação'}</td>
                       <td style={{ padding: '0.5rem' }}>
                         <StatusBadge status={linha.status} />
@@ -166,7 +191,7 @@ export default async function NotasFiscaisPage() {
                       </td>
                       <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.createdAt.toLocaleDateString('pt-BR')}</td>
                       <td style={{ padding: '0.5rem' }}>
-                        <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>Gerenciar</Link>
+                        <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
                       </td>
                     </tr>
                   ))}
@@ -191,6 +216,7 @@ export default async function NotasFiscaisPage() {
                   <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
                     <th style={{ padding: '0.5rem' }}>Nota / Série</th>
                     <th style={{ padding: '0.5rem' }}>Cliente</th>
+                    <th style={{ padding: '0.5rem' }}>Origem</th>
                     <th style={{ padding: '0.5rem' }}>Ambiente</th>
                     <th style={{ padding: '0.5rem' }}>Status</th>
                     <th style={{ padding: '0.5rem' }}>Data de Emissão</th>
@@ -202,6 +228,11 @@ export default async function NotasFiscaisPage() {
                     <tr key={linha.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{linha.numero} / {linha.serie}</td>
                       <td style={{ padding: '0.5rem' }}>{linha.clienteNome}</td>
+                      <td style={{ padding: '0.5rem' }}>
+                        {linha.importada
+                          ? <span className="badge badge-neutral">Importada</span>
+                          : <span className="text-muted" style={{ fontSize: '0.8rem' }}>Sistema</span>}
+                      </td>
                       <td style={{ padding: '0.5rem' }}>{linha.ambiente === 'producao' ? 'Produção' : 'Homologação'}</td>
                       <td style={{ padding: '0.5rem' }}>
                         <StatusBadge status={linha.status} />
@@ -211,7 +242,7 @@ export default async function NotasFiscaisPage() {
                       </td>
                       <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>{linha.createdAt.toLocaleDateString('pt-BR')}</td>
                       <td style={{ padding: '0.5rem' }}>
-                        <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>Gerenciar</Link>
+                        <Link href={linha.href} className="text-muted" style={{ textDecoration: 'underline' }}>{linha.importada ? 'Baixar XML' : 'Gerenciar'}</Link>
                       </td>
                     </tr>
                   ))}

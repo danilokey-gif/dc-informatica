@@ -135,25 +135,30 @@ model NfseConfig {
   certificadoNome  String?
   serieDps         String   @default("1")
   proximoNumeroDps Int      @default(1)
+  ultimoNsu        String?  @default("000000000000000")
   updatedAt        DateTime @updatedAt
 }
 
 model NfseEmissao {
-  id                     String       @id @default(cuid())
-  serviceOrder           ServiceOrder @relation(fields: [serviceOrderId], references: [id])
-  serviceOrderId         String
+  id                     String        @id @default(cuid())
+  serviceOrder           ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+  serviceOrderId         String?
   ambiente               String
   numeroDps              Int
   serieDps               String
-  status                 String       @default("PROCESSANDO")
-  chaveAcesso            String?
+  status                 String        @default("PROCESSANDO")
+  chaveAcesso            String?       @unique
   xmlDps                 String?
   xmlNfse                String?
   motivoErro             String?
   xmlPedRegEventoCancel  String?
   xmlEventoCancelamento  String?
   motivoCancelamento     String?
-  createdAt              DateTime     @default(now())
+  origem                 String        @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
+  tomadorNome            String?
+  tomadorDocumento       String?
+  valorTotal             Float?
+  createdAt              DateTime      @default(now())
 }
 
 model NfeConfig {
@@ -169,22 +174,27 @@ model NfeConfig {
   certificadoNome  String?
   serie            String   @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
   proximoNumero    Int      @default(1)
+  ultimoNsu        String?  @default("000000000000000")
   updatedAt        DateTime @updatedAt
 }
 
 model NfeEmissao {
-  id            String   @id @default(cuid())
-  sale          Sale     @relation(fields: [saleId], references: [id])
-  saleId        String
-  ambiente      String
-  numero        Int
-  serie         String
-  status        String   @default("PROCESSANDO")
-  chaveAcesso   String?
-  xmlNfe        String?
-  xmlProtocolo  String?
-  motivoErro    String?
-  createdAt     DateTime @default(now())
+  id                    String   @id @default(cuid())
+  sale                  Sale?    @relation(fields: [saleId], references: [id])
+  saleId                String?
+  ambiente              String
+  numero                Int
+  serie                 String
+  status                String   @default("PROCESSANDO")
+  chaveAcesso           String?  @unique
+  xmlNfe                String?
+  xmlProtocolo          String?
+  motivoErro            String?
+  origem                String   @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
+  destinatarioNome      String?
+  destinatarioDocumento String?
+  valorTotal            Float?
+  createdAt             DateTime @default(now())
 }
 
 model Supplier {

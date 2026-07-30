@@ -42,10 +42,15 @@ export async function GET(request: NextRequest) {
 
   for (const e of emissoesNfse) {
     const dataStr = e.createdAt.toISOString().slice(0, 10)
-    const clienteSlug = e.serviceOrder.customer.name.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
+    const clienteNomeBase = e.serviceOrder?.customer.name || e.tomadorNome || 'cliente'
+    const clienteSlug = clienteNomeBase.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
     const nomeBase = `${dataStr}_NFSe-${e.numeroDps}_${clienteSlug}`
 
     if (e.xmlNfse) zip.file(`NFSe/${nomeBase}.xml`, e.xmlNfse)
+
+    // Notas importadas do governo (sem OS vinculada aqui) só entram no zip como XML —
+    // não temos os dados completos (aparelho/defeito/endereço) pra montar o PDF do DANFSe.
+    if (!e.serviceOrder) continue
 
     const os = e.serviceOrder
     const numeroNfse = e.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || e.numeroDps
@@ -82,11 +87,15 @@ export async function GET(request: NextRequest) {
 
   for (const e of emissoesNfe) {
     const dataStr = e.createdAt.toISOString().slice(0, 10)
-    const clienteNome = e.sale.customer?.name || 'Consumidor'
+    const clienteNome = e.sale?.customer?.name || e.destinatarioNome || 'Consumidor'
     const clienteSlug = clienteNome.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
     const nomeBase = `${dataStr}_NFe-${e.numero}_${clienteSlug}`
 
     if (e.xmlNfe) zip.file(`NFe/${nomeBase}.xml`, e.xmlNfe)
+
+    // Notas importadas do governo (sem Venda vinculada aqui) só entram no zip como XML —
+    // não temos os itens da venda pra montar o PDF do DANFE.
+    if (!e.sale) continue
 
     const pdf = await gerarPdfDanfe({
       ambiente: e.ambiente,

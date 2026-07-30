@@ -3,6 +3,7 @@ import { getNfseConfig, getNfeConfig, getCompanySettings } from "@/lib/settings"
 import Link from "next/link"
 import StatusBadge from "@/components/StatusBadge"
 import SincronizarButton from "./SincronizarButton"
+import SincronizarPeriodoButton from "./SincronizarPeriodoButton"
 import { sincronizarNfseGoverno, sincronizarNfeGoverno } from "./sync-actions"
 
 export const dynamic = 'force-dynamic'
@@ -103,6 +104,7 @@ export default async function NotasFiscaisPage() {
           {nfseConfigurada && (
             <div style={{ marginTop: '0.75rem' }}>
               <SincronizarButton tipo="NFS-e" action={sincronizarNfseGoverno} />
+              <SincronizarPeriodoButton tipo="NFS-e" action={sincronizarNfseGoverno} />
             </div>
           )}
         </div>
@@ -123,6 +125,7 @@ export default async function NotasFiscaisPage() {
           {nfeConfigurada && (
             <div style={{ marginTop: '0.75rem' }}>
               <SincronizarButton tipo="NF-e" action={sincronizarNfeGoverno} />
+              <SincronizarPeriodoButton tipo="NF-e" action={sincronizarNfeGoverno} />
             </div>
           )}
         </div>

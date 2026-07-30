@@ -17,6 +17,19 @@ export interface ResultadoSincronizacao {
   novos: number
   mensagem: string
   erro?: string
+  /** Só presente quando a busca é por período: NSU onde a busca parou, pra continuar no próximo clique. */
+  proximoNsu?: string
+  /** Só presente quando a busca é por período: true se ainda pode haver mais documentos além do NSU alcançado. */
+  temMais?: boolean
+}
+
+export interface OpcoesSincronizacao {
+  /** Data (YYYY-MM-DD) — quando informada (com ou sem `fim`), entra no "modo período": não usa nem
+   * atualiza o cursor incremental normal, começa de `nsuInicial` e filtra pela data de emissão. */
+  inicio?: string
+  fim?: string
+  /** De onde continuar no modo período (retornado como `proximoNsu` da chamada anterior). */
+  nsuInicial?: string
 }
 
 // As duas funções abaixo NUNCA lançam (throw): o Next.js redige a mensagem de erros lançados
@@ -42,7 +55,19 @@ function formatarErro(error: unknown): string {
   return partes.join(' | ')
 }
 
-export async function sincronizarNfeGoverno(): Promise<ResultadoSincronizacao> {
+/** Extrai a data (YYYY-MM-DD) do <dhEmi> do XML (NF-e e NFS-e usam a mesma tag). */
+function extrairDataEmissao(xml: string): string | null {
+  return xml.match(/<dhEmi>(\d{4}-\d{2}-\d{2})/)?.[1] || null
+}
+
+function dentroDoPeriodo(dataDoc: string | null, inicio?: string, fim?: string): boolean {
+  if (!dataDoc) return true // sem data extraída, não filtra (melhor importar do que perder)
+  if (inicio && dataDoc < inicio) return false
+  if (fim && dataDoc > fim) return false
+  return true
+}
+
+export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promise<ResultadoSincronizacao> {
   try {
     const [nfeConfig, empresa] = await Promise.all([getNfeConfig(), getCompanySettings()])
 
@@ -53,13 +78,15 @@ export async function sincronizarNfeGoverno(): Promise<ResultadoSincronizacao> {
       return { novos: 0, mensagem: '', erro: 'CNPJ da empresa não configurado.' }
     }
 
+    const modoPeriodo = !!(opcoes?.inicio || opcoes?.fim)
     const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
     const certSenha = decryptSecret(nfeConfig.certificadoSenha)
     const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
     const client = new NfeSoapClient({ ambiente, pfxBuffer, certPassword: certSenha })
 
-    let ultNsu = nfeConfig.ultimoNsu || '000000000000000'
+    let ultNsu = modoPeriodo ? (opcoes?.nsuInicial || '000000000000000') : (nfeConfig.ultimoNsu || '000000000000000')
     let novos = 0
+    let chegouAoFim = false
 
     for (let pagina = 0; pagina < MAX_PAGINAS_NFE; pagina++) {
       const respostaXml = await client.consultarDistribuicaoDFe(
@@ -70,12 +97,14 @@ export async function sincronizarNfeGoverno(): Promise<ResultadoSincronizacao> {
       )
       const resultado = parseRetDistDFeInt(respostaXml)
 
-      if (resultado.cStat === '137') break // nenhum documento localizado - não é erro
+      if (resultado.cStat === '137') { chegouAoFim = true; break } // nenhum documento localizado - não é erro
       if (resultado.cStat !== '138') {
         return { novos, mensagem: '', erro: `[${resultado.cStat}] ${resultado.xMotivo || 'Resposta inesperada da Sefaz'} — resposta bruta: ${respostaXml.slice(0, 500)}` }
       }
 
       for (const doc of resultado.documentos) {
+        if (modoPeriodo && !dentroDoPeriodo(extrairDataEmissao(doc.xml), opcoes?.inicio, opcoes?.fim)) continue
+
         const existente = await prisma.nfeEmissao.findUnique({ where: { chaveAcesso: doc.chaveAcesso } })
         if (existente) continue
 
@@ -97,19 +126,29 @@ export async function sincronizarNfeGoverno(): Promise<ResultadoSincronizacao> {
       }
 
       ultNsu = resultado.ultNSU
-      await prisma.nfeConfig.update({ where: { id: 'main' }, data: { ultimoNsu: ultNsu } })
+      if (!modoPeriodo) {
+        await prisma.nfeConfig.update({ where: { id: 'main' }, data: { ultimoNsu: ultNsu } })
+      }
 
-      if (resultado.ultNSU === resultado.maxNSU || resultado.documentos.length === 0) break
+      if (resultado.ultNSU === resultado.maxNSU || resultado.documentos.length === 0) { chegouAoFim = true; break }
     }
 
     revalidatePath('/notas-fiscais')
+    if (modoPeriodo) {
+      return {
+        novos,
+        mensagem: `${novos} nota(s) de produto importada(s) no período. Verificado até o NSU ${ultNsu}.${chegouAoFim ? '' : ' Ainda há mais documentos além desse ponto — clique em "Continuar" para buscar mais.'}`,
+        proximoNsu: ultNsu,
+        temMais: !chegouAoFim,
+      }
+    }
     return { novos, mensagem: `${novos} nota(s) de produto importada(s) do governo.` }
   } catch (error) {
     return { novos: 0, mensagem: '', erro: formatarErro(error) }
   }
 }
 
-export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> {
+export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Promise<ResultadoSincronizacao> {
   try {
     const nfseConfig = await getNfseConfig()
 
@@ -117,14 +156,17 @@ export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> 
       return { novos: 0, mensagem: '', erro: 'Certificado digital da NFS-e não configurado. Vá em Configurações > Nota Fiscal de Serviço.' }
     }
 
+    const modoPeriodo = !!(opcoes?.inicio || opcoes?.fim)
     const pfxBuffer = Buffer.from(nfseConfig.certificado, 'base64')
     const certSenha = decryptSecret(nfseConfig.certificadoSenha)
     const ambiente = nfseConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
     const client = new AdnClient({ ambiente, pfxBuffer, certPassword: certSenha })
 
-    let nsuAtual = BigInt(nfseConfig.ultimoNsu || '000000000000000') + BigInt(1)
+    const nsuBase = modoPeriodo ? (opcoes?.nsuInicial || '000000000000000') : (nfseConfig.ultimoNsu || '000000000000000')
+    let nsuAtual = BigInt(nsuBase) + BigInt(1)
     let novos = 0
     let naoEncontradosSeguidos = 0
+    let chegouAoFim = false
 
     for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE; tentativa++) {
       const nsuStr = nsuAtual.toString().padStart(15, '0')
@@ -132,7 +174,7 @@ export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> 
 
       if (!resposta) {
         naoEncontradosSeguidos++
-        if (naoEncontradosSeguidos >= MAX_NAO_ENCONTRADOS_SEGUIDOS) break
+        if (naoEncontradosSeguidos >= MAX_NAO_ENCONTRADOS_SEGUIDOS) { chegouAoFim = true; break }
         nsuAtual++
         continue
       }
@@ -142,8 +184,9 @@ export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> 
         if (doc.TipoDocumento !== 'NFSE') continue // ignora eventos/outros tipos por enquanto
 
         const xml = gunzipSync(Buffer.from(doc.ArquivoXml, 'base64')).toString('utf-8')
-        const chaveAcesso = doc.ChaveAcesso
+        if (modoPeriodo && !dentroDoPeriodo(extrairDataEmissao(xml), opcoes?.inicio, opcoes?.fim)) continue
 
+        const chaveAcesso = doc.ChaveAcesso
         const existente = await prisma.nfseEmissao.findUnique({ where: { chaveAcesso } })
         if (!existente) {
           const numeroDps = parseInt(xml.match(/<nDPS>(\d+)<\/nDPS>/)?.[1] || '0', 10)
@@ -170,11 +213,22 @@ export async function sincronizarNfseGoverno(): Promise<ResultadoSincronizacao> 
         }
       }
 
-      await prisma.nfseConfig.update({ where: { id: 'main' }, data: { ultimoNsu: nsuStr } })
+      if (!modoPeriodo) {
+        await prisma.nfseConfig.update({ where: { id: 'main' }, data: { ultimoNsu: nsuStr } })
+      }
       nsuAtual++
     }
 
+    const nsuFinal = (nsuAtual - BigInt(1)).toString().padStart(15, '0')
     revalidatePath('/notas-fiscais')
+    if (modoPeriodo) {
+      return {
+        novos,
+        mensagem: `${novos} nota(s) de serviço importada(s) no período. Verificado até o NSU ${nsuFinal}.${chegouAoFim ? '' : ' Ainda há mais documentos além desse ponto — clique em "Continuar" para buscar mais.'}`,
+        proximoNsu: nsuFinal,
+        temMais: !chegouAoFim,
+      }
+    }
     return { novos, mensagem: `${novos} nota(s) de serviço importada(s) do governo.` }
   } catch (error) {
     return { novos: 0, mensagem: '', erro: formatarErro(error) }

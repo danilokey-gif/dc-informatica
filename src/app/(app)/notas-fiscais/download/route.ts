@@ -130,10 +130,9 @@ export async function GET(request: NextRequest) {
   }
 
   const zipBuffer = await zip.generateAsync({ type: 'uint8array' })
-  const arrayBuffer = zipBuffer.buffer.slice(zipBuffer.byteOffset, zipBuffer.byteOffset + zipBuffer.byteLength) as ArrayBuffer
   const nomeArquivo = `notas-fiscais_${inicioStr}_a_${fimStr}.zip`
 
-  return new Response(arrayBuffer, {
+  return new Response(zipBuffer, {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',

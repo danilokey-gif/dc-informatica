@@ -1,248 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id             String         @id @default(cuid())
-  name           String
-  email          String         @unique
-  passwordHash   String
-  role           String         @default("TECNICO") // ADMIN | TECNICO
-  assignedOrders ServiceOrder[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("USER") // ADMIN or USER
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Customer {
-  id                String               @id @default(cuid())
-  name              String
-  document          String?
-  phone             String?
-  address           String?
-  email             String?
-  enderLogradouro   String?
-  enderNumero       String?
-  enderBairro       String?
-  enderCep          String?
-  enderMunicipio    String?
-  enderCodMunicipio String?
-  enderUf           String?
-  serviceOrders     ServiceOrder[]
-  sales             Sale[]
-  transactions      FinanceTransaction[]
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id            String         @id @default(cuid())
+  name          String
+  document      String?
+  phone         String?
+  address       String?
+  email         String?
+  serviceOrders ServiceOrder[]
+  invoices      Invoice[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model ServiceOrder {
-  id              String               @id @default(cuid())
-  customer        Customer             @relation(fields: [customerId], references: [id])
+  id              String   @id @default(cuid())
+  customer        Customer @relation(fields: [customerId], references: [id])
   customerId      String
   device          String
   issue           String
   technicalReport String?
   price           Float?
-  status          String               @default("BUDGET")
-  technician      User?                @relation(fields: [technicianId], references: [id])
-  technicianId    String?
-  nfseEmissoes    NfseEmissao[]
-  transactions    FinanceTransaction[]
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  status          String   @default("BUDGET") // BUDGET, APPROVED, IN_PROGRESS, COMPLETED, DELIVERED
+  invoices        Invoice[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Product {
-  id            String     @id @default(cuid())
-  name          String
-  sku           String?    @unique
-  description   String?
-  category      String?
-  costPrice     Float      @default(0)
-  salePrice     Float      @default(0)
-  stockQty      Int        @default(0)
-  minStockAlert Int        @default(0)
-  ncm           String?
-  cfop          String?
-  saleItems     SaleItem[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  quantity    Int       @default(0)
+  sku         String?   @unique
+  invoiceItems InvoiceItem[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
-model Sale {
-  id            String              @id @default(cuid())
-  customer      Customer?           @relation(fields: [customerId], references: [id])
-  customerId    String?
-  items         SaleItem[]
-  total         Float
-  paymentMethod String
-  invoiceNumber String?
-  invoiceType   String?
-  status        String              @default("COMPLETED")
-  transaction   FinanceTransaction?
-  nfeEmissoes   NfeEmissao[]
-  createdAt     DateTime            @default(now())
+model Invoice {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  serviceOrder    ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  serviceOrderId  String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  customerId      String
+  items           InvoiceItem[]
+  totalAmount     Float
+  status          String   @default("PENDING") // PENDING, ISSUED, CANCELLED
+  nfeKey          String?  // NFe authorization key
+  nfeUrl          String?  // URL to download NFe PDF
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
-model SaleItem {
-  id        String  @id @default(cuid())
-  sale      Sale    @relation(fields: [saleId], references: [id])
-  saleId    String
-  product   Product @relation(fields: [productId], references: [id])
+model InvoiceItem {
+  id        String   @id @default(cuid())
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+  product   Product  @relation(fields: [productId], references: [id])
   productId String
   quantity  Int
   unitPrice Float
-}
-
-model CompanySettings {
-  id                String   @id @default("main")
-  name              String   @default("Dc Informática")
-  document          String?
-  phone             String?
-  email             String?
-  address           String?
-  logo              String?
-  pixKey            String?
-  pixCity           String?
-  inscricaoEstadual String?
-  enderLogradouro   String?
-  enderNumero       String?
-  enderBairro       String?
-  enderCep          String?
-  localDrivePath    String?
-  gdriveFolderId    String?
-  gdriveEmail       String?
-  gdrivePrivateKey  String?
-  updatedAt         DateTime @updatedAt
-}
-
-model NfseConfig {
-  id               String   @id @default("main")
-  ambiente         String   @default("homologacao")
-  regimeTributario String   @default("MEI") // MEI | SIMPLES | NORMAL
-  codigoMunicipio  String?
-  nomeMunicipio    String?
-  codigoServico    String?
-  descricaoCodServico String?
-  cnae             String?
-  aliquotaIss      Float?
-  certificado      String?
-  certificadoSenha String?
-  certificadoNome  String?
-  serieDps         String   @default("1")
-  proximoNumeroDps Int      @default(1)
-  ultimoNsu        String?  @default("000000000000000")
-  updatedAt        DateTime @updatedAt
-}
-
-model NfseEmissao {
-  id                     String        @id @default(cuid())
-  serviceOrder           ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
-  serviceOrderId         String?
-  ambiente               String
-  numeroDps              Int
-  serieDps               String
-  status                 String        @default("PROCESSANDO")
-  chaveAcesso            String?       @unique
-  xmlDps                 String?
-  xmlNfse                String?
-  motivoErro             String?
-  xmlPedRegEventoCancel  String?
-  xmlEventoCancelamento  String?
-  motivoCancelamento     String?
-  origem                 String        @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
-  tomadorNome            String?
-  tomadorDocumento       String?
-  valorTotal             Float?
-  /** Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
-   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo). */
-  dataEmissao            DateTime?
-  createdAt              DateTime      @default(now())
-}
-
-model NfeConfig {
-  id               String   @id @default("main")
-  ambiente         String   @default("homologacao")
-  crt              String   @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (inclui MEI), 2=Simples excesso sublimite, 3=Regime Normal
-  codigoMunicipio  String?
-  nomeMunicipio    String?
-  uf               String   @default("SP")
-  cfopPadrao       String   @default("5102") // Venda de mercadoria dentro do estado, sem substituicao tributaria
-  certificado      String?
-  certificadoSenha String?
-  certificadoNome  String?
-  serie            String   @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
-  proximoNumero    Int      @default(1)
-  ultimoNsu        String?  @default("000000000000000")
-  updatedAt        DateTime @updatedAt
-}
-
-model NfeEmissao {
-  id                    String   @id @default(cuid())
-  sale                  Sale?    @relation(fields: [saleId], references: [id])
-  saleId                String?
-  ambiente              String
-  numero                Int
-  serie                 String
-  status                String   @default("PROCESSANDO")
-  chaveAcesso           String?  @unique
-  xmlNfe                String?
-  xmlProtocolo          String?
-  motivoErro            String?
-  origem                String   @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
-  destinatarioNome      String?
-  destinatarioDocumento String?
-  valorTotal            Float?
-  /** Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
-   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo). */
-  dataEmissao           DateTime?
-  createdAt             DateTime @default(now())
-}
-
-model Supplier {
-  id           String               @id @default(cuid())
-  name         String
-  document     String?
-  phone        String?
-  email        String?
-  address      String?
-  transactions FinanceTransaction[]
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-}
-
-model FinanceCategory {
-  id           String               @id @default(cuid())
-  name         String
-  type         String // RECEITA | DESPESA
-  transactions FinanceTransaction[]
-  createdAt    DateTime             @default(now())
-}
-
-model FinanceTransaction {
-  id             String           @id @default(cuid())
-  type           String // RECEITA | DESPESA
-  description    String
-  amount         Float
-  dueDate        DateTime
-  paidDate       DateTime?
-  status         String           @default("PENDENTE") // PENDENTE | PAGO | CANCELADO
-  paymentMethod  String?
-  notes          String?
-  category       FinanceCategory? @relation(fields: [categoryId], references: [id])
-  categoryId     String?
-  supplier       Supplier?        @relation(fields: [supplierId], references: [id])
-  supplierId     String?
-  customer       Customer?        @relation(fields: [customerId], references: [id])
-  customerId     String?
-  sale           Sale?            @relation(fields: [saleId], references: [id])
-  saleId         String?          @unique
-  serviceOrder   ServiceOrder?    @relation(fields: [serviceOrderId], references: [id])
-  serviceOrderId String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  total     Float
+  createdAt DateTime @default(now())
 }

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import CustomerForm from "@/components/CustomerForm"
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+  const { id } = params
   
   const cliente = await prisma.customer.findUnique({
     where: { id }

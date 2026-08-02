@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import SearchableSelect from "@/components/SearchableSelect"
 
 export default async function EditarOSPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+  const { id } = params
   
   const os = await prisma.serviceOrder.findUnique({
     where: { id },

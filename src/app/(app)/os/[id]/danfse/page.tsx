@@ -50,7 +50,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 
 export default async function DanfsePage({ params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params
+    const { id } = params
 
     const [os, empresa, nfseConfig] = await Promise.all([
       prisma.serviceOrder.findUnique({

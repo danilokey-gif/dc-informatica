@@ -4,7 +4,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 export default async function EditarFornecedorPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+  const { id } = params
 
   const fornecedor = await prisma.supplier.findUnique({
     where: { id }

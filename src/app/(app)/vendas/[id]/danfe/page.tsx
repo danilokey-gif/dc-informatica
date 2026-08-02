@@ -50,7 +50,7 @@ function SectionHeader({ title }: { title: string }) {
 
 export default async function DanfePage({ params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params
+    const { id } = params
 
     const [venda, empresa] = await Promise.all([
       prisma.sale.findUnique({

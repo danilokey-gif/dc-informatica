@@ -10,7 +10,7 @@ import { emitirNfeVenda, enviarNfeEmail, cancelarNfeVenda } from "./nfe-actions"
 import StatusBadge from "@/components/StatusBadge"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+  const { id } = params
 
   const [venda, settings, nfeConfig] = await Promise.all([
     prisma.sale.findUnique({

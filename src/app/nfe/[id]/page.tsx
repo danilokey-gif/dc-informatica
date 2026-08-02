@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { cancelInvoice } from "../actions"
 
 export default async function NFEPage({ params }: { params: { id: string } }) {
-  const { id } = await params
+  const { id } = params
   
   const invoice = await prisma.invoice.findUnique({
     where: { id },

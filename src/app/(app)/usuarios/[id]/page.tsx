@@ -4,7 +4,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 export default async function EditarUsuarioPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = params
+  const { id } = await params
 
   const usuario = await prisma.user.findUnique({ where: { id } })
 

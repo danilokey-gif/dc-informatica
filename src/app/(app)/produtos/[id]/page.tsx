@@ -5,7 +5,7 @@ import { notFound } from "next/navigation"
 import FiscalFieldsHelper from "@/components/FiscalFieldsHelper"
 
 export default async function EditarProdutoPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = params
+  const { id } = await params
 
   const produto = await prisma.product.findUnique({
     where: { id }

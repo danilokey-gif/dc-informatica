@@ -7,7 +7,7 @@ import SearchableSelect from "@/components/SearchableSelect"
 export const dynamic = 'force-dynamic'
 
 export default async function EditarLancamentoPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = params
+  const { id } = await params
 
   const [transacao, categorias, fornecedores, clientes] = await Promise.all([
     prisma.financeTransaction.findUnique({ where: { id } }),

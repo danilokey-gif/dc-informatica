@@ -10,7 +10,7 @@ import CopyPixButton from "./CopyPixButton"
 import StatusBadge from "@/components/StatusBadge"
 
 export default async function ImprimirOSPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = params
+  const { id } = await params
 
   const [os, settings, nfseConfig] = await Promise.all([
     prisma.serviceOrder.findUnique({

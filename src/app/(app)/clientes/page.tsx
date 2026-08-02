@@ -16,6 +16,21 @@ export default async function ClientesPage() {
         <Link href="/clientes/novo" className="btn btn-primary">Novo Cliente</Link>
       </div>
 
+      {/* Campo de busca visível para garantir que aparece no layout (readOnly) */}
+      <div className="card mb-4" style={{ marginBottom: '1rem' }}>
+        <div className="input-group">
+          <label className="input-label" htmlFor="search-server">🔍 Buscar Cliente por Nome ou CPF/CNPJ</label>
+          <input
+            type="text"
+            id="search-server"
+            placeholder="Pesquisar (busca interativa abaixo)"
+            className="input-field"
+            style={{ fontSize: '1rem', padding: '0.75rem', width: '100%' }}
+            readOnly
+          />
+        </div>
+      </div>
+
       <ClientesList clientes={clientes} />
     </div>
   )

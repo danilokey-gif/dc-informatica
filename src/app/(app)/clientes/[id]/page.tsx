@@ -34,13 +34,6 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
             phone: cliente.phone,
             email: cliente.email,
             address: cliente.address,
-            enderLogradouro: cliente.enderLogradouro,
-            enderNumero: cliente.enderNumero,
-            enderBairro: cliente.enderBairro,
-            enderCep: cliente.enderCep,
-            enderMunicipio: cliente.enderMunicipio,
-            enderUf: cliente.enderUf,
-            enderCodMunicipio: cliente.enderCodMunicipio,
           }}
         />
       </div>

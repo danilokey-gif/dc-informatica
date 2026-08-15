@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   const zipBuffer = await zip.generateAsync({ type: 'uint8array' })
   const nomeArquivo = `notas-${tipo}-importadas-governo.zip`
 
-  return new Response(zipBuffer, {
+  return new Response(Buffer.from(zipBuffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',

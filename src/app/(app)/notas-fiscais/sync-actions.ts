@@ -29,7 +29,8 @@ export interface ResultadoSincronizacao {
   erro?: string
   /** Só presente quando a busca é por período: NSU onde a busca no governo parou, pra continuar no próximo clique. */
   proximoNsu?: string
-  /** Só presente quando a busca é por período: true se ainda pode haver mais documentos no governo além do NSU alcançado. */
+  /** true se a busca parou por limite de tempo/tentativas (não porque acabaram os documentos) —
+   * usado pelo botão pra saber se deve chamar a action de novo automaticamente. */
   temMais?: boolean
   /** Só presente quando a busca é por período: chaves de acesso de todas as notas do período (já existentes no
    * sistema + novas encontradas agora no governo), pra poder baixar um .zip com tudo. */
@@ -189,7 +190,8 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
     }
     return {
       novos,
-      mensagem: `${novos} nota(s) de produto importada(s) do governo.${chegouAoFim ? '' : ' Ainda pode haver mais — clique em "Buscar" de novo pra continuar de onde parou.'}`,
+      mensagem: `${novos} nota(s) de produto importada(s) do governo.`,
+      temMais: !chegouAoFim,
     }
   } catch (error) {
     return { novos: 0, mensagem: '', erro: formatarErro(error) }
@@ -300,7 +302,8 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     }
     return {
       novos,
-      mensagem: `${novos} nota(s) de serviço importada(s) do governo.${chegouAoFim ? '' : ' Ainda pode haver mais — clique em "Buscar" de novo pra continuar de onde parou.'}`,
+      mensagem: `${novos} nota(s) de serviço importada(s) do governo.`,
+      temMais: !chegouAoFim,
     }
   } catch (error) {
     return { novos: 0, mensagem: '', erro: formatarErro(error) }

@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import type { ResultadoSincronizacao, OpcoesSincronizacao } from './sync-actions'
+
+// Rede de segurança contra loop indefinido — cada rodada já é curta o bastante pra caber no
+// tempo da Vercel, então isso não deveria ser atingido num uso normal.
+const MAX_RODADAS = 60
 
 export default function SincronizarPeriodoButton({ tipo, action }: { tipo: 'NFS-e' | 'NF-e'; action: (opcoes?: OpcoesSincronizacao) => Promise<ResultadoSincronizacao> }) {
   const [isPending, startTransition] = useTransition()
@@ -10,39 +14,65 @@ export default function SincronizarPeriodoButton({ tipo, action }: { tipo: 'NFS-
   const [fim, setFim] = useState('')
   const [resultado, setResultado] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
-  const [proximoNsu, setProximoNsu] = useState<string | undefined>(undefined)
-  const [temMais, setTemMais] = useState(false)
+  const [novosTotal, setNovosTotal] = useState(0)
   const [chaves, setChaves] = useState<string[]>([])
+  const cancelarRef = useRef(false)
 
   const tipoRota = tipo === 'NFS-e' ? 'nfse' : 'nfe'
 
-  function buscar(continuar: boolean) {
+  function buscar() {
     setErro(null)
-    if (!continuar) {
-      setResultado(null)
-      setProximoNsu(undefined)
-      setTemMais(false)
-      setChaves([])
-    }
+    setResultado(null)
+    setChaves([])
+    setNovosTotal(0)
+    cancelarRef.current = false
+
     startTransition(async () => {
-      try {
-        const resposta = await action({
-          inicio: inicio || undefined,
-          fim: fim || undefined,
-          nsuInicial: continuar ? proximoNsu : undefined,
-        })
-        if (resposta.erro) {
-          setErro(resposta.erro)
-        } else {
-          setResultado(resposta.mensagem)
-          setProximoNsu(resposta.proximoNsu)
-          setTemMais(!!resposta.temMais)
-          setChaves(prev => continuar ? [...prev, ...(resposta.chaves || [])] : (resposta.chaves || []))
+      let proximoNsu: string | undefined = undefined
+      let jaExistentes = 0
+      let novos = 0
+      let chavesAcumuladas: string[] = []
+
+      for (let rodada = 0; rodada < MAX_RODADAS; rodada++) {
+        if (cancelarRef.current) {
+          setResultado(`Busca interrompida. ${novos} nota(s) nova(s) encontrada(s) até agora.`)
+          return
         }
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : String(e))
+        try {
+          const resposta = await action({
+            inicio: inicio || undefined,
+            fim: fim || undefined,
+            nsuInicial: rodada === 0 ? undefined : proximoNsu,
+          })
+          if (resposta.erro) {
+            setErro(resposta.erro)
+            return
+          }
+          novos += resposta.novos
+          chavesAcumuladas = rodada === 0 ? (resposta.chaves || []) : [...chavesAcumuladas, ...(resposta.chaves || [])]
+          setNovosTotal(novos)
+          setChaves(chavesAcumuladas)
+          if (rodada === 0) {
+            // A mensagem da 1ª rodada já traz "X já estavam no sistema"; guardamos só pro texto final.
+            const match = resposta.mensagem.match(/^(\d+) nota/)
+            jaExistentes = match ? parseInt(match[1], 10) : 0
+          }
+          proximoNsu = resposta.proximoNsu
+          if (!resposta.temMais) {
+            setResultado(`${jaExistentes} nota(s) já estavam no sistema nesse período. ${novos} nova(s) encontrada(s) agora no governo.`)
+            return
+          }
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : String(e))
+          return
+        }
       }
+      setResultado(`${novos} nota(s) nova(s) encontrada(s) até agora nesse período. Ainda pode haver mais — clique em "Buscar" de novo pra continuar.`)
     })
+  }
+
+  function cancelar() {
+    cancelarRef.current = true
   }
 
   async function baixarZip() {
@@ -86,24 +116,24 @@ export default function SincronizarPeriodoButton({ tipo, action }: { tipo: 'NFS-
           <label className="input-label" htmlFor={`fim-${tipo}`}>Até</label>
           <input type="date" id={`fim-${tipo}`} className="input-field" value={fim} onChange={e => setFim(e.target.value)} />
         </div>
-        <button type="button" className="btn btn-outline" onClick={() => buscar(false)} disabled={isPending || (!inicio && !fim)}>
-          {isPending ? 'Buscando…' : `🔍 Buscar ${tipo} no período`}
+        <button type="button" className="btn btn-outline" onClick={buscar} disabled={isPending || (!inicio && !fim)}>
+          {isPending ? `Buscando… (${novosTotal} encontrada(s))` : `🔍 Buscar ${tipo} no período`}
         </button>
+        {isPending && (
+          <button type="button" className="btn btn-outline" onClick={cancelar} style={{ fontSize: '0.8rem' }}>
+            Parar
+          </button>
+        )}
       </div>
       {resultado && <p style={{ color: 'var(--accent-green)', fontSize: '0.85rem', marginTop: '0.5rem' }}>{resultado}</p>}
       {erro && <p style={{ color: 'var(--accent-red)', fontSize: '0.85rem', marginTop: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{erro}</p>}
-      <div className="flex gap-4" style={{ marginTop: '0.5rem', flexWrap: 'wrap' }}>
-        {temMais && !erro && (
-          <button type="button" className="btn btn-primary" onClick={() => buscar(true)} disabled={isPending}>
-            {isPending ? 'Buscando…' : 'Continuar buscando mais'}
-          </button>
-        )}
-        {chaves.length > 0 && !erro && (
+      {chaves.length > 0 && !erro && (
+        <div style={{ marginTop: '0.5rem' }}>
           <button type="button" className="btn btn-outline" onClick={baixarZip} disabled={baixando}>
             {baixando ? 'Gerando .zip…' : `💾 Baixar .zip deste período (${chaves.length})`}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

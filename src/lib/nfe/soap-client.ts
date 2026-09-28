@@ -23,6 +23,8 @@ const BASE_URLS = {
     consultaProtocolo: 'https://nfe.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
     // Serviço nacional (SVAN), único endpoint pra todo o país, diferente dos serviços acima que são da Sefaz-SP.
     distribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
+    // Eventos do Ambiente Nacional (manifestação do destinatário). Também nacional, não da Sefaz-SP.
+    recepcaoEventoAN: 'https://www.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
   },
   homologacao: {
     autorizacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx',
@@ -30,6 +32,7 @@ const BASE_URLS = {
     statusServico: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
     consultaProtocolo: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
     distribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
+    recepcaoEventoAN: 'https://hom1.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
   },
 } as const
 
@@ -41,6 +44,7 @@ interface NfeUrls {
   statusServico: string
   consultaProtocolo: string
   distribuicaoDFe: string
+  recepcaoEventoAN: string
 }
 
 // Código da UF (IBGE) usado em cUFAutor — só SP é usado aqui.
@@ -130,9 +134,10 @@ export class NfeSoapClient {
   }
 
   /**
-   * Consulta o serviço nacional de Distribuição de DF-e (documentos fiscais eletrônicos):
-   * traz todas as NF-e em que o CNPJ informado é parte (emitente ou destinatário), inclusive
-   * as emitidas fora do nosso sistema. Pagina pelo NSU (Número Sequencial Único) — cada chamada
+   * Consulta o serviço nacional de Distribuição de DF-e: traz os documentos que OUTROS geraram
+   * contra o CNPJ informado (notas em que ele é destinatário, transportador ou autorizado no
+   * autXML). As NF-e que o próprio CNPJ emitiu NÃO vêm por aqui (NT 2014.002). Pagina pelo NSU —
+   * cada chamada
    * retorna até 50 documentos a partir de `ultNsuConsultado`; repita usando o `ultNSU` retornado
    * até que ele seja igual ao `maxNSU` (não há mais documentos novos).
    */
@@ -154,5 +159,22 @@ export class NfeSoapClient {
     // "Object reference not set to an instance of an object" (NullReferenceException).
     const corpo = `<nfeDadosMsg xmlns="${wsdlNs}">${distDFeInt}</nfeDadosMsg>`
     return this.soapRequest(this.urls.distribuicaoDFe, 'NFeDistribuicaoDFe', 'nfeDistDFeInteresse', corpo, 'nfeDistDFeInteresse')
+  }
+
+  /**
+   * Envia um lote de eventos já assinados ao Ambiente Nacional (manifestação do destinatário).
+   * O schema aceita até 20 eventos por lote. Aqui o <nfeDadosMsg> é o próprio wrapper do Body,
+   * como nos serviços de autorização (sem o nível extra da Distribuição).
+   */
+  async enviarEventosAN(idLote: string, eventosAssinados: string[]): Promise<string> {
+    if (eventosAssinados.length === 0 || eventosAssinados.length > 20) {
+      throw new Error(`Um lote de eventos precisa ter de 1 a 20 eventos (recebeu ${eventosAssinados.length}).`)
+    }
+    const corpo =
+      `<envEvento xmlns="${NFE_NS}" versao="1.00">` +
+        `<idLote>${idLote}</idLote>` +
+        eventosAssinados.join('') +
+      `</envEvento>`
+    return this.soapRequest(this.urls.recepcaoEventoAN, 'NFeRecepcaoEvento4', 'nfeRecepcaoEvento', corpo)
   }
 }

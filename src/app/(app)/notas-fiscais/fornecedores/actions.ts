@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { getNfeConfig, getCompanySettings } from "@/lib/settings"
 import { decryptSecret } from "@/lib/crypto"
 import { NfeSoapClient } from "@/lib/nfe/soap-client"
+import { extractCertMaterial } from "@/lib/nfse/certificate"
+import { montarEventoCiencia, assinarEventoNfe, TP_EVENTO_CIENCIA } from "@/lib/nfe/xml"
 import { parseRetDistDFeInt, TP_EVENTO_CANCELAMENTO } from "@/lib/nfe/distribuicao"
 import { formatarErro } from "@/lib/formatar-erro"
 import { revalidatePath } from "next/cache"
@@ -160,5 +162,94 @@ export async function buscarNotasFornecedores(): Promise<ResultadoBuscaFornecedo
     }
   } catch (error) {
     return { novas: 0, atualizadas: 0, mensagem: '', erro: formatarErro(error) }
+  }
+}
+
+// O schema da Sefaz aceita no máximo 20 eventos por lote.
+const MAX_CIENCIAS_POR_ENVIO = 20
+
+export interface ResultadoCiencia {
+  registradas: number
+  falhas: { nota: string; motivo: string }[]
+  erro?: string
+}
+
+function tagEm(xml: string, nome: string): string | null {
+  return xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null
+}
+
+/**
+ * Registra a Ciência da Operação (evento 210210) nas notas indicadas. É o aviso oficial de que a
+ * empresa sabe da nota: não confirma nem recusa a compra. Depois dele, a Sefaz passa a entregar o
+ * XML completo na próxima busca de notas de compra.
+ */
+export async function darCiencia(ids: string[]): Promise<ResultadoCiencia> {
+  try {
+    if (ids.length === 0) return { registradas: 0, falhas: [] }
+    if (ids.length > MAX_CIENCIAS_POR_ENVIO) {
+      return { registradas: 0, falhas: [], erro: `Envie no máximo ${MAX_CIENCIAS_POR_ENVIO} notas por vez.` }
+    }
+
+    const [nfeConfig, empresa] = await Promise.all([getNfeConfig(), getCompanySettings()])
+    if (!nfeConfig.certificado || !nfeConfig.certificadoSenha) {
+      return { registradas: 0, falhas: [], erro: 'Certificado digital da NF-e não configurado.' }
+    }
+    const cnpjEmpresa = (empresa.document || '').replace(/\D/g, '')
+    if (!cnpjEmpresa) return { registradas: 0, falhas: [], erro: 'CNPJ da empresa não configurado.' }
+
+    // Só faz sentido para resumos ainda sem manifestação e que não foram cancelados pelo fornecedor.
+    const notas = await prisma.nfeRecebida.findMany({
+      where: { id: { in: ids }, completa: false, manifestacao: null, situacao: '1' },
+    })
+    if (notas.length === 0) return { registradas: 0, falhas: [], erro: 'Nenhuma das notas selecionadas precisa de ciência.' }
+
+    const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
+    const certSenha = decryptSecret(nfeConfig.certificadoSenha)
+    const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
+    const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
+    const tpAmb = ambiente === 'producao' ? '1' : '2'
+
+    const eventos = notas.map(n => {
+      const { xml, id } = montarEventoCiencia({ cnpjDestinatario: cnpjEmpresa, chaveAcesso: n.chaveAcesso, tpAmb })
+      return assinarEventoNfe(xml, id, certMaterial)
+    })
+
+    const client = new NfeSoapClient({ ambiente, pfxBuffer, certPassword: certSenha })
+    const idLote = String(Date.now()).slice(-15)
+    const resposta = await client.enviarEventosAN(idLote, eventos)
+
+    // 128 = lote processado; o resultado de cada nota vem num <retEvento> próprio.
+    const cStatLote = tagEm(resposta, 'cStat')
+    const retornos = resposta.match(/<retEvento[\s\S]*?<\/retEvento>/g) || []
+    if (retornos.length === 0) {
+      return { registradas: 0, falhas: [], erro: `A Sefaz recusou o lote [${cStatLote}] ${tagEm(resposta, 'xMotivo') || 'sem motivo informado'}.` }
+    }
+
+    let registradas = 0
+    const falhas: ResultadoCiencia['falhas'] = []
+    const agora = new Date()
+    for (const ret of retornos) {
+      const chave = tagEm(ret, 'chNFe')
+      const cStat = tagEm(ret, 'cStat')
+      const nota = notas.find(n => n.chaveAcesso === chave)
+      const rotulo = nota ? `nº ${nota.numero ?? '-'} (${nota.emitenteNome || 'fornecedor'})` : (chave || 'nota')
+      // 135 = registrado e vinculado; 136 = registrado sem vínculo; 573 = já estava registrado.
+      if (cStat === '135' || cStat === '136' || cStat === '573') {
+        if (nota) {
+          await prisma.nfeRecebida.update({
+            where: { id: nota.id },
+            data: { manifestacao: TP_EVENTO_CIENCIA, manifestadaEm: agora },
+          })
+        }
+        registradas++
+      } else {
+        falhas.push({ nota: rotulo, motivo: `[${cStat}] ${tagEm(ret, 'xMotivo') || 'sem motivo informado'}` })
+      }
+    }
+
+    revalidatePath('/notas-fiscais/fornecedores')
+    return { registradas, falhas }
+  } catch (error) {
+    return { registradas: 0, falhas: [], erro: formatarErro(error) }
   }
 }

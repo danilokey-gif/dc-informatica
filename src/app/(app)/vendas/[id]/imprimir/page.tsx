@@ -8,7 +8,7 @@ import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
 import { updateSaleInvoice } from "../../actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "../../../os/[id]/imprimir/CopyPixButton"
-import { emitirNfeVenda, enviarNfeEmail, cancelarNfeVenda } from "./nfe-actions"
+import { emitirNfeVenda, enviarNfeEmail } from "./nfe-actions"
 import StatusBadge from "@/components/StatusBadge"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,7 +33,6 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
   const nfeAutorizada = ultimaEmissaoNfe?.status === 'AUTORIZADA'
   const emitirNfeAction = emitirNfeVenda.bind(null, venda.id)
   const enviarNfeEmailAction = enviarNfeEmail.bind(null, venda.id)
-  const cancelarNfeAction = cancelarNfeVenda.bind(null, venda.id)
 
   const numeroVenda = venda.id.slice(-6).toUpperCase()
   const totalFormatado = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -239,11 +238,12 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
                   </button>
                   {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
                 </form>
-                <form action={cancelarNfeAction}>
-                  <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white' }}>
-                    🚫 Cancelar NF-e
-                  </button>
-                </form>
+                {/* O botão "Cancelar NF-e" que existia aqui só trocava o status no banco: não enviava o
+                    evento de cancelamento à Sefaz, então a nota continuava válida enquanto o sistema
+                    mostrava "Cancelada". Fica fora até o cancelamento de verdade (evento 110111) existir. */}
+                <p className="text-muted" style={{ fontSize: '0.8rem', flexBasis: '100%', margin: 0 }}>
+                  Para cancelar esta NF-e, use o emissor da Sefaz. O prazo é de 24 horas após a autorização.
+                </p>
               </>
             )}
           </div>

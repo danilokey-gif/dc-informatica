@@ -9,9 +9,7 @@ import { montarXmlNfe, assinarNfe } from "@/lib/nfe/xml"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 import { gerarPdfDanfe } from "@/lib/pdf-notas"
-import fs from 'fs'
-import path from 'path'
-import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
+import { salvarNotaNoDrive } from "@/lib/drive"
 
 const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'> = {
   'Dinheiro': 'dinheiro',
@@ -304,66 +302,5 @@ export async function enviarNfeEmail(saleId: string) {
     ],
   })
 
-  revalidatePath(`/vendas/${saleId}/imprimir`)
-}
-
-export async function cancelarNfeVenda(saleId: string) {
-  try {
-    const emissao = await prisma.nfeEmissao.findFirst({
-      where: { saleId, status: 'AUTORIZADA' },
-      orderBy: { createdAt: 'desc' }
-    })
-    
-    if (!emissao) {
-      throw new Error('Nenhuma nota fiscal autorizada encontrada para cancelar.')
-    }
-    
-    // 1. Atualizar o status no banco de dados para CANCELADA
-    await prisma.nfeEmissao.update({
-      where: { id: emissao.id },
-      data: { status: 'CANCELADA' }
-    })
-    
-    // 2. Mover os arquivos no drive local para a pasta Canceladas
-    try {
-      const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
-      const baseDir = empresa?.localDrivePath || 'C:\\dc-informatica-corrigido_1\\arquivos_notas'
-      const nfeFolder = path.join(baseDir, 'NFe')
-      
-      const xmlName = `${emissao.chaveAcesso}.xml`
-      const pdfName = `${emissao.chaveAcesso}.pdf`
-      
-      const cancelFolder = path.join(nfeFolder, 'Canceladas')
-      if (!fs.existsSync(cancelFolder)) {
-        fs.mkdirSync(cancelFolder, { recursive: true })
-      }
-      
-      // Mover XML se existir
-      const oldXmlPath = path.join(nfeFolder, xmlName)
-      if (fs.existsSync(oldXmlPath)) {
-        fs.renameSync(oldXmlPath, path.join(cancelFolder, xmlName))
-      }
-      
-      // Mover PDF se existir
-      const oldPdfPath = path.join(nfeFolder, pdfName)
-      if (fs.existsSync(oldPdfPath)) {
-        fs.renameSync(oldPdfPath, path.join(cancelFolder, pdfName))
-      }
-    } catch (fsError) {
-      console.warn('[Drive] Falha ao mover arquivos no drive local (provavelmente rodando na nuvem/Vercel):', fsError)
-    }
-
-    // Mover no Google Drive se configurado
-    try {
-      if (emissao.chaveAcesso) {
-        await moverNotaNoGoogleDriveCancelada('NFe', emissao.chaveAcesso)
-      }
-    } catch (gdriveError) {
-      console.error('[Google Drive] Falha ao processar cancelamento no Google Drive:', gdriveError)
-    }
-  } catch (error: any) {
-    throw new Error(error.message || String(error))
-  }
-  
   revalidatePath(`/vendas/${saleId}/imprimir`)
 }

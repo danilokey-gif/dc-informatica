@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { getNfeConfig } from "@/lib/settings"
 import Link from "next/link"
 import BuscarFornecedoresButton from "./BuscarFornecedoresButton"
+import CienciaButton from "./CienciaButton"
 
 export const dynamic = 'force-dynamic'
 
@@ -33,13 +34,17 @@ export default async function NotasFornecedoresPage({ searchParams }: { searchPa
   const filtro = limitesDoMes(mes)
   const mesAtual = new Date().toISOString().slice(0, 7)
 
-  const [nfeConfig, notas] = await Promise.all([
+  // Resumos que ainda precisam de ciência — de todos os meses, não só do filtro aberto na tela.
+  const semCiencia = { completa: false, manifestacao: null, situacao: '1' }
+
+  const [nfeConfig, notas, pendentes] = await Promise.all([
     getNfeConfig(),
     prisma.nfeRecebida.findMany({
       where: filtro ? { dataEmissao: filtro } : undefined,
       orderBy: { dataEmissao: 'desc' },
       take: filtro ? undefined : 100,
     }),
+    prisma.nfeRecebida.findMany({ where: semCiencia, select: { id: true } }),
   ])
 
   const totalAutorizadas = notas.filter(n => n.situacao === '1').reduce((soma, n) => soma + (n.valorTotal || 0), 0)
@@ -69,11 +74,17 @@ export default async function NotasFornecedoresPage({ searchParams }: { searchPa
               Configure o certificado digital em <Link href="/configuracoes#nfe" className="text-primary">Configurações</Link> para buscar notas.
             </p>
           )}
+        {certificadoOk && pendentes.length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            <CienciaButton ids={pendentes.map(p => p.id)} rotulo={`✅ Dar ciência nas ${pendentes.length} nota(s) em resumo`} />
+          </div>
+        )}
         <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.75rem' }}>
           Regra da Sefaz: quando não há mais notas novas, a próxima consulta só é permitida 1 hora depois. O sistema controla
           esse prazo sozinho e trava o botão até lá, para evitar o bloqueio de 1 hora (código 656).
-          Notas marcadas como <em>Resumo</em> só têm os dados principais; a Sefaz libera o XML completo depois que o
-          destinatário manifesta ciência da operação.
+          Notas marcadas como <em>Resumo</em> só têm os dados principais. A Sefaz libera o XML completo (com itens e DANFE)
+          depois da <strong>Ciência da Operação</strong>, um registro oficial de que a empresa sabe da nota, que não confirma
+          nem recusa a compra. Com a ciência dada, o XML completo chega na próxima busca.
         </p>
       </div>
 
@@ -127,9 +138,26 @@ export default async function NotasFornecedoresPage({ searchParams }: { searchPa
                         <span className={`badge ${situacao.classe}`}>{situacao.rotulo}</span>
                       </td>
                       <td style={{ padding: '0.5rem' }}>
-                        {n.completa
-                          ? <span className="text-muted" style={{ fontSize: '0.8rem' }}>XML completo</span>
-                          : <span className="badge badge-neutral">Resumo</span>}
+                        {n.completa ? (
+                          <span className="text-muted" style={{ fontSize: '0.8rem' }}>XML completo</span>
+                        ) : n.manifestacao ? (
+                          <div style={{ fontSize: '0.8rem' }}>
+                            <span className="badge badge-neutral">Resumo</span>
+                            <div className="text-muted" style={{ marginTop: '0.25rem' }}>
+                              Ciência dada{n.manifestadaEm ? ` em ${n.manifestadaEm.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}.
+                              {' '}XML completo na próxima busca.
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.8rem' }}>
+                            <span className="badge badge-neutral">Resumo</span>
+                            {certificadoOk && n.situacao === '1' && (
+                              <div style={{ marginTop: '0.25rem' }}>
+                                <CienciaButton ids={[n.id]} rotulo="Dar ciência" compacto />
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '0.5rem' }}>
                         <div className="flex gap-4">

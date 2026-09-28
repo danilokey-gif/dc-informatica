@@ -288,27 +288,33 @@ model QuoteItem {
 /// Distribuição DF-e da Sefaz ou importadas por XML. Ficam separadas de NfeEmissao de propósito:
 /// NfeEmissao são as notas que a empresa EMITIU (vendas) e alimentam faturamento e relatórios.
 model NfeRecebida {
-  id           String    @id @default(cuid())
-  chaveAcesso  String    @unique
-  nsu          String?
-  emitenteCnpj String?
-  emitenteNome String?
-  emitenteIe   String?
-  numero       Int?
-  serie        String?
-  valorTotal   Float?
-  dataEmissao  DateTime?
+  id            String    @id @default(cuid())
+  chaveAcesso   String    @unique
+  nsu           String?
+  emitenteCnpj  String?
+  emitenteNome  String?
+  emitenteIe    String?
+  numero        Int?
+  serie         String?
+  valorTotal    Float?
+  dataEmissao   DateTime?
   /**
    * 1 = autorizada, 2 = denegada, 3 = cancelada (cSitNFe do resumo, ou evento de cancelamento).
    */
-  situacao     String    @default("1")
+  situacao      String    @default("1")
   /**
    * false = só o resumo (resNFe). A Sefaz só libera o XML completo depois que o destinatário
    * manifesta ciência da operação.
    */
-  completa     Boolean   @default(false)
-  xml          String
-  origem       String    @default("DISTRIBUICAO_DFE") // DISTRIBUICAO_DFE | IMPORTADA_XML
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  completa      Boolean   @default(false)
+  /**
+   * Evento de manifestação do destinatário já registrado na Sefaz (210210 = Ciência da Operação).
+   * A ciência é o que faz a Sefaz liberar o XML completo na próxima busca.
+   */
+  manifestacao  String?
+  manifestadaEm DateTime?
+  xml           String
+  origem        String    @default("DISTRIBUICAO_DFE") // DISTRIBUICAO_DFE | IMPORTADA_XML
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }

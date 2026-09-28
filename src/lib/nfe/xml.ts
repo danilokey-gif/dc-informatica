@@ -278,11 +278,12 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
 }
 
 /**
- * Assina o XML da NF-e (assinatura envelopada). Diferente da NFS-e Nacional (que usa
- * SHA-256/C14N exclusivo), o schema da NF-e (xmldsig-core-schema v1.01) fixa os algoritmos
- * no padrão antigo: SHA-1 e canonicalização C14N não-exclusiva.
+ * Assinatura envelopada no padrão da NF-e. Diferente da NFS-e Nacional (que usa SHA-256/C14N
+ * exclusivo), o schema da NF-e (xmldsig-core-schema v1.01) fixa os algoritmos no padrão antigo:
+ * SHA-1 e canonicalização C14N não-exclusiva. Vale tanto pra nota (infNFe) quanto pros eventos
+ * (infEvento), que seguem o mesmo schema de assinatura.
  */
-export function assinarNfe(xml: string, id: string, cert: CertMaterial): string {
+function assinarElemento(xml: string, id: string, cert: CertMaterial, elemento: 'infNFe' | 'infEvento'): string {
   const sig = new SignedXml({
     privateKey: cert.privateKeyPem,
     publicCert: cert.certificatePem,
@@ -291,7 +292,7 @@ export function assinarNfe(xml: string, id: string, cert: CertMaterial): string 
   })
 
   sig.addReference({
-    xpath: `//*[local-name(.)='infNFe']`,
+    xpath: `//*[local-name(.)='${elemento}']`,
     digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1',
     transforms: [
       'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
@@ -303,8 +304,54 @@ export function assinarNfe(xml: string, id: string, cert: CertMaterial): string 
   sig.getKeyInfoContent = () => `<X509Data><X509Certificate>${cert.certificatePem.replace(/-----[^-]+-----|\n/g, '')}</X509Certificate></X509Data>`
 
   sig.computeSignature(xml, {
-    location: { reference: `//*[local-name(.)='infNFe']`, action: 'after' },
+    location: { reference: `//*[local-name(.)='${elemento}']`, action: 'after' },
   })
 
   return sig.getSignedXml()
+}
+
+/** Assina o XML da NF-e. */
+export function assinarNfe(xml: string, id: string, cert: CertMaterial): string {
+  return assinarElemento(xml, id, cert, 'infNFe')
+}
+
+/** Assina o XML de um evento de NF-e (manifestação, cancelamento...). */
+export function assinarEventoNfe(xml: string, id: string, cert: CertMaterial): string {
+  return assinarElemento(xml, id, cert, 'infEvento')
+}
+
+// Manifestação do destinatário (NT 2012.002). Só a Ciência é usada aqui: ela não confirma nem
+// recusa a compra, apenas registra que a empresa sabe da nota — e é o que libera o XML completo.
+export const TP_EVENTO_CIENCIA = '210210'
+
+/**
+ * Data/hora no fuso de Brasília com offset explícito (AAAA-MM-DDThh:mm:ss-03:00), como o schema
+ * exige. Recua 1 minuto: se o nosso relógio estiver um pouco à frente do da Sefaz, um dhEvento
+ * "no futuro" é rejeitado.
+ */
+function dataHoraBrasilia(agora = new Date()): string {
+  const d = new Date(agora.getTime() - 60_000 - 3 * 60 * 60 * 1000)
+  return d.toISOString().slice(0, 19) + '-03:00'
+}
+
+/** Monta o evento de Ciência da Operação (sem assinatura). Retorna o XML e o Id a assinar. */
+export function montarEventoCiencia(params: { cnpjDestinatario: string; chaveAcesso: string; tpAmb: '1' | '2' }): { xml: string; id: string } {
+  const nSeqEvento = '1'
+  const id = `ID${TP_EVENTO_CIENCIA}${params.chaveAcesso}${nSeqEvento.padStart(2, '0')}`
+  const xml =
+    `<evento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">` +
+      `<infEvento Id="${id}">` +
+        // 91 = Ambiente Nacional: a manifestação do destinatário é registrada lá, não na Sefaz do estado.
+        `<cOrgao>91</cOrgao>` +
+        `<tpAmb>${params.tpAmb}</tpAmb>` +
+        `<CNPJ>${params.cnpjDestinatario}</CNPJ>` +
+        `<chNFe>${params.chaveAcesso}</chNFe>` +
+        `<dhEvento>${dataHoraBrasilia()}</dhEvento>` +
+        `<tpEvento>${TP_EVENTO_CIENCIA}</tpEvento>` +
+        `<nSeqEvento>${nSeqEvento}</nSeqEvento>` +
+        `<verEvento>1.00</verEvento>` +
+        `<detEvento versao="1.00"><descEvento>Ciencia da Operacao</descEvento></detEvento>` +
+      `</infEvento>` +
+    `</evento>`
+  return { xml, id }
 }

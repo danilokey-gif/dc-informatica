@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
   // Next isso quebra (o arquivo final fica numa pasta diferente da original do pacote). Mantendo
   // o pdfkit fora do bundle, ele roda direto do node_modules e o caminho relativo funciona.
   serverExternalPackages: ['pdfkit'],
+  experimental: {
+    serverActions: {
+      // A importação de XMLs de NF-e manda os arquivos por Server Action, cujo limite padrão é 1 MB.
+      // 4 MB fica abaixo do teto de 4,5 MB por requisição da Vercel; lotes maiores vão compactados
+      // em .zip (XML comprime ~10x) ou em mais de um envio.
+      bodySizeLimit: '4mb',
+    },
+  },
 }
 
 export default nextConfig

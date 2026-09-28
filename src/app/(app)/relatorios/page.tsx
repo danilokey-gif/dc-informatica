@@ -38,12 +38,13 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
     }),
     // Só notas de serviço AUTORIZADAS entram no relatório de faturamento fiscal —
     // OS sem NFS-e emitida não conta, mesmo que já concluída/paga.
+    // Notas de homologação são testes, sem valor fiscal: não são faturamento.
     prisma.nfseEmissao.findMany({
-      where: { status: 'AUTORIZADA' },
+      where: { status: 'AUTORIZADA', ambiente: 'producao' },
       include: { serviceOrder: { select: { price: true, createdAt: true } } },
     }),
     prisma.nfeEmissao.findMany({
-      where: { status: 'AUTORIZADA' },
+      where: { status: 'AUTORIZADA', ambiente: 'producao' },
       include: { sale: { select: { total: true, createdAt: true } } },
     }),
     prisma.financeTransaction.findMany({

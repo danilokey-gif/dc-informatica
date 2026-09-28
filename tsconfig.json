@@ -39,6 +39,9 @@
   "exclude": [
     "node_modules",
     "deprecated_produtos",
-    "deprecated_nfe"
+    "deprecated_nfe",
+    "scripts",
+    "check-*.ts",
+    "sync-*.ts"
   ]
 }

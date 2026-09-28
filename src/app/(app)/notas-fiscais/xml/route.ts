@@ -8,8 +8,19 @@ export async function GET(request: NextRequest) {
   const tipo = searchParams.get('tipo')
   const id = searchParams.get('id')
 
-  if (!id || (tipo !== 'nfse' && tipo !== 'nfe')) {
+  if (!id || (tipo !== 'nfse' && tipo !== 'nfe' && tipo !== 'nfe-recebida')) {
     return new Response('Parâmetros inválidos.', { status: 400 })
+  }
+
+  if (tipo === 'nfe-recebida') {
+    const nota = await prisma.nfeRecebida.findUnique({ where: { id } })
+    if (!nota) return new Response('XML não encontrado.', { status: 404 })
+    return new Response(nota.xml, {
+      headers: {
+        'Content-Type': 'application/xml',
+        'Content-Disposition': `attachment; filename="NFe-fornecedor-${nota.chaveAcesso}${nota.completa ? '' : '-resumo'}.xml"`,
+      },
+    })
   }
 
   if (tipo === 'nfse') {

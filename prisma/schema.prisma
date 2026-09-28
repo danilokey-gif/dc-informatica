@@ -58,36 +58,36 @@ model ServiceOrder {
 }
 
 model Product {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String
-  sku           String?    @unique
+  sku           String?     @unique
   description   String?
   category      String?
-  costPrice     Float      @default(0)
-  salePrice     Float      @default(0)
-  stockQty      Int        @default(0)
-  minStockAlert Int        @default(0)
+  costPrice     Float       @default(0)
+  salePrice     Float       @default(0)
+  stockQty      Int         @default(0)
+  minStockAlert Int         @default(0)
   ncm           String?
   cfop          String?
   saleItems     SaleItem[]
   quoteItems    QuoteItem[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model Sale {
-  id            String              @id @default(cuid())
-  customer      Customer?           @relation(fields: [customerId], references: [id])
+  id            String               @id @default(cuid())
+  customer      Customer?            @relation(fields: [customerId], references: [id])
   customerId    String?
   items         SaleItem[]
   total         Float
   paymentMethod String
   invoiceNumber String?
   invoiceType   String?
-  status        String              @default("COMPLETED")
+  status        String               @default("COMPLETED")
   transactions  FinanceTransaction[]
   nfeEmissoes   NfeEmissao[]
-  createdAt     DateTime            @default(now())
+  createdAt     DateTime             @default(now())
 }
 
 model SaleItem {
@@ -123,86 +123,96 @@ model CompanySettings {
 }
 
 model NfseConfig {
-  id               String   @id @default("main")
-  ambiente         String   @default("homologacao")
-  regimeTributario String   @default("MEI") // MEI | SIMPLES | NORMAL
-  codigoMunicipio  String?
-  nomeMunicipio    String?
-  codigoServico    String?
+  id                  String   @id @default("main")
+  ambiente            String   @default("homologacao")
+  regimeTributario    String   @default("MEI") // MEI | SIMPLES | NORMAL
+  codigoMunicipio     String?
+  nomeMunicipio       String?
+  codigoServico       String?
   descricaoCodServico String?
-  cnae             String?
-  aliquotaIss      Float?
-  certificado      String?
-  certificadoSenha String?
-  certificadoNome  String?
-  serieDps         String   @default("1")
-  proximoNumeroDps Int      @default(1)
-  ultimoNsu        String?  @default("000000000000000")
-  updatedAt        DateTime @updatedAt
+  cnae                String?
+  aliquotaIss         Float?
+  certificado         String?
+  certificadoSenha    String?
+  certificadoNome     String?
+  serieDps            String   @default("1")
+  proximoNumeroDps    Int      @default(1)
+  ultimoNsu           String?  @default("000000000000000")
+  updatedAt           DateTime @updatedAt
 }
 
 model NfseEmissao {
-  id                     String        @id @default(cuid())
-  serviceOrder           ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
-  serviceOrderId         String?
-  ambiente               String
-  numeroDps              Int
-  serieDps               String
-  status                 String        @default("PROCESSANDO")
-  chaveAcesso            String?       @unique
-  xmlDps                 String?
-  xmlNfse                String?
-  motivoErro             String?
-  xmlPedRegEventoCancel  String?
-  xmlEventoCancelamento  String?
-  motivoCancelamento     String?
-  origem                 String        @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
-  tomadorNome            String?
-  tomadorDocumento       String?
-  valorTotal             Float?
-  /** Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
-   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo). */
-  dataEmissao            DateTime?
-  createdAt              DateTime      @default(now())
+  id                    String        @id @default(cuid())
+  serviceOrder          ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+  serviceOrderId        String?
+  ambiente              String
+  numeroDps             Int
+  serieDps              String
+  status                String        @default("PROCESSANDO")
+  chaveAcesso           String?       @unique
+  xmlDps                String?
+  xmlNfse               String?
+  motivoErro            String?
+  xmlPedRegEventoCancel String?
+  xmlEventoCancelamento String?
+  motivoCancelamento    String?
+  origem                String        @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
+  tomadorNome           String?
+  tomadorDocumento      String?
+  valorTotal            Float?
+  /**
+   * Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
+   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo).
+   */
+  dataEmissao           DateTime?
+  createdAt             DateTime      @default(now())
 }
 
 model NfeConfig {
-  id               String   @id @default("main")
-  ambiente         String   @default("homologacao")
-  crt              String   @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (inclui MEI), 2=Simples excesso sublimite, 3=Regime Normal
-  codigoMunicipio  String?
-  nomeMunicipio    String?
-  uf               String   @default("SP")
-  cfopPadrao       String   @default("5102") // Venda de mercadoria dentro do estado, sem substituicao tributaria
-  certificado      String?
-  certificadoSenha String?
-  certificadoNome  String?
-  serie            String   @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
-  proximoNumero    Int      @default(1)
-  ultimoNsu        String?  @default("000000000000000")
-  updatedAt        DateTime @updatedAt
+  id                String    @id @default("main")
+  ambiente          String    @default("homologacao")
+  crt               String    @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (inclui MEI), 2=Simples excesso sublimite, 3=Regime Normal
+  codigoMunicipio   String?
+  nomeMunicipio     String?
+  uf                String    @default("SP")
+  cfopPadrao        String    @default("5102") // Venda de mercadoria dentro do estado, sem substituicao tributaria
+  certificado       String?
+  certificadoSenha  String?
+  certificadoNome   String?
+  serie             String    @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
+  proximoNumero     Int       @default(1)
+  ultimoNsu         String?   @default("000000000000000")
+  /**
+   * A Sefaz exige 1h de espera depois de responder "não há mais documentos" (cStat 137), e bloqueia
+   * o CNPJ por 1h (cStat 656) se consultarmos antes. Cada consulta durante o bloqueio ZERA o relógio,
+   * então guardamos aqui quando a próxima consulta está liberada e nem chamamos a Sefaz antes disso.
+   */
+  distDfeLiberadoEm DateTime?
+  updatedAt         DateTime  @updatedAt
 }
 
 model NfeEmissao {
-  id                    String   @id @default(cuid())
-  sale                  Sale?    @relation(fields: [saleId], references: [id])
+  id                    String    @id @default(cuid())
+  sale                  Sale?     @relation(fields: [saleId], references: [id])
   saleId                String?
   ambiente              String
   numero                Int
   serie                 String
-  status                String   @default("PROCESSANDO")
-  chaveAcesso           String?  @unique
+  status                String    @default("PROCESSANDO")
+  chaveAcesso           String?   @unique
   xmlNfe                String?
   xmlProtocolo          String?
   motivoErro            String?
-  origem                String   @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
+  origem                String    @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
   destinatarioNome      String?
   destinatarioDocumento String?
   valorTotal            Float?
-  /** Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
-   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo). */
+  /**
+   * Data real de emissão (extraída do <dhEmi> do XML) — diferente de createdAt, que é quando
+   * o registro foi criado aqui (pode ser bem depois, no caso de notas importadas do governo).
+   */
   dataEmissao           DateTime?
-  createdAt             DateTime @default(now())
+  createdAt             DateTime  @default(now())
 }
 
 model Supplier {
@@ -250,26 +260,55 @@ model FinanceTransaction {
 }
 
 model Quote {
-  id           String      @id @default(cuid())
-  customer     Customer?   @relation(fields: [customerId], references: [id])
-  customerId   String?
-  items        QuoteItem[]
-  total        Float
-  status       String      @default("PENDING") // PENDING | APPROVED | REJECTED
-  validUntil   DateTime?
-  notes        String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id         String      @id @default(cuid())
+  customer   Customer?   @relation(fields: [customerId], references: [id])
+  customerId String?
+  items      QuoteItem[]
+  total      Float
+  status     String      @default("PENDING") // PENDING | APPROVED | REJECTED
+  validUntil DateTime?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model QuoteItem {
-  id          String   @id @default(cuid())
-  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  quoteId     String
-  name        String
-  quantity    Int
-  unitPrice   Float
-  isService   Boolean  @default(false)
-  product     Product? @relation(fields: [productId], references: [id])
-  productId   String?
+  id        String   @id @default(cuid())
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quoteId   String
+  name      String
+  quantity  Int
+  unitPrice Float
+  isService Boolean  @default(false)
+  product   Product? @relation(fields: [productId], references: [id])
+  productId String?
+}
+
+/// NF-e emitidas por FORNECEDORES contra o CNPJ da empresa (compras), recebidas pelo serviço de
+/// Distribuição DF-e da Sefaz ou importadas por XML. Ficam separadas de NfeEmissao de propósito:
+/// NfeEmissao são as notas que a empresa EMITIU (vendas) e alimentam faturamento e relatórios.
+model NfeRecebida {
+  id           String    @id @default(cuid())
+  chaveAcesso  String    @unique
+  nsu          String?
+  emitenteCnpj String?
+  emitenteNome String?
+  emitenteIe   String?
+  numero       Int?
+  serie        String?
+  valorTotal   Float?
+  dataEmissao  DateTime?
+  /**
+   * 1 = autorizada, 2 = denegada, 3 = cancelada (cSitNFe do resumo, ou evento de cancelamento).
+   */
+  situacao     String    @default("1")
+  /**
+   * false = só o resumo (resNFe). A Sefaz só libera o XML completo depois que o destinatário
+   * manifesta ciência da operação.
+   */
+  completa     Boolean   @default(false)
+  xml          String
+  origem       String    @default("DISTRIBUICAO_DFE") // DISTRIBUICAO_DFE | IMPORTADA_XML
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }

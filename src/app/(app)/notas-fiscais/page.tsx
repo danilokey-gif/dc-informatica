@@ -4,7 +4,7 @@ import Link from "next/link"
 import StatusBadge from "@/components/StatusBadge"
 import SincronizarButton from "./SincronizarButton"
 import SincronizarPeriodoButton from "./SincronizarPeriodoButton"
-import { sincronizarNfseGoverno, sincronizarNfeGoverno } from "./sync-actions"
+import { sincronizarNfseGoverno } from "./sync-actions"
 
 export const dynamic = 'force-dynamic'
 // Dá mais tempo de execução (onde o plano da Vercel permitir) pras Server Actions de
@@ -75,7 +75,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
     dataExibida: e.dataEmissao || e.createdAt,
     clienteNome: e.serviceOrder?.customer.name || e.tomadorNome || 'Não identificado',
     href: e.serviceOrderId ? `/os/${e.serviceOrderId}/imprimir` : `/notas-fiscais/xml?tipo=nfse&id=${e.id}`,
-    importada: e.origem === 'IMPORTADA_GOVERNO',
+    importada: e.origem !== 'SISTEMA',
   })).sort((a, b) => b.dataExibida.getTime() - a.dataExibida.getTime())
 
   const linhasNfe: Linha[] = emissoesNfe.map(e => ({
@@ -90,7 +90,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
     dataExibida: e.dataEmissao || e.createdAt,
     clienteNome: e.sale?.customer?.name || e.destinatarioNome || 'Consumidor não identificado',
     href: e.saleId ? `/vendas/${e.saleId}/imprimir` : `/notas-fiscais/xml?tipo=nfe&id=${e.id}`,
-    importada: e.origem === 'IMPORTADA_GOVERNO',
+    importada: e.origem !== 'SISTEMA',
   })).sort((a, b) => b.dataExibida.getTime() - a.dataExibida.getTime())
 
   return (
@@ -139,12 +139,13 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
           <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
             <Link href="/configuracoes#nfe" className="btn btn-outline">Configurar NF-e</Link>
           </div>
-          {nfeConfigurada && (
-            <div style={{ marginTop: '0.75rem' }}>
-              <SincronizarButton tipo="NF-e" action={sincronizarNfeGoverno} />
-              <SincronizarPeriodoButton tipo="NF-e" action={sincronizarNfeGoverno} />
-            </div>
-          )}
+          {/* A Sefaz não devolve ao emitente as NF-e que ele mesmo emitiu, então não existe "buscar minhas
+              notas de venda no governo" para NF-e (diferente da NFS-e). O que a Sefaz entrega são as notas
+              de fornecedores; vendas emitidas fora do sistema entram por importação do XML. */}
+          <div className="flex gap-4" style={{ flexWrap: 'wrap', marginTop: '0.75rem' }}>
+            <Link href="/notas-fiscais/fornecedores" className="btn btn-outline">🔄 Notas de fornecedores</Link>
+            <Link href="/notas-fiscais/importar-xml" className="btn btn-outline">📥 Importar XML</Link>
+          </div>
         </div>
       </div>
 

@@ -53,12 +53,23 @@ function formatarMoeda(valor: number | null): string {
   return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default async function VerDanfePage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
+export default async function VerDanfePage({ searchParams }: { searchParams: Promise<{ id?: string; origem?: string }> }) {
   try {
-    const { id } = await searchParams
+    const { id, origem } = await searchParams
     if (!id) notFound()
 
-    const emissao = await prisma.nfeEmissao.findUnique({ where: { id } })
+    // Notas de fornecedor ficam em outra tabela; o DANFE é montado do XML do mesmo jeito.
+    // O resumo (resNFe) não tem itens nem totais detalhados, então só a nota completa gera DANFE.
+    const emissao = origem === 'recebida'
+      ? await prisma.nfeRecebida.findUnique({ where: { id } }).then(r => r && {
+          xmlNfe: r.completa ? r.xml : null,
+          xmlProtocolo: null as string | null,
+          chaveAcesso: r.chaveAcesso as string | null,
+          createdAt: r.createdAt,
+          // A tarja de "sem valor fiscal" depende disso; tpAmb 2 no XML = homologação.
+          ambiente: /<tpAmb>2<\/tpAmb>/.test(r.xml) ? 'homologacao' : 'producao',
+        })
+      : await prisma.nfeEmissao.findUnique({ where: { id } })
     if (!emissao) notFound()
 
     if (!emissao.xmlNfe) {

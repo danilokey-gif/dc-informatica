@@ -1,10 +1,9 @@
 'use server'
 
 import { prisma } from "@/lib/prisma"
-import { getNfeConfig, getNfseConfig, getCompanySettings } from "@/lib/settings"
+import { getNfseConfig } from "@/lib/settings"
 import { decryptSecret } from "@/lib/crypto"
-import { NfeSoapClient } from "@/lib/nfe/soap-client"
-import { parseRetDistDFeInt } from "@/lib/nfe/distribuicao"
+import { formatarErro } from "@/lib/formatar-erro"
 import { AdnClient } from "@/lib/nfse/adn-client"
 import { gunzipSync } from "zlib"
 import { revalidatePath } from "next/cache"
@@ -18,7 +17,6 @@ import { revalidatePath } from "next/cache"
 // de chamar o governo é o relógio (TEMPO_LIMITE_MS) — o governo pode responder rápido ou devagar
 // dependendo do dia, e um limite fixo de tentativas não se adapta a isso.
 const TEMPO_LIMITE_MS = 7_000 // deixa ~3s de folga pra descriptografia do cert, parsing e resposta
-const MAX_PAGINAS_NFE = 6 // até 50 documentos por página -> até 300 por clique
 const MAX_TENTATIVAS_NFSE = 25 // NSU consultado um a um -> limite de chamadas por clique
 const MAX_NAO_ENCONTRADOS_SEGUIDOS = 10 // só usado no modo simples (sem período)
 
@@ -52,22 +50,6 @@ export interface OpcoesSincronizacao {
 
 /** Formata um erro incluindo a cadeia de `cause` — o `fetch` do Node embrulha erros de rede/TLS
  * num TypeError genérico ("fetch failed") e só o `.cause` tem o motivo real (DNS, TLS, timeout). */
-function formatarErro(error: unknown): string {
-  if (!(error instanceof Error)) return String(error)
-  const partes = [`${error.name}: ${error.message}`]
-  let causa = (error as { cause?: unknown }).cause
-  while (causa) {
-    if (causa instanceof Error) {
-      partes.push(`causa: ${causa.name}: ${causa.message}`)
-      causa = (causa as { cause?: unknown }).cause
-    } else {
-      partes.push(`causa: ${String(causa)}`)
-      break
-    }
-  }
-  return partes.join(' | ')
-}
-
 /** Extrai a data/hora de emissão (<dhEmi>) do XML (NF-e e NFS-e usam a mesma tag). */
 function extrairDataEmissao(xml: string): Date | null {
   const valor = xml.match(/<dhEmi>([^<]+)</)?.[1]
@@ -88,140 +70,6 @@ function limitesPeriodo(inicio?: string, fim?: string) {
   return {
     gte: inicio ? new Date(`${inicio}T00:00:00.000Z`) : undefined,
     lt: fim ? new Date(new Date(`${fim}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000) : undefined,
-  }
-}
-
-export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promise<ResultadoSincronizacao> {
-  try {
-    const [nfeConfig, empresa] = await Promise.all([getNfeConfig(), getCompanySettings()])
-
-    if (!nfeConfig.certificado || !nfeConfig.certificadoSenha) {
-      return { novos: 0, mensagem: '', erro: 'Certificado digital da NF-e não configurado. Vá em Configurações > Nota Fiscal de Produtos.' }
-    }
-    if (!empresa.document) {
-      return { novos: 0, mensagem: '', erro: 'CNPJ da empresa não configurado.' }
-    }
-
-    const modoPeriodo = !!(opcoes?.inicio || opcoes?.fim)
-
-    // Modo período: primeiro busca o que já está salvo no sistema (instantâneo, sem chamar o governo).
-    const chavesDoPeriodo: string[] = []
-    let jaExistentes = 0
-    if (modoPeriodo) {
-      const existentes = await prisma.nfeEmissao.findMany({
-        where: { dataEmissao: limitesPeriodo(opcoes?.inicio, opcoes?.fim), chaveAcesso: { not: null } },
-        select: { chaveAcesso: true },
-      })
-      for (const e of existentes) if (e.chaveAcesso) chavesDoPeriodo.push(e.chaveAcesso)
-      jaExistentes = chavesDoPeriodo.length
-    }
-
-    const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
-    const certSenha = decryptSecret(nfeConfig.certificadoSenha)
-    const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
-    const client = new NfeSoapClient({ ambiente, pfxBuffer, certPassword: certSenha })
-
-    let ultNsu = modoPeriodo ? (opcoes?.nsuInicial || '000000000000000') : (nfeConfig.ultimoNsu || '000000000000000')
-    let novos = 0
-    let chegouAoFim = false
-    const inicioExecucao = Date.now()
-
-    for (let pagina = 0; pagina < MAX_PAGINAS_NFE && Date.now() - inicioExecucao < TEMPO_LIMITE_MS; pagina++) {
-      const respostaXml = await client.consultarDistribuicaoDFe(
-        empresa.document.replace(/\D/g, ''),
-        nfeConfig.uf,
-        ambiente === 'producao' ? '1' : '2',
-        ultNsu
-      )
-      const resultado = parseRetDistDFeInt(respostaXml)
-
-      if (resultado.cStat === '137') {
-        // Sem mais documentos: salva o NSU atual pra não repetir a mesma consulta (evita erro 656)
-        if (!modoPeriodo) {
-          await prisma.nfeConfig.update({ where: { id: 'main' }, data: { ultimoNsu: resultado.ultNSU || ultNsu } })
-        }
-        chegouAoFim = true
-        break
-      }
-      if (resultado.cStat === '656') {
-        return { novos, mensagem: '', erro: 'A Sefaz bloqueou temporariamente as consultas por excesso de requisições (código 656). Aguarde 1 hora e tente novamente.' }
-      }
-      if (resultado.cStat !== '138') {
-        // Código 108 = "Documento já existe" ou "Serviço em paralisação" — não é erro crítico
-        if (resultado.cStat === '108') { chegouAoFim = true; break }
-        return { novos, mensagem: '', erro: `Governo respondeu [${resultado.cStat}]: ${resultado.xMotivo || 'Resposta inesperada da Sefaz'}. Tente novamente em alguns minutos.` }
-      }
-
-      for (const doc of resultado.documentos) {
-        const dataEmissao = extrairDataEmissao(doc.xml)
-        if (modoPeriodo && !dentroDoPeriodo(dataEmissao, opcoes?.inicio, opcoes?.fim)) continue
-
-        const existente = await prisma.nfeEmissao.findUnique({ where: { chaveAcesso: doc.chaveAcesso } })
-        if (existente) {
-          if (modoPeriodo && !chavesDoPeriodo.includes(doc.chaveAcesso)) chavesDoPeriodo.push(doc.chaveAcesso)
-          continue
-        }
-        if (modoPeriodo) chavesDoPeriodo.push(doc.chaveAcesso)
-
-        const nfeNovaEmissao = await prisma.nfeEmissao.create({
-          data: {
-            ambiente,
-            numero: parseInt(doc.chaveAcesso.slice(25, 34), 10) || 0,
-            serie: doc.chaveAcesso.slice(22, 25) || '0',
-            status: 'AUTORIZADA',
-            chaveAcesso: doc.chaveAcesso,
-            xmlNfe: doc.xml,
-            origem: 'IMPORTADA_GOVERNO',
-            destinatarioNome: doc.destinatarioNome,
-            destinatarioDocumento: doc.destinatarioDocumento,
-            valorTotal: doc.valorTotal,
-            dataEmissao,
-          }
-        })
-
-        // Alimenta o financeiro automaticamente ao importar nota do governo
-        if (doc.valorTotal && doc.valorTotal > 0) {
-          const dataRef = dataEmissao || new Date()
-          const descricao = doc.destinatarioNome
-            ? `NF-e nº${nfeNovaEmissao.numero} — ${doc.destinatarioNome}`
-            : `NF-e nº${nfeNovaEmissao.numero} (importada do governo)`
-          await prisma.financeTransaction.create({
-            data: {
-              type: 'RECEITA',
-              description: descricao,
-              amount: doc.valorTotal,
-              dueDate: dataRef,
-              paidDate: dataRef,
-              status: 'PAGO',
-              paymentMethod: 'NF-e',
-              notes: `Chave de acesso: ${doc.chaveAcesso}`,
-            }
-          })
-        }
-        novos++
-      }
-
-      ultNsu = resultado.ultNSU
-      if (!modoPeriodo) {
-        await prisma.nfeConfig.update({ where: { id: 'main' }, data: { ultimoNsu: ultNsu } })
-      }
-
-      if (resultado.ultNSU === resultado.maxNSU || resultado.documentos.length === 0) { chegouAoFim = true; break }
-    }
-
-    revalidatePath('/notas-fiscais')
-    if (modoPeriodo) {
-      return {
-        novos,
-        mensagem: `${jaExistentes} nota(s) de produto já estavam no sistema nesse período. ${novos} nova(s) encontrada(s) agora no governo (verificado até o NSU ${ultNsu}).${chegouAoFim ? '' : ' Ainda pode haver mais no governo além desse ponto — clique em "Continuar" para verificar.'}`,
-        proximoNsu: ultNsu,
-        temMais: !chegouAoFim,
-        chaves: chavesDoPeriodo,
-      }
-    }
-    return { novos, mensagem: `${novos} nota(s) de produto importada(s) do governo.`, temMais: !chegouAoFim }
-  } catch (error) {
-    return { novos: 0, mensagem: '', erro: formatarErro(error) }
   }
 }
 

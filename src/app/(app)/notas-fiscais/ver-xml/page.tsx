@@ -28,7 +28,7 @@ function formatarXml(xml: string): string {
 export default async function VerXmlPage({ searchParams }: { searchParams: Promise<{ tipo?: string; id?: string }> }) {
   const { tipo, id } = await searchParams
 
-  if (!id || (tipo !== 'nfse' && tipo !== 'nfe')) notFound()
+  if (!id || (tipo !== 'nfse' && tipo !== 'nfe' && tipo !== 'nfe-recebida')) notFound()
 
   let xml: string | null = null
   let titulo = ''
@@ -42,6 +42,13 @@ export default async function VerXmlPage({ searchParams }: { searchParams: Promi
     chaveAcesso = emissao.chaveAcesso
     titulo = `NFS-e nº ${emissao.numeroDps} / série ${emissao.serieDps}`
     if (emissao.serviceOrderId) voltarHref = `/os/${emissao.serviceOrderId}/imprimir`
+  } else if (tipo === 'nfe-recebida') {
+    const nota = await prisma.nfeRecebida.findUnique({ where: { id } })
+    if (!nota) notFound()
+    xml = nota.xml
+    chaveAcesso = nota.chaveAcesso
+    titulo = `NF-e de fornecedor nº ${nota.numero ?? '-'} / série ${nota.serie ?? '-'}${nota.completa ? '' : ' (resumo)'}`
+    voltarHref = '/notas-fiscais/fornecedores'
   } else {
     const emissao = await prisma.nfeEmissao.findUnique({ where: { id } })
     if (!emissao) notFound()

@@ -40,10 +40,46 @@ export async function updateOS(id: string, formData: FormData) {
   const status = formData.get('status') as string
   const technicianId = (formData.get('technicianId') as string) || null
 
+  const oldOs = await prisma.serviceOrder.findUnique({
+    where: { id },
+    include: { transactions: true, customer: true }
+  })
+
   await prisma.serviceOrder.update({
     where: { id },
     data: { customerId, device, issue, technicalReport, price, status, technicianId }
   })
+
+  if (status === 'DELIVERED') {
+    const paymentMethod = (formData.get('paymentMethod') as string) || 'Dinheiro'
+    const clienteNome = oldOs?.customer?.name || ''
+    const descricao = clienteNome
+      ? `OS - ${device} — ${clienteNome}`
+      : `OS #${id.slice(-6).toUpperCase()} - ${device}`
+
+    if (oldOs?.transactions && oldOs.transactions.length > 0) {
+      // Tinha parcelas pendentes: dá baixa em todas
+      await prisma.financeTransaction.updateMany({
+        where: { serviceOrderId: id, status: 'PENDENTE' },
+        data: { status: 'PAGO', paidDate: new Date() }
+      })
+    } else if (price) {
+      // Não tinha nenhum lançamento: cria um novo já pago
+      await prisma.financeTransaction.create({
+        data: {
+          type: 'RECEITA',
+          description: descricao,
+          amount: price,
+          dueDate: new Date(),
+          paidDate: new Date(),
+          customerId,
+          serviceOrderId: id,
+          status: 'PAGO',
+          paymentMethod,
+        }
+      })
+    }
+  }
 
   redirect('/os')
 }

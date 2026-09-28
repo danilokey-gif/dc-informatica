@@ -13,9 +13,9 @@ import { revalidatePath } from "next/cache"
 // A NFS-e em especial consulta o governo um NSU por vez (não em lote), então qualquer limite
 // alto vira dezenas/centenas de chamadas sequenciais e estoura o tempo antes de terminar.
 // Prefira cliques mais curtos e repetidos (via "Continuar buscando mais") a um clique gigante.
-const MAX_PAGINAS_NFE = 6 // até 50 documentos por página -> até 300 por clique
-const MAX_TENTATIVAS_NFSE = 25 // NSU consultado um a um -> limite de chamadas por clique
-const MAX_NAO_ENCONTRADOS_SEGUIDOS = 10 // pára de tentar depois de N NSUs vazios seguidos
+const MAX_PAGINAS_NFE = 3
+const MAX_TENTATIVAS_NFSE = 40 // 40 chamadas por clique ≈ 40s — dentro do limite de 60s da Vercel
+const MAX_NAO_ENCONTRADOS_SEGUIDOS = 10 // só usado no modo simples (sem período)
 
 export interface ResultadoSincronizacao {
   novos: number
@@ -128,9 +128,21 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
       )
       const resultado = parseRetDistDFeInt(respostaXml)
 
-      if (resultado.cStat === '137') { chegouAoFim = true; break } // nenhum documento localizado - não é erro
+      if (resultado.cStat === '137') {
+        // Sem mais documentos: salva o NSU atual pra não repetir a mesma consulta (evita erro 656)
+        if (!modoPeriodo) {
+          await prisma.nfeConfig.update({ where: { id: 'main' }, data: { ultimoNsu: resultado.ultNSU || ultNsu } })
+        }
+        chegouAoFim = true
+        break
+      }
+      if (resultado.cStat === '656') {
+        return { novos, mensagem: '', erro: 'A Sefaz bloqueou temporariamente as consultas por excesso de requisições (código 656). Aguarde 1 hora e tente novamente.' }
+      }
       if (resultado.cStat !== '138') {
-        return { novos, mensagem: '', erro: `[${resultado.cStat}] ${resultado.xMotivo || 'Resposta inesperada da Sefaz'} — resposta bruta: ${respostaXml.slice(0, 500)}` }
+        // Código 108 = "Documento já existe" ou "Serviço em paralisação" — não é erro crítico
+        if (resultado.cStat === '108') { chegouAoFim = true; break }
+        return { novos, mensagem: '', erro: `Governo respondeu [${resultado.cStat}]: ${resultado.xMotivo || 'Resposta inesperada da Sefaz'}. Tente novamente em alguns minutos.` }
       }
 
       for (const doc of resultado.documentos) {
@@ -144,7 +156,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
         }
         if (modoPeriodo) chavesDoPeriodo.push(doc.chaveAcesso)
 
-        await prisma.nfeEmissao.create({
+        const nfeNovaEmissao = await prisma.nfeEmissao.create({
           data: {
             ambiente,
             numero: parseInt(doc.chaveAcesso.slice(25, 34), 10) || 0,
@@ -159,6 +171,26 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
             dataEmissao,
           }
         })
+
+        // Alimenta o financeiro automaticamente ao importar nota do governo
+        if (doc.valorTotal && doc.valorTotal > 0) {
+          const dataRef = dataEmissao || new Date()
+          const descricao = doc.destinatarioNome
+            ? `NF-e nº${nfeNovaEmissao.numero} — ${doc.destinatarioNome}`
+            : `NF-e nº${nfeNovaEmissao.numero} (importada do governo)`
+          await prisma.financeTransaction.create({
+            data: {
+              type: 'RECEITA',
+              description: descricao,
+              amount: doc.valorTotal,
+              dueDate: dataRef,
+              paidDate: dataRef,
+              status: 'PAGO',
+              paymentMethod: 'NF-e',
+              notes: `Chave de acesso: ${doc.chaveAcesso}`,
+            }
+          })
+        }
         novos++
       }
 
@@ -218,14 +250,23 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     let novos = 0
     let naoEncontradosSeguidos = 0
     let chegouAoFim = false
+    // Contador de tentativas usadas de verdade (para ajustar a mensagem)
+    let tentativasUsadas = 0
 
     for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE; tentativa++) {
+      tentativasUsadas++
       const nsuStr = nsuAtual.toString().padStart(15, '0')
       const resposta = await client.consultarDFePorNsu(nsuStr)
 
       if (!resposta) {
         naoEncontradosSeguidos++
-        if (naoEncontradosSeguidos >= MAX_NAO_ENCONTRADOS_SEGUIDOS) { chegouAoFim = true; break }
+        // No modo período: NUNCA para por NSUs vazios — o usuário precisa continuar clicando
+        // até encontrar suas notas (que podem estar em NSUs muito mais altos).
+        // No modo simples: para após N seguidos vazios, pois é só para "atualizar novidades".
+        if (!modoPeriodo && naoEncontradosSeguidos >= MAX_NAO_ENCONTRADOS_SEGUIDOS) {
+          chegouAoFim = true
+          break
+        }
         nsuAtual++
         continue
       }
@@ -252,7 +293,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
         const tomadorNome = xml.match(/<toma>[\s\S]*?<xNome>([^<]+)<\/xNome>/)?.[1] || null
         const tomadorDocumento = xml.match(/<toma>[\s\S]*?<(?:CNPJ|CPF)>(\d+)<\/(?:CNPJ|CPF)>/)?.[1] || null
 
-        await prisma.nfseEmissao.create({
+        const nfseNovaEmissao = await prisma.nfseEmissao.create({
           data: {
             ambiente,
             numeroDps,
@@ -267,6 +308,26 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
             dataEmissao,
           }
         })
+
+        // Alimenta o financeiro automaticamente ao importar nota do governo
+        if (valorTotal && valorTotal > 0) {
+          const dataRef = dataEmissao || new Date()
+          const descricao = tomadorNome
+            ? `NFS-e DPS ${nfseNovaEmissao.numeroDps} — ${tomadorNome}`
+            : `NFS-e DPS ${nfseNovaEmissao.numeroDps} (importada do governo)`
+          await prisma.financeTransaction.create({
+            data: {
+              type: 'RECEITA',
+              description: descricao,
+              amount: valorTotal,
+              dueDate: dataRef,
+              paidDate: dataRef,
+              status: 'PAGO',
+              paymentMethod: 'NFS-e',
+              notes: `Chave de acesso: ${chaveAcesso}`,
+            }
+          })
+        }
         novos++
       }
 
@@ -279,11 +340,17 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     const nsuFinal = (nsuAtual - BigInt(1)).toString().padStart(15, '0')
     revalidatePath('/notas-fiscais')
     if (modoPeriodo) {
+      // Em modo período: sempre mostra "Continuar" se esgotamos as tentativas sem chegar ao fim natural.
+      // O usuário pode ter notas em NSUs muito maiores que o ponto até onde verificamos.
+      const podeHaverMais = !chegouAoFim // no modo período, chegouAoFim nunca é true, então sempre true
+      const nsuVerificado = BigInt(nsuBase)
+      const nsuAtualNum = nsuAtual
+      const qtdVerificados = Number(nsuAtualNum - nsuVerificado - BigInt(1))
       return {
         novos,
-        mensagem: `${jaExistentes} nota(s) de serviço já estavam no sistema nesse período. ${novos} nova(s) encontrada(s) agora no governo (verificado até o NSU ${nsuFinal}).${chegouAoFim ? '' : ' Ainda pode haver mais no governo além desse ponto — clique em "Continuar" para verificar.'}`,
+        mensagem: `🔍 Verificados ${qtdVerificados} NSU(s) a partir do NSU ${nsuBase}. ${jaExistentes > 0 ? `${jaExistentes} nota(s) já estavam no sistema. ` : ''}${novos} nota(s) nova(s) encontrada(s). Verificado até o NSU ${nsuFinal}.${podeHaverMais ? ' Clique em "Continuar buscando mais" para verificar os próximos NSUs.' : ''}`,
         proximoNsu: nsuFinal,
-        temMais: !chegouAoFim,
+        temMais: podeHaverMais,
         chaves: chavesDoPeriodo,
       }
     }

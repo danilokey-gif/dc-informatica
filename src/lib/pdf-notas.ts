@@ -319,6 +319,8 @@ export interface DanfePdfInput {
   emitenteEmail?: string | null
   emitenteEndereco?: string | null
   emitenteCep?: string | null
+  emitenteMunicipio?: string | null
+  emitenteUf?: string | null
   destinatarioNome: string
   destinatarioDocumento?: string | null
   destinatarioEndereco?: string | null
@@ -329,6 +331,11 @@ export interface DanfePdfInput {
   destinatarioTelefone?: string | null
   itens: DanfeItemPdf[]
   valorTotal: string
+  /** Numero do protocolo de autorizacao (tag nProt do XML de protocolo da Sefaz). */
+  protocolo?: string | null
+  /** Data real de emissao (tag dhEmi). Sem ela o PDF nao inventa uma data. */
+  dataEmissao?: Date | null
+  naturezaOperacao?: string | null
 }
 
 export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
@@ -401,7 +408,7 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   const textX = logoBuffer ? startX + 52 : startX + 6
   const textWidth = logoBuffer ? 142 : 188
   doc.fillColor('#000000').font('Helvetica-Bold').fontSize(7.5).text(input.emitenteNome.toUpperCase(), textX, currentY + 8, { width: textWidth })
-  doc.font('Helvetica').fontSize(5.5).text(`CNPJ: ${input.emitenteCnpj}\nIE: ${input.emitenteIe || '-'}\n${input.emitenteEndereco || ''}\nMARILIA - SP - Fone: ${input.emitenteTelefone || '-'}`, textX, currentY + 18, { width: textWidth })
+  doc.font('Helvetica').fontSize(5.5).text(`CNPJ: ${input.emitenteCnpj}\nIE: ${input.emitenteIe || '-'}\n${input.emitenteEndereco || ''}\n${input.emitenteMunicipio || '-'} - ${input.emitenteUf || '-'} - Fone: ${input.emitenteTelefone || '-'}`, textX, currentY + 18, { width: textWidth })
 
   // Col 2: DANFE Identification
   doc.rect(startX + 200, currentY, 140, headerHeight).stroke()
@@ -479,8 +486,8 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
   // 3. Natureza da Operação
   drawSection('Natureza da Operação', [
     [
-      { label: 'Natureza da Operação', value: 'Venda Dentro do Estado', flex: 2.5 },
-      { label: 'Protocolo de Autorização de Uso', value: '135262944542482', flex: 1.5 }
+      { label: 'Natureza da Operação', value: input.naturezaOperacao || 'Venda de Mercadoria', flex: 2.5 },
+      { label: 'Protocolo de Autorização de Uso', value: input.protocolo || '-', flex: 1.5 }
     ],
     [
       { label: 'Inscrição Estadual', value: input.emitenteIe || '-' },
@@ -494,7 +501,7 @@ export async function gerarPdfDanfe(input: DanfePdfInput): Promise<Buffer> {
     [
       { label: 'Nome / Razão Social', value: input.destinatarioNome.toUpperCase(), flex: 2.5 },
       { label: 'CNPJ / CPF', value: input.destinatarioDocumento || '-', flex: 1 },
-      { label: 'Data Emissão', value: new Date().toLocaleDateString('pt-BR'), flex: 1 }
+      { label: 'Data Emissão', value: input.dataEmissao ? input.dataEmissao.toLocaleDateString('pt-BR') : '-', flex: 1 }
     ],
     [
       { label: 'Endereço', value: (input.destinatarioEndereco || '-').toUpperCase(), flex: 2.5 },

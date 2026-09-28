@@ -20,7 +20,13 @@ export default function SincronizarButton({ tipo, action }: { tipo: 'NFS-e' | 'N
           setResultado(mensagem)
         }
       } catch (e) {
-        setErro(e instanceof Error ? e.message : String(e))
+        const msg = e instanceof Error ? e.message : String(e)
+        // O Next.js em produção mostra essa mensagem genérica quando a Server Action demora demais (timeout).
+        if (msg.includes('unexpected response') || msg.includes('NEXT_REDIRECT') || msg.includes('digest')) {
+          setErro('A busca demorou demais e foi interrompida pelo servidor. Use a opção "Buscar por período" abaixo, que faz buscas menores e mais rápidas.')
+        } else {
+          setErro(msg)
+        }
       }
     })
   }

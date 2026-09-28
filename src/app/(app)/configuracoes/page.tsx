@@ -156,7 +156,7 @@ export default async function ConfiguracoesPage() {
         </form>
       </div>
 
-      <div id="nfse" className="card" style={{ borderLeft: '4px solid #dc2626', scrollMarginTop: '1rem' }}>
+      <div id="nfse" className="card" style={{ borderLeft: '4px solid var(--primary)', scrollMarginTop: '1rem' }}>
         <h3 className="mb-4">🧾 Nota Fiscal de Serviço (NFS-e Nacional)</h3>
         <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
           Emissão automática via API do Sistema Nacional NFS-e. Exige certificado digital e-CNPJ (A1).
@@ -260,7 +260,7 @@ export default async function ConfiguracoesPage() {
         </form>
       </div>
 
-      <div id="nfe" className="card" style={{ borderLeft: '4px solid #dc2626', scrollMarginTop: '1rem' }}>
+      <div id="nfe" className="card" style={{ borderLeft: '4px solid var(--primary)', scrollMarginTop: '1rem' }}>
         <h3 className="mb-4">📦 Nota Fiscal de Produtos (NF-e)</h3>
         <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
           Emissão automática via Sefaz-SP. Exige certificado digital e-CNPJ (A1) e Inscrição Estadual preenchida acima.
@@ -295,9 +295,10 @@ export default async function ConfiguracoesPage() {
           <div className="input-group">
             <label className="input-label" htmlFor="crt">Regime Tributário (CRT) *</label>
             <select id="crt" name="crt" className="input-field" defaultValue={nfeConfig.crt}>
-              <option value="1">Simples Nacional (inclui MEI)</option>
-              <option value="2">Simples Nacional - excesso de sublimite</option>
-              <option value="3">Regime Normal</option>
+              <option value="1">1 - Simples Nacional (Microempresa / EPP)</option>
+              <option value="2">2 - Simples Nacional - excesso de sublimite</option>
+              <option value="3">3 - Regime Normal</option>
+              <option value="4">4 - Simples Nacional - Microempreendedor Individual (MEI)</option>
             </select>
           </div>
 

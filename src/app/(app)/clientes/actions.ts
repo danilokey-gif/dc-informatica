@@ -30,6 +30,17 @@ export async function createCustomer(formData: FormData) {
   redirect('/clientes')
 }
 
+export async function createCustomerQuick(data: { name: string, document: string, phone: string }) {
+  const customer = await prisma.customer.create({
+    data: {
+      name: data.name,
+      document: data.document || null,
+      phone: data.phone || null,
+    }
+  })
+  return { id: customer.id, name: customer.name, document: customer.document }
+}
+
 export async function updateCustomer(id: string, formData: FormData) {
   const name = formData.get('name') as string
   const document = formData.get('document') as string

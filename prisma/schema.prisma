@@ -35,6 +35,7 @@ model Customer {
   serviceOrders     ServiceOrder[]
   sales             Sale[]
   transactions      FinanceTransaction[]
+  quotes            Quote[]
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }
@@ -69,6 +70,7 @@ model Product {
   ncm           String?
   cfop          String?
   saleItems     SaleItem[]
+  quoteItems    QuoteItem[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 }
@@ -83,7 +85,7 @@ model Sale {
   invoiceNumber String?
   invoiceType   String?
   status        String              @default("COMPLETED")
-  transaction   FinanceTransaction?
+  transactions  FinanceTransaction[]
   nfeEmissoes   NfeEmissao[]
   createdAt     DateTime            @default(now())
 }
@@ -240,9 +242,34 @@ model FinanceTransaction {
   customer       Customer?        @relation(fields: [customerId], references: [id])
   customerId     String?
   sale           Sale?            @relation(fields: [saleId], references: [id])
-  saleId         String?          @unique
+  saleId         String?
   serviceOrder   ServiceOrder?    @relation(fields: [serviceOrderId], references: [id])
   serviceOrderId String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+}
+
+model Quote {
+  id           String      @id @default(cuid())
+  customer     Customer?   @relation(fields: [customerId], references: [id])
+  customerId   String?
+  items        QuoteItem[]
+  total        Float
+  status       String      @default("PENDING") // PENDING | APPROVED | REJECTED
+  validUntil   DateTime?
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quoteId     String
+  name        String
+  quantity    Int
+  unitPrice   Float
+  isService   Boolean  @default(false)
+  product     Product? @relation(fields: [productId], references: [id])
+  productId   String?
 }

@@ -92,7 +92,11 @@ export async function deleteCategory(id: string) {
 }
 
 /** Gera uma conta a receber a partir de uma OS com preço definido. */
-export async function gerarContaReceberOS(serviceOrderId: string) {
+export async function gerarContaReceberOS(serviceOrderId: string, formData?: FormData) {
+  const parcelas = formData ? parseInt(formData.get('parcelas') as string) || 1 : 1
+  const paymentMethod = formData ? (formData.get('paymentMethod') as string) : 'Dinheiro'
+  const jaPago = formData ? formData.get('jaPago') === '1' : false
+
   const os = await prisma.serviceOrder.findUniqueOrThrow({
     where: { id: serviceOrderId },
     include: { customer: true }
@@ -102,17 +106,34 @@ export async function gerarContaReceberOS(serviceOrderId: string) {
     throw new Error('A OS não tem valor definido.')
   }
 
-  await prisma.financeTransaction.create({
-    data: {
-      type: 'RECEITA',
-      description: `OS #${os.id.slice(-6).toUpperCase()} - ${os.device}`,
-      amount: os.price,
-      dueDate: new Date(),
-      customerId: os.customerId,
-      serviceOrderId: os.id,
-      status: 'PENDENTE',
+  const valorParcela = os.price / parcelas
+
+  for (let i = 0; i < parcelas; i++) {
+    const dataVencimento = new Date()
+    if (i > 0) {
+      dataVencimento.setDate(dataVencimento.getDate() + (30 * i))
     }
-  })
+
+    const parcelaPaga = i === 0 ? jaPago : false
+    const descParcela = parcelas > 1 
+      ? `OS #${os.id.slice(-6).toUpperCase()} - ${os.device} (Parc. ${i + 1}/${parcelas})`
+      : `OS #${os.id.slice(-6).toUpperCase()} - ${os.device}`
+    const finalPaymentMethod = parcelas > 1 ? `${paymentMethod} (${parcelas}x)` : paymentMethod
+
+    await prisma.financeTransaction.create({
+      data: {
+        type: 'RECEITA',
+        description: descParcela,
+        amount: valorParcela,
+        dueDate: dataVencimento,
+        paidDate: parcelaPaga ? new Date() : null,
+        customerId: os.customerId,
+        serviceOrderId: os.id,
+        status: parcelaPaga ? 'PAGO' : 'PENDENTE',
+        paymentMethod: finalPaymentMethod,
+      }
+    })
+  }
 
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
   revalidatePath('/financeiro')

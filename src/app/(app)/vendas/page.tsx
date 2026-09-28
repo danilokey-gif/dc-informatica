@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
+import DeleteSaleButton from "./DeleteSaleButton"
 
 export const dynamic = 'force-dynamic'
 
@@ -67,6 +68,7 @@ export default async function VendasPage() {
                 </td>
                 <td>
                   <Link href={`/vendas/${venda.id}/imprimir`} className="text-primary" style={{ fontWeight: 500 }}>Ver Recibo</Link>
+                  <DeleteSaleButton id={venda.id} />
                 </td>
               </tr>
             ))}

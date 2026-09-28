@@ -90,6 +90,11 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
           status: 'AUTORIZADA',
           chaveAcesso: resposta.chaveAcesso,
           xmlNfse: resposta.xmlNfse || null,
+          // Grava a data real de emissao aqui tambem (nao so nas notas importadas do governo),
+          // pra que os relatorios e filtros por periodo leiam sempre o mesmo campo.
+          dataEmissao: resposta.xmlNfse?.match(/<dhProc>([^<]+)<\/dhProc>/)?.[1]
+            ? new Date(resposta.xmlNfse.match(/<dhProc>([^<]+)<\/dhProc>/)![1])
+            : new Date(),
         }
       }),
       prisma.nfseConfig.update({
@@ -188,7 +193,7 @@ export async function enviarNfseEmail(serviceOrderId: string) {
     numeroDps: emissao.numeroDps,
     serieDps: emissao.serieDps,
     chaveAcesso: emissao.chaveAcesso || '',
-    dataEmissao: emissao.createdAt,
+    dataEmissao: emissao.dataEmissao ?? emissao.createdAt,
     prestadorNome: empresa.name,
     prestadorCnpj: empresa.document || '',
     prestadorTelefone: empresa.phone,

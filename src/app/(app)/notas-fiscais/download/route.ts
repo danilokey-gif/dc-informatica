@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { getCompanySettings, getNfseConfig } from "@/lib/settings"
+import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
 import { gerarPdfDanfse, gerarPdfDanfe } from "@/lib/pdf-notas"
 import JSZip from "jszip"
 import { NextRequest } from "next/server"
@@ -19,18 +19,28 @@ export async function GET(request: NextRequest) {
   // Inclui o dia inteiro do "fim": vai até o início do dia seguinte.
   const fim = new Date(new Date(`${fimStr}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000)
 
-  const [empresa, nfseConfig, emissoesNfse, emissoesNfe] = await Promise.all([
+  // O período é sobre a data REAL de emissão da nota (dhEmi). Em notas antigas, importadas antes
+  // desse campo existir, dataEmissao é nulo e aí caímos no createdAt.
+  const periodo = {
+    OR: [
+      { dataEmissao: { gte: inicio, lt: fim } },
+      { dataEmissao: null, createdAt: { gte: inicio, lt: fim } },
+    ],
+  }
+
+  const [empresa, nfseConfig, nfeConfig, emissoesNfse, emissoesNfe] = await Promise.all([
     getCompanySettings(),
     getNfseConfig(),
+    getNfeConfig(),
     prisma.nfseEmissao.findMany({
-      where: { status: 'AUTORIZADA', createdAt: { gte: inicio, lt: fim } },
+      where: { status: 'AUTORIZADA', ...periodo },
       include: { serviceOrder: { include: { customer: true } } },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ dataEmissao: 'asc' }, { createdAt: 'asc' }],
     }),
     prisma.nfeEmissao.findMany({
-      where: { status: 'AUTORIZADA', createdAt: { gte: inicio, lt: fim } },
+      where: { status: 'AUTORIZADA', ...periodo },
       include: { sale: { include: { customer: true, items: { include: { product: true } } } } },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ dataEmissao: 'asc' }, { createdAt: 'asc' }],
     }),
   ])
 
@@ -41,7 +51,7 @@ export async function GET(request: NextRequest) {
   const zip = new JSZip()
 
   for (const e of emissoesNfse) {
-    const dataStr = e.createdAt.toISOString().slice(0, 10)
+    const dataStr = (e.dataEmissao ?? e.createdAt).toISOString().slice(0, 10)
     const clienteNomeBase = e.serviceOrder?.customer.name || e.tomadorNome || 'cliente'
     const clienteSlug = clienteNomeBase.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
     const nomeBase = `${dataStr}_NFSe-${e.numeroDps}_${clienteSlug}`
@@ -62,7 +72,7 @@ export async function GET(request: NextRequest) {
       numeroDps: e.numeroDps,
       serieDps: e.serieDps,
       chaveAcesso: e.chaveAcesso || '',
-      dataEmissao: e.createdAt,
+      dataEmissao: e.dataEmissao ?? e.createdAt,
       prestadorNome: empresa.name,
       prestadorCnpj: empresa.document || '',
       prestadorTelefone: empresa.phone,
@@ -86,7 +96,7 @@ export async function GET(request: NextRequest) {
   }
 
   for (const e of emissoesNfe) {
-    const dataStr = e.createdAt.toISOString().slice(0, 10)
+    const dataStr = (e.dataEmissao ?? e.createdAt).toISOString().slice(0, 10)
     const clienteNome = e.sale?.customer?.name || e.destinatarioNome || 'Consumidor'
     const clienteSlug = clienteNome.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
     const nomeBase = `${dataStr}_NFe-${e.numero}_${clienteSlug}`
@@ -107,6 +117,8 @@ export async function GET(request: NextRequest) {
       emitenteIe: empresa.inscricaoEstadual,
       emitenteLogo: empresa.logo,
       emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
+      emitenteMunicipio: nfeConfig.nomeMunicipio,
+      emitenteUf: nfeConfig.uf,
       destinatarioNome: clienteNome,
       destinatarioDocumento: e.sale.customer?.document,
       destinatarioEndereco: e.sale.customer ? `${e.sale.customer.enderLogradouro || ''}${e.sale.customer.enderNumero ? `, ${e.sale.customer.enderNumero}` : ''}` : '-',
@@ -125,6 +137,8 @@ export async function GET(request: NextRequest) {
         valorTotal: item.unitPrice * item.quantity,
       })),
       valorTotal: e.sale.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      protocolo: e.xmlProtocolo?.match(/<nProt>(\d+)<\/nProt>/)?.[1] || null,
+      dataEmissao: e.dataEmissao ?? null,
     })
     zip.file(`NFe/${nomeBase}.pdf`, pdf)
   }

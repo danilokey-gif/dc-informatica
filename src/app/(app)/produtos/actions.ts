@@ -44,8 +44,24 @@ export async function updateProduct(id: string, formData: FormData) {
 }
 
 export async function deleteProduct(id: string) {
-  await prisma.product.delete({
-    where: { id }
-  })
-  revalidatePath('/produtos')
+  try {
+    // Verifica se o produto está vinculado a vendas
+    const saleItemsCount = await prisma.saleItem.count({ where: { productId: id } })
+    if (saleItemsCount > 0) {
+      return { error: `Este produto não pode ser excluído pois está vinculado a ${saleItemsCount} venda(s).` }
+    }
+
+    await prisma.product.delete({
+      where: { id }
+    })
+    revalidatePath('/produtos')
+    return { success: true }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    // Violação de chave estrangeira (Postgres P2003 / SQLite FOREIGN KEY)
+    if (msg.includes('Foreign key constraint') || msg.includes('P2003') || msg.includes('FOREIGN KEY')) {
+      return { error: 'Este produto não pode ser excluído pois está sendo usado em vendas ou orçamentos.' }
+    }
+    return { error: 'Erro ao excluir produto. Tente novamente.' }
+  }
 }

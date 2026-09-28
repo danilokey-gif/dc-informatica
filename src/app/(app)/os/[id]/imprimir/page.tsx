@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma"
 import { getCompanySettings, getNfseConfig } from "@/lib/settings"
+import { getCurrentUser } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import PrintButton from "./PrintButton"
+import DownloadPdfButton from '@/components/DownloadPdfButton'
 import WhatsAppButton from "./WhatsAppButton"
 import { emitirNfseServiceOrder, enviarNfseEmail, cancelarNfseServiceOrder } from "./nfse-actions"
 import { gerarContaReceberOS } from "../../../financeiro/actions"
@@ -12,13 +14,14 @@ import StatusBadge from "@/components/StatusBadge"
 export default async function ImprimirOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [os, settings, nfseConfig] = await Promise.all([
+  const [os, settings, nfseConfig, user] = await Promise.all([
     prisma.serviceOrder.findUnique({
       where: { id },
       include: { customer: true, technician: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } }, transactions: true }
     }),
     getCompanySettings(),
-    getNfseConfig()
+    getNfseConfig(),
+    getCurrentUser()
   ])
 
   if (!os) {
@@ -75,22 +78,42 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '2rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ backgroundColor: 'white', color: 'black', padding: '1rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          @page { margin: 1cm; }
+        }
+        .print-area * { color: #111827 !important; }
+        .doc-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 1rem; margin-bottom: 2rem; gap: 1rem; }
+        .doc-header-left { display: flex; align-items: center; gap: 1rem; }
+        .doc-header-right { text-align: right; }
+        .grid-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem; }
+        
+        @media (max-width: 600px) {
+          .doc-header { flex-direction: column; text-align: center; }
+          .doc-header-left { flex-direction: column; text-align: center; }
+          .doc-header-right { text-align: center; margin-top: 1rem; }
+          .grid-info { grid-template-columns: 1fr; }
+        }
+      `}} />
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #dc2626', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="doc-header print-area">
+        <div className="doc-header-left">
           {settings.logo && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={settings.logo} alt={settings.name} style={{ height: '50px', width: '50px', objectFit: 'contain' }} />
           )}
           <div>
-            <h1 style={{ color: '#dc2626', margin: 0, fontSize: '2rem' }}>{settings.name}</h1>
+            <h1 style={{ color: 'var(--primary)', margin: 0, fontSize: '2rem' }}>{settings.name}</h1>
             <p style={{ margin: '0.25rem 0 0 0', color: '#4b5563', fontSize: '0.875rem' }}>Assistência Técnica Especializada</p>
             {settings.phone && <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>WhatsApp: {settings.phone}</p>}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div className="doc-header-right">
           <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>{tipoDocumento}</h2>
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem', fontWeight: 'bold' }}>Nº {numeroOS}</p>
           <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>Data: {new Date(os.createdAt).toLocaleDateString('pt-BR')}</p>
@@ -98,9 +121,9 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Dados do Cliente */}
-      <div style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+      <div className="print-area" style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
         <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Dados do Cliente</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem' }}>
+        <div className="grid-info">
           <div><strong>Nome:</strong> {os.customer.name}</div>
           <div><strong>Telefone:</strong> {os.customer.phone || 'N/A'}</div>
           <div><strong>Documento:</strong> {os.customer.document || 'N/A'}</div>
@@ -110,7 +133,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Detalhes do Serviço */}
-      <div style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+      <div className="print-area" style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
         <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Detalhes do Serviço</h3>
         <div style={{ fontSize: '0.9rem' }}>
           {os.device && <p style={{ marginBottom: '0.5rem' }}><strong>Aparelho / Marca / Modelo:</strong><br /> {os.device}</p>}
@@ -121,7 +144,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Valor e Assinatura */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '4rem' }}>
+      <div className="print-area" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '4rem' }}>
         <div style={{ textAlign: 'center', width: '300px' }}>
           <div style={{ borderTop: '1px solid black', paddingTop: '0.5rem', marginTop: '2rem' }}>
             Assinatura do Cliente
@@ -129,7 +152,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         </div>
         <div style={{ textAlign: 'right' }}>
           <p style={{ fontSize: '1rem', color: '#4b5563', margin: 0 }}>Valor Total:</p>
-          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>{valor}</p>
+          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)', margin: 0 }}>{valor}</p>
         </div>
       </div>
 
@@ -162,102 +185,136 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       )}
 
       {/* Financeiro */}
-      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Financeiro</h3>
-        {jaTemContaReceber ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Conta a receber já gerada para esta OS. <a href="/financeiro/contas" className="text-primary">Ver em Financeiro</a>.</p>
-        ) : os.price ? (
-          <form action={gerarContaAction}>
-            <button type="submit" className="btn btn-outline">Gerar Conta a Receber ({os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</button>
-          </form>
-        ) : (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Defina o valor da OS para gerar a conta a receber.</p>
-        )}
-      </div>
-
-      {/* Nota Fiscal de Serviço */}
-      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid var(--border)', borderLeft: '4px solid #dc2626', padding: '1rem', borderRadius: '0.5rem' }}>
-        <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1.125rem' }}>🧾 Nota Fiscal de Serviço (NFS-e)</h3>
-          {ultimaEmissao && <StatusBadge status={ultimaEmissao.status} />}
-        </div>
-
-        {!nfseConfigurada && (
-          <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
-            Configuração fiscal incompleta. Vá em Configurações {'>'} Nota Fiscal de Serviço para cadastrar o certificado digital, município e alíquota de ISS.
-          </p>
-        )}
-
-        {ultimaEmissao && (
-          <div style={{ marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: 'var(--surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-            <p style={{ margin: 0 }}>DPS nº <strong>{ultimaEmissao.numeroDps}</strong>, série {ultimaEmissao.serieDps} — ambiente <strong>{ultimaEmissao.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong></p>
-            {ultimaEmissao.chaveAcesso && <p style={{ margin: '0.35rem 0 0 0' }}><strong>Chave de acesso:</strong> <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{ultimaEmissao.chaveAcesso}</span></p>}
-            {ultimaEmissao.motivoErro && <p style={{ margin: '0.35rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissao.motivoErro}</p>}
-          </div>
-        )}
-
-        <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-          {ultimaEmissao?.status === 'CANCELADA' && (
-            <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
-              🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
-            </p>
-          )}
-          {!nfseAutorizada && ultimaEmissao?.status !== 'CANCELADA' && (
-            <form action={emitirNfseAction}>
-              <button type="submit" className="btn btn-primary" disabled={!nfseConfigurada}>
-                {ultimaEmissao?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NFS-e'}
+      {user && (
+        <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Financeiro</h3>
+          {jaTemContaReceber ? (
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Conta a receber já gerada para esta OS. <a href="/financeiro/contas" className="text-primary">Ver em Financeiro</a>.</p>
+          ) : os.price ? (
+            <form action={gerarContaAction} className="flex gap-4 items-end" style={{ flexWrap: 'wrap' }}>
+              <div className="input-group" style={{ marginBottom: 0, minWidth: '100px' }}>
+                <label className="input-label" htmlFor="parcelas">Parcelas</label>
+                <select id="parcelas" name="parcelas" className="input-field">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n}x</option>
+                  ))}
+                </select>
+              </div>
+              <div className="input-group" style={{ marginBottom: 0, minWidth: '150px' }}>
+                <label className="input-label" htmlFor="paymentMethod">Forma de Pagto</label>
+                <select id="paymentMethod" name="paymentMethod" className="input-field" required defaultValue="Dinheiro">
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="PIX">PIX</option>
+                  <option value="Cartão de Débito">Cartão de Débito</option>
+                  <option value="Cartão de Crédito">Cartão de Crédito</option>
+                  <option value="Boleto">Boleto</option>
+                  <option value="Promissória">Promissória</option>
+                </select>
+              </div>
+              <div className="input-group" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', minHeight: '42px' }}>
+                <input type="checkbox" id="jaPago" name="jaPago" value="1" style={{ width: '1.2rem', height: '1.2rem' }} />
+                <label htmlFor="jaPago" style={{ margin: 0, cursor: 'pointer', fontSize: '0.9rem' }}>Recebido (1ª Parc.)?</label>
+              </div>
+              <button type="submit" className="btn btn-outline" style={{ minHeight: '42px' }}>
+                Gerar ({os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
               </button>
             </form>
-          )}
-          {nfseAutorizada && (
-            <>
-              <a href={`/os/${os.id}/danfse`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
-                🖨️ Ver / Imprimir DANFSe
-              </a>
-              <form action={enviarNfseEmailAction}>
-                <button type="submit" className="btn btn-outline" disabled={!os.customer.email}>
-                  ✉️ Enviar Nota por E-mail
-                </button>
-                {!os.customer.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
-              </form>
-              <form action={cancelarNfseAction} style={{ border: '1px solid #fecaca', borderRadius: '0.5rem', padding: '0.75rem', maxWidth: '360px' }}>
-                <div className="input-group">
-                  <label className="input-label" htmlFor="cMotivo">Motivo do Cancelamento</label>
-                  <select id="cMotivo" name="cMotivo" className="input-field" defaultValue="9">
-                    <option value="1">Erro na Emissão</option>
-                    <option value="2">Serviço não Prestado</option>
-                    <option value="9">Outros</option>
-                  </select>
-                </div>
-                <div className="input-group">
-                  <label className="input-label" htmlFor="xMotivo">Descreva o motivo *</label>
-                  <textarea id="xMotivo" name="xMotivo" className="input-field" rows={2} required placeholder="Ex: Nota emitida com valor incorreto" />
-                </div>
-                <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white', width: '100%' }}>
-                  🚫 Cancelar NFS-e (envia ao governo)
-                </button>
-              </form>
-            </>
+          ) : (
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Defina o valor da OS para gerar a conta a receber.</p>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Nota Fiscal de Serviço */}
+      {user && (
+        <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', borderLeft: '4px solid var(--primary)', padding: '1rem', borderRadius: '0.5rem' }}>
+          <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.125rem' }}>🧾 Nota Fiscal de Serviço (NFS-e)</h3>
+            {ultimaEmissao && <StatusBadge status={ultimaEmissao.status} />}
+          </div>
+
+          {!nfseConfigurada && (
+            <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
+              Configuração fiscal incompleta. Vá em Configurações {'>'} Nota Fiscal de Serviço para cadastrar o certificado digital, município e alíquota de ISS.
+            </p>
+          )}
+
+          {ultimaEmissao && (
+            <div style={{ marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: 'var(--surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
+              <p style={{ margin: 0 }}>DPS nº <strong>{ultimaEmissao.numeroDps}</strong>, série {ultimaEmissao.serieDps} — ambiente <strong>{ultimaEmissao.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong></p>
+              {ultimaEmissao.chaveAcesso && <p style={{ margin: '0.35rem 0 0 0' }}><strong>Chave de acesso:</strong> <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{ultimaEmissao.chaveAcesso}</span></p>}
+              {ultimaEmissao.motivoErro && <p style={{ margin: '0.35rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissao.motivoErro}</p>}
+            </div>
+          )}
+
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            {ultimaEmissao?.status === 'CANCELADA' && (
+              <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
+                🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
+              </p>
+            )}
+            {!nfseAutorizada && ultimaEmissao?.status !== 'CANCELADA' && (
+              <form action={emitirNfseAction}>
+                <button type="submit" className="btn btn-primary" disabled={!nfseConfigurada}>
+                  {ultimaEmissao?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NFS-e'}
+                </button>
+              </form>
+            )}
+            {nfseAutorizada && (
+              <>
+                <a href={`/os/${os.id}/danfse`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                  🖨️ Ver / Imprimir DANFSe
+                </a>
+                <form action={enviarNfseEmailAction}>
+                  <button type="submit" className="btn btn-outline" disabled={!os.customer.email}>
+                    ✉️ Enviar Nota por E-mail
+                  </button>
+                  {!os.customer.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+                </form>
+                <form action={cancelarNfseAction} style={{ border: '1px solid #fecaca', borderRadius: '0.5rem', padding: '0.75rem', maxWidth: '360px' }}>
+                  <div className="input-group">
+                    <label className="input-label" htmlFor="cMotivo">Motivo do Cancelamento</label>
+                    <select id="cMotivo" name="cMotivo" className="input-field" defaultValue="9">
+                      <option value="1">Erro na Emissão</option>
+                      <option value="2">Serviço não Prestado</option>
+                      <option value="9">Outros</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label className="input-label" htmlFor="xMotivo">Descreva o motivo *</label>
+                    <textarea id="xMotivo" name="xMotivo" className="input-field" rows={2} required placeholder="Ex: Nota emitida com valor incorreto" />
+                  </div>
+                  <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white', width: '100%' }}>
+                    🚫 Cancelar NFS-e (envia ao governo)
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Botões de ação */}
       <div className="no-print" style={{ marginTop: '3rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         <PrintButton />
-        <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />
-        {os.customer.email && (
-          <a
-            href={`mailto:${os.customer.email}?subject=OS ${numeroOS} - ${settings.name}&body=${encodeURIComponent(`Olá ${os.customer.name},\n\nSegue o resumo da sua ${tipoDocumento}:\n\nOS Nº: ${numeroOS}\n${os.device ? `Aparelho: ${os.device}\n` : ''}${os.device ? 'Defeito' : 'Serviço'}: ${os.issue}\nValor: ${valor}\n\nQualquer dúvida, entre em contato:\n${settings.phone || ''}`)}`}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600,
-              fontSize: '1rem', textDecoration: 'none', border: '2px solid #6b7280',
-              color: '#374151', backgroundColor: 'white'
-            }}
-          >
-            ✉️ Enviar E-mail
-          </a>
+        <DownloadPdfButton filename={`OS-${numeroOS}`} />
+        {user && (
+          <>
+            <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />
+            {os.customer.email && (
+              <a
+                href={`mailto:${os.customer.email}?subject=OS ${numeroOS} - ${settings.name}&body=${encodeURIComponent(`Olá ${os.customer.name},\n\nSegue o resumo da sua ${tipoDocumento}:\n\nOS Nº: ${numeroOS}\n${os.device ? `Aparelho: ${os.device}\n` : ''}${os.device ? 'Defeito' : 'Serviço'}: ${os.issue}\nValor: ${valor}\n\nQualquer dúvida, entre em contato:\n${settings.phone || ''}`)}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                  padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600,
+                  fontSize: '1rem', textDecoration: 'none', border: '2px solid #6b7280',
+                  color: '#374151', backgroundColor: 'white'
+                }}
+              >
+                ✉️ Enviar E-mail
+              </a>
+            )}
+          </>
         )}
       </div>
     </div>

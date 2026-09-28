@@ -43,6 +43,12 @@ const IconNotaServico: Icon = (props) => (
     <path d="M7.4 8.6 8.3 9.5l1.9-1.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
+const IconOrcamentos: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M13 3v3h3M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M8 9h4M8 12h4M8 15h2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
 const IconNotasFiscais: Icon = (props) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -53,6 +59,12 @@ const IconFornecedores: Icon = (props) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path d="M3 16V8l7-4 7 4v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     <path d="M7.5 16v-4.5h5V16" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+  </svg>
+)
+const IconEntrada: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M3 10h10M9 6l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17 4v12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
   </svg>
 )
 const IconFinanceiro: Icon = (props) => (
@@ -93,14 +105,19 @@ const sections: { label: string; items: NavItem[] }[] = [
       { href: '/clientes', label: 'Clientes', adminOnly: false, icon: IconClientes },
       { href: '/fornecedores', label: 'Fornecedores', adminOnly: true, icon: IconFornecedores },
       { href: '/produtos', label: 'Produtos', adminOnly: false, icon: IconProdutos },
+      { href: '/produtos/entrada', label: 'Entrada de Compras', adminOnly: false, icon: IconEntrada },
     ],
   },
   {
     label: 'Operações',
     items: [
+      { href: '/orcamentos', label: 'Orçamentos', adminOnly: false, icon: IconOrcamentos },
       { href: '/vendas', label: 'Vendas', adminOnly: false, icon: IconVendas },
       { href: '/os', label: 'Ordens de Serviço', adminOnly: false, icon: IconOS },
-      { href: '/os/rapida', label: 'Nota de Serviço', adminOnly: false, icon: IconNotaServico },
+      { href: '/os/rapida', label: 'Emitir Nota de Serviço', adminOnly: false, icon: IconNotaServico },
+      // Esta tela gerencia os DOIS tipos de nota (NFS-e de serviço e NF-e de produto), então o
+      // rótulo não pode citar só um deles — antes estava "Nota Fiscal de Produtos", o que fazia
+      // quem procurava a lista de notas de serviço não encontrar.
       { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: IconNotasFiscais },
     ],
   },

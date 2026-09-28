@@ -105,7 +105,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
 
       {/* Configurações Rápidas */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        <div className="card" style={{ borderLeft: '4px solid #dc2626' }}>
+        <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
           <div className="flex justify-between items-center mb-2">
             <h3 style={{ margin: 0 }}>🧾 Nota Fiscal de Serviço</h3>
             {nfseConfigurada
@@ -126,7 +126,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
           )}
         </div>
 
-        <div className="card" style={{ borderLeft: '4px solid #dc2626' }}>
+        <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
           <div className="flex justify-between items-center mb-2">
             <h3 style={{ margin: 0 }}>📦 Nota Fiscal de Produtos</h3>
             {nfeConfigurada

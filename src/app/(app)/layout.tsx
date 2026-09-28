@@ -14,15 +14,25 @@ export default async function AppLayout({
     getCurrentUser(),
   ]);
 
+  if (!user) {
+    return (
+      <div className="app-shell" style={{ backgroundColor: '#f3f4f6' }}>
+        <main className="main-area" style={{ marginLeft: 0, width: '100vw', minHeight: '100vh', padding: '1rem' }}>
+          {children}
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
-      <Sidebar companyName={settings.name} logo={settings.logo} role={user?.role || 'TECNICO'} />
+      <Sidebar companyName={settings.name} logo={settings.logo} role={user.role} />
 
       <div className="app-content">
         <header className="no-print topbar">
           <div className="topbar-spacer" />
           <div className="flex gap-4" style={{ alignItems: 'center' }}>
-            <span className="text-muted" style={{ fontWeight: 500 }}>{user?.name || 'Usuário'}</span>
+            <span className="text-muted" style={{ fontWeight: 500 }}>{user.name}</span>
             <form action={async () => {
               'use server'
               const { cookies } = await import('next/headers')

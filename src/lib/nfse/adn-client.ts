@@ -1,4 +1,5 @@
 import { buildMtlsAgent } from './certificate'
+import { fetch as undiciFetch } from 'undici'
 
 // Fonte: "Manual dos Contribuintes - Guia para utilização das API's do ADN" (gov.br/nfse).
 // URL e formato de resposta confirmados em chamada real de produção em 2026-07-30
@@ -52,8 +53,7 @@ export class AdnClient {
    */
   async consultarDFePorNsu(nsu: string, tentativa = 1): Promise<RespostaConsultaDFe | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/DFe/${nsu}`, {
-        // @ts-expect-error -- dispatcher é extensão do undici para mTLS
+      const res = await undiciFetch(`${this.baseUrl}/DFe/${nsu}`, {
         dispatcher: this.agent,
         headers: { Accept: 'application/json' },
       })

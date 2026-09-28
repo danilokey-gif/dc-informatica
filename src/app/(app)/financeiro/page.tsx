@@ -8,21 +8,43 @@ function formatarMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default async function FinanceiroPage() {
+export default async function FinanceiroPage({ searchParams }: { searchParams: Promise<{ mes?: string, ano?: string }> }) {
+  const params = await searchParams
   const hoje = inicioDoDiaUTC()
 
+  const hojeDate = new Date()
+  const mesSel = params.mes ? parseInt(params.mes) : (hojeDate.getMonth() + 1)
+  const anoSel = params.ano ? parseInt(params.ano) : hojeDate.getFullYear()
+
+  const mesStr = mesSel.toString().padStart(2, '0')
+  const inicioDoMes = new Date(`${anoSel}-${mesStr}-01T00:00:00.000Z`)
+  
+  let proximoMes = mesSel + 1
+  let proximoAno = anoSel
+  if (proximoMes > 12) {
+    proximoMes = 1
+    proximoAno++
+  }
+  const inicioProximoMes = new Date(`${proximoAno}-${proximoMes.toString().padStart(2, '0')}-01T00:00:00.000Z`)
+
+  let prevMes = mesSel - 1
+  let prevAno = anoSel
+  if (prevMes < 1) { prevMes = 12; prevAno-- }
+
+  const nomeMes = new Date(`${anoSel}-${mesStr}-02T00:00:00.000Z`).toLocaleString('pt-BR', { month: 'long' })
+
   const [receitasPagas, despesasPagas, aReceber, aPagar, atrasadas, proximasVencer] = await Promise.all([
-    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PAGO' } }),
-    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PAGO' } }),
-    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PENDENTE' } }),
-    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PENDENTE' } }),
+    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PAGO', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
+    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PAGO', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
+    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PENDENTE', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
+    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PENDENTE', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
     prisma.financeTransaction.findMany({
       where: { status: 'PENDENTE', dueDate: { lt: hoje } },
       orderBy: { dueDate: 'asc' },
       include: { customer: true, supplier: true }
     }),
     prisma.financeTransaction.findMany({
-      where: { status: 'PENDENTE', dueDate: { gte: hoje } },
+      where: { status: 'PENDENTE', dueDate: { gte: hoje, lt: inicioProximoMes } },
       orderBy: { dueDate: 'asc' },
       take: 8,
       include: { customer: true, supplier: true }
@@ -36,12 +58,24 @@ export default async function FinanceiroPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-4">
-        <h2>Financeiro</h2>
-        <div className="flex gap-4">
+      <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="flex items-center gap-4">
+          <h2 style={{ margin: 0 }}>Financeiro</h2>
+          <div className="flex items-center gap-2 bg-gray-100 rounded-md px-2 py-1" style={{ backgroundColor: 'var(--surface)' }}>
+            <Link href={`/financeiro?mes=${prevMes}&ano=${prevAno}`} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '1rem' }}>&lsaquo;</Link>
+            <span style={{ minWidth: '120px', textAlign: 'center', textTransform: 'capitalize', fontWeight: 500 }}>
+              {nomeMes} {anoSel}
+            </span>
+            <Link href={`/financeiro?mes=${proximoMes}&ano=${proximoAno}`} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '1rem' }}>&rsaquo;</Link>
+          </div>
+        </div>
+        <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
           <Link href="/financeiro/categorias" className="btn btn-outline">Categorias</Link>
           <Link href="/financeiro/contas" className="btn btn-outline">Ver Todas as Contas</Link>
-          <Link href="/financeiro/contas/novo" className="btn btn-primary">Novo Lançamento</Link>
+          <Link href="/financeiro/importar" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            📥 Importar Extrato (OFX)
+          </Link>
+          <Link href="/financeiro/contas/novo" className="btn btn-primary">+ Adicionar Transação</Link>
         </div>
       </div>
 

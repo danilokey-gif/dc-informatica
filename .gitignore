@@ -28,3 +28,12 @@ npm-debug.log*
 
 .vercel
 .env*
+
+# Scripts e saidas de depuracao criados durante o desenvolvimento.
+# Ficam de fora do repositorio de proposito: o check-output.txt chegou a conter um dump da
+# tabela NfeConfig, incluindo o certificado digital (base64) e a senha criptografada.
+/check-*.ts
+/check-*.txt
+/sync-*.ts
+/scripts/
+/task.md

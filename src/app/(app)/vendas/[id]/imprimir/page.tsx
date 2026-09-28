@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma"
 import { getCompanySettings, getNfeConfig } from "@/lib/settings"
+import { getCurrentUser } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import PrintButton from "../../../os/[id]/imprimir/PrintButton"
+import DownloadPdfButton from '@/components/DownloadPdfButton'
 import WhatsAppButton from "../../../os/[id]/imprimir/WhatsAppButton"
 import { updateSaleInvoice } from "../../actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
@@ -12,13 +14,14 @@ import StatusBadge from "@/components/StatusBadge"
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  const [venda, settings, nfeConfig] = await Promise.all([
+  const [venda, settings, nfeConfig, user] = await Promise.all([
     prisma.sale.findUnique({
       where: { id },
       include: { customer: true, items: { include: { product: true } }, nfeEmissoes: { orderBy: { createdAt: 'desc' } } }
     }),
     getCompanySettings(),
-    getNfeConfig()
+    getNfeConfig(),
+    getCurrentUser()
   ])
 
   if (!venda) {
@@ -74,31 +77,48 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '2rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
+    <div style={{ backgroundColor: 'white', color: 'black', padding: '1rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body { background: white !important; }
+          .no-print { display: none !important; }
+          @page { margin: 1cm; }
+        }
+        .print-area * { color: #111827 !important; }
+        .doc-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 1rem; margin-bottom: 2rem; gap: 1rem; }
+        .doc-header-left { display: flex; align-items: center; gap: 1rem; }
+        .doc-header-right { text-align: right; }
+        
+        @media (max-width: 600px) {
+          .doc-header { flex-direction: column; text-align: center; }
+          .doc-header-left { flex-direction: column; text-align: center; }
+          .doc-header-right { text-align: center; margin-top: 1rem; }
+        }
+      `}} />
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #dc2626', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="doc-header print-area">
+        <div className="doc-header-left">
           {settings.logo && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={settings.logo} alt={settings.name} style={{ height: '50px', width: '50px', objectFit: 'contain' }} />
           )}
           <div>
-            <h1 style={{ color: '#dc2626', margin: 0, fontSize: '2rem' }}>{settings.name}</h1>
+            <h1 style={{ color: 'var(--primary)', margin: 0, fontSize: '2rem' }}>{settings.name}</h1>
             <p style={{ margin: '0.25rem 0 0 0', color: '#4b5563', fontSize: '0.875rem' }}>Loja e Assistência Técnica</p>
             {settings.phone && <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>WhatsApp: {settings.phone}</p>}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div className="doc-header-right">
           <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#111827' }}>RECIBO DE VENDA</h2>
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem', fontWeight: 'bold' }}>Nº {numeroVenda}</p>
           <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>Data: {new Date(venda.createdAt).toLocaleDateString('pt-BR')}</p>
         </div>
       </div>
 
-      {/* Cliente */}
-      <div style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Cliente</h3>
+      {/* Dados do Cliente */}
+      <div className="print-area" style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Dados do Cliente</h3>
         <div style={{ fontSize: '0.9rem' }}>
           {venda.customer ? (
             <>
@@ -112,8 +132,8 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Itens */}
-      <div style={{ marginBottom: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Itens</h3>
+      <div className="print-area" style={{ marginBottom: '2rem' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '2px solid #e5e7eb', paddingBottom: '0.5rem' }}>Itens da Venda</h3>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #e5e7eb', textAlign: 'left' }}>
@@ -136,14 +156,12 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
         </table>
       </div>
 
-      {/* Valor e Pagamento */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '2rem' }}>
-        <div>
-          <p style={{ fontSize: '0.9rem', color: '#4b5563', margin: 0 }}>Forma de Pagamento: <strong>{venda.paymentMethod}</strong></p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
+      {/* Totais */}
+      <div className="print-area" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
+        <div style={{ width: '300px', backgroundColor: '#f9fafb', padding: '1.5rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
           <p style={{ fontSize: '1rem', color: '#4b5563', margin: 0 }}>Valor Total:</p>
-          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>{totalFormatado}</p>
+          <p style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)', margin: 0 }}>{totalFormatado}</p>
+          <p style={{ fontSize: '0.9rem', color: '#4b5563', marginTop: '1rem' }}>Forma de Pagamento: <strong>{venda.paymentMethod}</strong></p>
         </div>
       </div>
 
@@ -176,86 +194,87 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
       )}
 
       {/* Emissão automática de NF-e */}
-      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid var(--border)', borderLeft: '4px solid #dc2626', padding: '1rem', borderRadius: '0.5rem' }}>
-        <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1.125rem' }}>📦 Nota Fiscal de Produtos (NF-e)</h3>
-          {ultimaEmissaoNfe && <StatusBadge status={ultimaEmissaoNfe.status} />}
-        </div>
-
-        {!nfeConfigurada && (
-          <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
-            Configuração fiscal incompleta. Vá em Configurações {'>'} Nota Fiscal de Produtos e Dados da Empresa para cadastrar certificado, Inscrição Estadual e endereço.
-          </p>
-        )}
-
-        {ultimaEmissaoNfe && (
-          <div style={{ marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: 'var(--surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-            <p style={{ margin: 0 }}>NF-e nº <strong>{ultimaEmissaoNfe.numero}</strong>, série {ultimaEmissaoNfe.serie} — ambiente <strong>{ultimaEmissaoNfe.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong></p>
-            {ultimaEmissaoNfe.chaveAcesso && <p style={{ margin: '0.35rem 0 0 0' }}><strong>Chave de acesso:</strong> <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{ultimaEmissaoNfe.chaveAcesso}</span></p>}
-            {ultimaEmissaoNfe.motivoErro && <p style={{ margin: '0.35rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissaoNfe.motivoErro}</p>}
+      {user && (
+        <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', borderLeft: '4px solid var(--primary)', padding: '1rem', borderRadius: '0.5rem' }}>
+          <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.125rem' }}>📦 Nota Fiscal de Produtos (NF-e)</h3>
+            {ultimaEmissaoNfe && <StatusBadge status={ultimaEmissaoNfe.status} />}
           </div>
-        )}
 
-        <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-          {ultimaEmissaoNfe?.status === 'CANCELADA' && (
-            <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
-              🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
+          {!nfeConfigurada && (
+            <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>
+              Configuração fiscal incompleta. Vá em Configurações {'>'} Nota Fiscal de Produtos e Dados da Empresa para cadastrar certificado, Inscrição Estadual e endereço.
             </p>
           )}
-          {!nfeAutorizada && ultimaEmissaoNfe?.status !== 'CANCELADA' && (
-            <form action={emitirNfeAction}>
-              <button type="submit" className="btn btn-primary" disabled={!nfeConfigurada}>
-                {ultimaEmissaoNfe?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NF-e'}
-              </button>
-            </form>
+
+          {ultimaEmissaoNfe && (
+            <div style={{ marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: '#f3f4f6', color: '#111827', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' }}>
+              <p style={{ margin: 0 }}>NF-e nº <strong>{ultimaEmissaoNfe.numero}</strong>, série {ultimaEmissaoNfe.serie} — ambiente <strong>{ultimaEmissaoNfe.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong></p>
+              {ultimaEmissaoNfe.chaveAcesso && <p style={{ margin: '0.35rem 0 0 0' }}><strong>Chave de acesso:</strong> <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{ultimaEmissaoNfe.chaveAcesso}</span></p>}
+              {ultimaEmissaoNfe.motivoErro && <p style={{ margin: '0.35rem 0 0 0', color: '#b91c1c' }}><strong>Motivo:</strong> {ultimaEmissaoNfe.motivoErro}</p>}
+            </div>
           )}
-           {nfeAutorizada && (
-            <>
-              <a href={`/vendas/${venda.id}/danfe`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
-                🖨️ Ver / Imprimir DANFE
-              </a>
-              <form action={enviarNfeEmailAction}>
-                <button type="submit" className="btn btn-outline" disabled={!venda.customer?.email}>
-                  ✉️ Enviar Nota por E-mail
-                </button>
-                {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
-              </form>
-              <form action={cancelarNfeAction}>
-                <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white' }}>
-                  🚫 Cancelar NF-e
+
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            {ultimaEmissaoNfe?.status === 'CANCELADA' && (
+              <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
+                🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
+              </p>
+            )}
+            {!nfeAutorizada && ultimaEmissaoNfe?.status !== 'CANCELADA' && (
+              <form action={emitirNfeAction}>
+                <button type="submit" className="btn btn-primary" disabled={!nfeConfigurada}>
+                  {ultimaEmissaoNfe?.status === 'REJEITADA' ? 'Tentar Emitir Novamente' : 'Emitir NF-e'}
                 </button>
               </form>
-            </>
-          )}
+            )}
+             {nfeAutorizada && (
+              <>
+                <a href={`/vendas/${venda.id}/danfe`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                  🖨️ Ver / Imprimir DANFE
+                </a>
+                <form action={enviarNfeEmailAction}>
+                  <button type="submit" className="btn btn-outline" disabled={!venda.customer?.email}>
+                    ✉️ Enviar Nota por E-mail
+                  </button>
+                  {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
+                </form>
+                <form action={cancelarNfeAction}>
+                  <button type="submit" className="btn btn-danger" style={{ backgroundColor: '#dc2626', color: 'white' }}>
+                    🚫 Cancelar NF-e
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Nota Fiscal (registro manual) */}
-      <div className="no-print" style={{ marginTop: '2rem', border: '1px solid var(--border)', padding: '1rem', borderRadius: '0.5rem' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', color: 'var(--text-main)', fontSize: '1.125rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Registro Manual (nota emitida por fora)</h3>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          Se preferir emitir por outro emissor (ex: Sebrae), registre o número aqui.
-        </p>
-        <div className="flex gap-4 mb-4" style={{ flexWrap: 'wrap' }}>
-          <a href="https://26408013848.emissornfe.sebrae.com.br" target="_blank" rel="noopener noreferrer" className="btn btn-outline">Emitir NF-e/NFC-e (Sebrae)</a>
+      {user && (
+        <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#111827', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Registro Manual (nota emitida por fora)</h3>
+          <p style={{ fontSize: '0.875rem', color: '#4b5563', marginBottom: '1rem' }}>
+            Se preferir emitir por outro emissor, registre o número aqui.
+          </p>
+          <form action={updateInvoiceAction} className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="invoiceType">Tipo</label>
+              <select id="invoiceType" name="invoiceType" className="input-field" defaultValue={venda.invoiceType || ''}>
+                <option value="">-</option>
+                <option value="NFS-e">NFS-e</option>
+                <option value="NF-e">NF-e</option>
+                <option value="NFC-e">NFC-e</option>
+              </select>
+            </div>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="invoiceNumber">Número da Nota</label>
+              <input type="text" id="invoiceNumber" name="invoiceNumber" className="input-field" defaultValue={venda.invoiceNumber || ''} />
+            </div>
+            <button type="submit" className="btn btn-primary">Salvar</button>
+          </form>
         </div>
-        <form action={updateInvoiceAction} className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label" htmlFor="invoiceType">Tipo</label>
-            <select id="invoiceType" name="invoiceType" className="input-field" defaultValue={venda.invoiceType || ''}>
-              <option value="">-</option>
-              <option value="NFS-e">NFS-e</option>
-              <option value="NF-e">NF-e</option>
-              <option value="NFC-e">NFC-e</option>
-            </select>
-          </div>
-          <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label" htmlFor="invoiceNumber">Número da Nota</label>
-            <input type="text" id="invoiceNumber" name="invoiceNumber" className="input-field" defaultValue={venda.invoiceNumber || ''} />
-          </div>
-          <button type="submit" className="btn btn-primary">Salvar</button>
-        </form>
-      </div>
+      )}
 
       {venda.invoiceNumber && (
         <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#4b5563' }}>
@@ -266,7 +285,8 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
       {/* Botões de ação */}
       <div className="no-print" style={{ marginTop: '3rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         <PrintButton />
-        <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />
+        <DownloadPdfButton filename={`Venda-${numeroVenda}`} />
+        {user && <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />}
       </div>
     </div>
   )

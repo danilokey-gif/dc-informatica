@@ -4,16 +4,37 @@ import { deleteCustomer } from "./actions"
 
 export const dynamic = 'force-dynamic'
 
-export default async function ClientesPage() {
+export default async function ClientesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams
+
   const clientes = await prisma.customer.findMany({
+    where: q ? {
+      OR: [
+        { name: { contains: q, mode: 'insensitive' } },
+        { document: { contains: q } }
+      ]
+    } : undefined,
     orderBy: { createdAt: 'desc' }
   })
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <h2>Clientes</h2>
-        <Link href="/clientes/novo" className="btn btn-primary">Novo Cliente</Link>
+        
+        <form method="get" className="flex gap-2" style={{ flex: '1 1 auto', maxWidth: '400px' }}>
+          <input 
+            type="text" 
+            name="q" 
+            defaultValue={q} 
+            placeholder="Buscar por nome ou documento..." 
+            className="input-field" 
+            style={{ marginBottom: 0 }}
+          />
+          <button type="submit" className="btn btn-outline">Buscar</button>
+        </form>
+
+        <Link href="/clientes/novo" className="btn btn-primary" style={{ whiteSpace: 'nowrap' }}>Novo Cliente</Link>
       </div>
 
       <div className="table-container">
@@ -29,7 +50,18 @@ export default async function ClientesPage() {
           <tbody>
             {clientes.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-muted">Nenhum cliente cadastrado.</td>
+                <td colSpan={4} className="text-center text-muted" style={{ padding: '2rem' }}>
+                  {q ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <p>Nenhum cliente encontrado para "{q}".</p>
+                      <Link href={`/clientes/novo?nome=${encodeURIComponent(q)}`} className="btn btn-primary">
+                        Cadastrar "{q}"
+                      </Link>
+                    </div>
+                  ) : (
+                    "Nenhum cliente cadastrado."
+                  )}
+                </td>
               </tr>
             )}
             {clientes.map(cliente => {

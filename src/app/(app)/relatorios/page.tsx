@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import TableRowDoubleClick from "./TableRowDoubleClick"
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
   const anoAtual = new Date().getFullYear()
   const ano = anoParam && /^\d{4}$/.test(anoParam) ? parseInt(anoParam, 10) : anoAtual
 
-  const [vendasAgg, osAgg, saleItems, osPorStatus, nfseEmissoes, nfeEmissoes] = await Promise.all([
+  const [vendasAgg, osAgg, saleItems, osPorStatus, nfseEmissoes, nfeEmissoes, financeTransactions] = await Promise.all([
     prisma.sale.aggregate({ _sum: { total: true }, _count: true }),
     prisma.serviceOrder.aggregate({
       _sum: { price: true },
@@ -44,6 +45,15 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
     prisma.nfeEmissao.findMany({
       where: { status: 'AUTORIZADA' },
       include: { sale: { select: { total: true, createdAt: true } } },
+    }),
+    prisma.financeTransaction.findMany({
+      where: {
+        status: 'PAGO',
+        dueDate: {
+          gte: new Date(`${ano}-01-01T00:00:00.000Z`),
+          lt: new Date(`${ano + 1}-01-01T00:00:00.000Z`)
+        }
+      }
     }),
   ])
 
@@ -88,6 +98,18 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
   const totalNfeAno = nfePorMes.reduce((a, b) => a + b, 0)
   const totalGeralAno = totalNfseAno + totalNfeAno
 
+  const receitasMes = Array(12).fill(0)
+  const despesasMes = Array(12).fill(0)
+  for (const t of financeTransactions) {
+    if (t.dueDate.getFullYear() === ano) {
+      if (t.type === 'RECEITA') receitasMes[t.dueDate.getMonth()] += t.amount
+      else despesasMes[t.dueDate.getMonth()] += t.amount
+    }
+  }
+  const totalReceitasAno = receitasMes.reduce((a, b) => a + b, 0)
+  const totalDespesasAno = despesasMes.reduce((a, b) => a + b, 0)
+  const saldoAno = totalReceitasAno - totalDespesasAno
+
   return (
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4">
@@ -120,7 +142,7 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
 
       <div className="card" style={{ marginBottom: '2rem' }}>
         <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
-          <h3 style={{ margin: 0 }}>📅 Relatório Mensal de Notas Fiscais Emitidas</h3>
+          <h3 style={{ margin: 0 }}>📊 Balancete de Conciliação Mensal (Notas vs. Extrato)</h3>
           <form method="get" className="flex gap-4" style={{ alignItems: 'center' }}>
             <label className="input-label" htmlFor="ano" style={{ marginBottom: 0 }}>Ano</label>
             <input type="number" id="ano" name="ano" className="input-field" defaultValue={ano} min={2020} max={anoAtual + 1} style={{ width: '100px', padding: '0.35rem 0.6rem' }} />
@@ -128,32 +150,49 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
           </form>
         </div>
         <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
-          Considera apenas o valor de notas fiscais efetivamente <strong>emitidas e autorizadas</strong> (NFS-e de serviço + NF-e de produto) — orçamentos, OS ou vendas sem nota emitida não entram nesta soma.
+          Cruza o total de <strong>Notas Emitidas</strong> (NF-e + NFS-e) com o que realmente entrou ou saiu do banco (<strong>Receitas e Despesas Pagas</strong>), para facilitar a identificação de furos e pendências.
         </p>
         <div className="table-container">
           <table className="table">
             <thead>
               <tr>
                 <th>Mês</th>
-                <th>NFS-e (Serviço)</th>
-                <th>NF-e (Produto)</th>
-                <th>Total do Mês</th>
+                <th>Notas Fiscais (Emitido)</th>
+                <th>Receitas no Banco (Entradas)</th>
+                <th>Despesas (Saídas)</th>
+                <th>Diferença Fiscal x Banco</th>
               </tr>
             </thead>
             <tbody>
-              {MESES.map((nome, i) => (
-                <tr key={nome}>
-                  <td>{nome}</td>
-                  <td>{formatarMoeda(nfsePorMes[i])}</td>
-                  <td>{formatarMoeda(nfePorMes[i])}</td>
-                  <td style={{ fontWeight: 600 }}>{formatarMoeda(nfsePorMes[i] + nfePorMes[i])}</td>
-                </tr>
-              ))}
+              {MESES.map((nome, i) => {
+                const totalNotas = nfsePorMes[i] + nfePorMes[i];
+                const diferenca = receitasMes[i] - totalNotas;
+                const mesNum = i + 1;
+                return (
+                  <TableRowDoubleClick key={nome} url={`/financeiro?mes=${mesNum}&ano=${ano}`}>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        {nome}
+                        <a href={`/relatorios/mensal?mes=${mesNum}&ano=${ano}`} className="text-primary hover:text-primary-hover" title="Ver Relatório Mensal">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        </a>
+                      </div>
+                    </td>
+                    <td style={{ color: totalNotas > 0 ? '#16a34a' : 'inherit' }}>{formatarMoeda(totalNotas)}</td>
+                    <td style={{ color: receitasMes[i] > 0 ? '#16a34a' : 'inherit' }}>{formatarMoeda(receitasMes[i])}</td>
+                    <td style={{ color: despesasMes[i] > 0 ? '#dc2626' : 'inherit' }}>{formatarMoeda(despesasMes[i])}</td>
+                    <td style={{ fontWeight: 600, color: diferenca === 0 ? 'inherit' : (diferenca > 0 ? '#16a34a' : '#dc2626') }}>
+                      {formatarMoeda(diferenca)}
+                    </td>
+                  </TableRowDoubleClick>
+                )
+              })}
               <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
                 <td>Total do Ano {ano}</td>
-                <td>{formatarMoeda(totalNfseAno)}</td>
-                <td>{formatarMoeda(totalNfeAno)}</td>
-                <td style={{ color: 'var(--accent-green)' }}>{formatarMoeda(totalGeralAno)}</td>
+                <td style={{ color: '#16a34a' }}>{formatarMoeda(totalGeralAno)}</td>
+                <td style={{ color: '#16a34a' }}>{formatarMoeda(totalReceitasAno)}</td>
+                <td style={{ color: '#dc2626' }}>{formatarMoeda(totalDespesasAno)}</td>
+                <td style={{ color: (totalReceitasAno - totalGeralAno) >= 0 ? '#16a34a' : '#dc2626' }}>{formatarMoeda(totalReceitasAno - totalGeralAno)}</td>
               </tr>
             </tbody>
           </table>

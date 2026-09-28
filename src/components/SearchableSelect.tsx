@@ -17,6 +17,7 @@ interface Props {
   /** Modo controlado (ex: usado dentro de outro state, sem name/hidden input de formulário). */
   value?: string
   onValueChange?: (value: string) => void
+  onCreateNew?: (inputValue: string) => void
 }
 
 export default function SearchableSelect({
@@ -28,6 +29,7 @@ export default function SearchableSelect({
   required,
   value: valorControlado,
   onValueChange,
+  onCreateNew,
 }: Props) {
   const controlado = valorControlado !== undefined
   const inicial = options.find(o => o.value === (controlado ? valorControlado : defaultValue))
@@ -93,7 +95,7 @@ export default function SearchableSelect({
         }}
         onFocus={() => setAberto(true)}
       />
-      {!controlado && <input type="hidden" name={name} value={valorInterno} />}
+      {name && <input type="hidden" name={name} value={valorAtual} />}
       {aberto && filtradas.length > 0 && (
         <div className="searchable-select-menu">
           {filtradas.map(opt => (
@@ -111,6 +113,19 @@ export default function SearchableSelect({
       {aberto && filtradas.length === 0 && (
         <div className="searchable-select-menu">
           <div className="searchable-select-option text-muted" style={{ cursor: 'default' }}>Nenhum resultado</div>
+          {onCreateNew && (
+            <div 
+              className="searchable-select-option" 
+              style={{ color: '#16a34a', fontWeight: 600, borderTop: '1px solid var(--border)', textAlign: 'center' }}
+              onMouseDown={e => {
+                e.preventDefault()
+                onCreateNew(texto)
+                setAberto(false)
+              }}
+            >
+              + Cadastrar "{texto}"
+            </div>
+          )}
         </div>
       )}
     </div>

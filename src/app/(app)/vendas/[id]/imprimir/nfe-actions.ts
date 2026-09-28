@@ -51,10 +51,11 @@ export async function emitirNfeVenda(saleId: string) {
     }
 
     const cliente = venda.customer
-    if (cliente?.document) {
-      if (!cliente.enderLogradouro || !cliente.enderNumero || !cliente.enderBairro || !cliente.enderCep || !cliente.enderMunicipio || !cliente.enderUf || !cliente.enderCodMunicipio) {
-        throw new Error(`Endereço do cliente "${cliente.name}" incompleto (a NF-e exige endereço estruturado do destinatário). Edite o cliente em Clientes.`)
-      }
+    if (!cliente || !cliente.document) {
+      throw new Error('A NF-e (Modelo 55) exige a identificação do destinatário. Vincule um cliente com CPF ou CNPJ preenchido a esta venda.')
+    }
+    if (!cliente.enderLogradouro || !cliente.enderNumero || !cliente.enderBairro || !cliente.enderCep || !cliente.enderMunicipio || !cliente.enderUf || !cliente.enderCodMunicipio) {
+      throw new Error(`Endereço do cliente "${cliente.name}" incompleto (a NF-e exige endereço estruturado). Edite o cliente em Clientes.`)
     }
 
     const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
@@ -137,7 +138,14 @@ export async function emitirNfeVenda(saleId: string) {
       await prisma.$transaction([
         prisma.nfeEmissao.update({
           where: { id: emissao.id },
-          data: { status: 'AUTORIZADA', xmlProtocolo: respostaXml }
+          data: {
+            status: 'AUTORIZADA',
+            xmlProtocolo: respostaXml,
+            // Mesma razao do NFS-e: relatorios e filtros por periodo leem dataEmissao.
+            dataEmissao: xmlAssinado.match(/<dhEmi>([^<]+)<\/dhEmi>/)?.[1]
+              ? new Date(xmlAssinado.match(/<dhEmi>([^<]+)<\/dhEmi>/)![1])
+              : new Date(),
+          }
         }),
         prisma.nfeConfig.update({
           where: { id: 'main' },
@@ -157,6 +165,8 @@ export async function emitirNfeVenda(saleId: string) {
           emitenteIe: empresa.inscricaoEstadual,
           emitenteLogo: empresa.logo,
           emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
+          emitenteMunicipio: nfeConfig.nomeMunicipio,
+          emitenteUf: nfeConfig.uf,
           destinatarioNome: venda.customer?.name || 'Consumidor',
           destinatarioDocumento: venda.customer?.document,
           destinatarioEndereco: venda.customer ? `${venda.customer.enderLogradouro || ''}${venda.customer.enderNumero ? `, ${venda.customer.enderNumero}` : ''}` : '-',
@@ -175,6 +185,8 @@ export async function emitirNfeVenda(saleId: string) {
             valorTotal: item.unitPrice * item.quantity,
           })),
           valorTotal: valor,
+          protocolo: respostaXml.match(/<nProt>(\d+)<\/nProt>/)?.[1] || null,
+          dataEmissao: new Date(),
         })
         
         await salvarNotaNoDrive('NFe', chaveAcesso, xmlAssinado, pdfBuffer)
@@ -212,12 +224,13 @@ export async function emitirNfeVenda(saleId: string) {
 }
 
 export async function enviarNfeEmail(saleId: string) {
-  const [venda, empresa, emissao] = await Promise.all([
+  const [venda, empresa, nfeConfig, emissao] = await Promise.all([
     prisma.sale.findUniqueOrThrow({
       where: { id: saleId },
       include: { customer: true, items: { include: { product: true } } }
     }),
     getCompanySettings(),
+    getNfeConfig(),
     prisma.nfeEmissao.findFirst({ where: { saleId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
   ])
 
@@ -240,6 +253,8 @@ export async function enviarNfeEmail(saleId: string) {
     emitenteIe: empresa.inscricaoEstadual,
     emitenteLogo: empresa.logo,
     emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
+    emitenteMunicipio: nfeConfig.nomeMunicipio,
+    emitenteUf: nfeConfig.uf,
     destinatarioNome: venda.customer?.name || 'Consumidor',
     destinatarioDocumento: venda.customer?.document,
     destinatarioEndereco: venda.customer ? `${venda.customer.enderLogradouro || ''}${venda.customer.enderNumero ? `, ${venda.customer.enderNumero}` : ''}` : '-',
@@ -258,6 +273,8 @@ export async function enviarNfeEmail(saleId: string) {
       valorTotal: item.unitPrice * item.quantity,
     })),
     valorTotal: valor,
+    protocolo: emissao.xmlProtocolo?.match(/<nProt>(\d+)<\/nProt>/)?.[1] || null,
+    dataEmissao: emissao.dataEmissao ?? emissao.createdAt,
   })
 
   await enviarEmail({

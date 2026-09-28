@@ -1,4 +1,4 @@
-import { Agent } from 'undici'
+import { Agent, fetch as undiciFetch } from 'undici'
 import path from 'path'
 import fs from 'fs'
 import tls from 'tls'
@@ -82,9 +82,8 @@ export class NfeSoapClient {
 
     const action = `http://www.portalfiscal.inf.br/nfe/wsdl/${servico}/${metodo}`
 
-    const res = await fetch(url, {
+    const res = await undiciFetch(url, {
       method: 'POST',
-      // @ts-expect-error -- dispatcher e extensao do undici para mTLS
       dispatcher: this.agent,
       headers: { 'Content-Type': `application/soap+xml; charset=utf-8; action="${action}"` },
       body: envelope,

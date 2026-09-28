@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
-import { deleteProduct } from "./actions"
+import DeleteProductButton from "./DeleteProductButton"
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +13,10 @@ export default async function ProdutosPage() {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4">
         <h2>Produtos</h2>
-        <Link href="/produtos/novo" className="btn btn-primary">Novo Produto</Link>
+        <div className="flex gap-4">
+          <Link href="/produtos/entrada" className="btn btn-outline">Entrada de Compras</Link>
+          <Link href="/produtos/novo" className="btn btn-primary">Novo Produto</Link>
+        </div>
       </div>
 
       <div className="table-container">
@@ -35,7 +38,6 @@ export default async function ProdutosPage() {
               </tr>
             )}
             {produtos.map(produto => {
-              const deleteAction = deleteProduct.bind(null, produto.id)
               const estoqueBaixo = produto.stockQty <= produto.minStockAlert
               return (
                 <tr key={produto.id}>
@@ -52,13 +54,9 @@ export default async function ProdutosPage() {
                     )}
                   </td>
                   <td>
-                    <div className="flex gap-4">
+                    <div className="flex gap-4" style={{ alignItems: 'flex-start' }}>
                       <Link href={`/produtos/${produto.id}`} className="text-primary" style={{ fontWeight: 500 }}>Editar</Link>
-                      <form action={deleteAction}>
-                        <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 500 }}>
-                          Excluir
-                        </button>
-                      </form>
+                      <DeleteProductButton productId={produto.id} />
                     </div>
                   </td>
                 </tr>

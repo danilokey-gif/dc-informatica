@@ -143,7 +143,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
               notas de venda no governo" para NF-e (diferente da NFS-e). O que a Sefaz entrega são as notas
               de fornecedores; vendas emitidas fora do sistema entram por importação do XML. */}
           <div className="flex gap-4" style={{ flexWrap: 'wrap', marginTop: '0.75rem' }}>
-            <Link href="/notas-fiscais/fornecedores" className="btn btn-outline">🔄 Notas de fornecedores</Link>
+            <Link href="/notas-fiscais/fornecedores" className="btn btn-outline">🔄 Notas de compra</Link>
             <Link href="/notas-fiscais/importar-xml" className="btn btn-outline">📥 Importar XML</Link>
           </div>
         </div>

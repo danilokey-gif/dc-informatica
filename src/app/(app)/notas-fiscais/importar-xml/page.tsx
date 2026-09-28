@@ -20,7 +20,7 @@ export default function ImportarXmlPage() {
           <li>Pode selecionar vários arquivos de uma vez, ou um <strong>.zip</strong> com todos dentro.</li>
           <li>Use o XML da nota <strong>autorizada</strong>, que traz o protocolo da Sefaz.</li>
           <li>Notas de <strong>venda</strong> (emitidas pela Dc Informática) entram em Notas Fiscais, com DANFE, relatórios e download por período.</li>
-          <li>Notas de <strong>compra</strong> (emitidas por fornecedores para a Dc Informática) entram em <Link href="/notas-fiscais/fornecedores" className="text-primary">Notas de Fornecedores</Link>.</li>
+          <li>Notas de <strong>compra</strong> (emitidas por fornecedores para a Dc Informática) entram em <Link href="/notas-fiscais/fornecedores" className="text-primary">Notas de Compra</Link>.</li>
           <li>XML de <strong>cancelamento</strong> marca como cancelada uma nota que já está no sistema.</li>
           <li>Importar de novo o mesmo arquivo não duplica nada.</li>
           <li>A importação <strong>não lança nada no Financeiro</strong>, porque a venda pode já ter sido registrada lá.</li>

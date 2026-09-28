@@ -67,6 +67,12 @@ const IconEntrada: Icon = (props) => (
     <path d="M17 4v12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
   </svg>
 )
+const IconNotasCompra: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M5 3h8l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M10 8v6M7.5 11.5 10 14l2.5-2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
 const IconFinanceiro: Icon = (props) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <circle cx="10" cy="10" r="6.75" stroke="currentColor" strokeWidth="1.6" />
@@ -119,6 +125,8 @@ const sections: { label: string; items: NavItem[] }[] = [
       // rótulo não pode citar só um deles — antes estava "Nota Fiscal de Produtos", o que fazia
       // quem procurava a lista de notas de serviço não encontrar.
       { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: IconNotasFiscais },
+      // NF-e que fornecedores emitiram contra o CNPJ da empresa (compras), buscadas na Sefaz.
+      { href: '/notas-fiscais/fornecedores', label: 'Notas de Compra', adminOnly: true, icon: IconNotasCompra },
     ],
   },
   {
@@ -135,6 +143,7 @@ const sections: { label: string; items: NavItem[] }[] = [
 function isItemActive(pathname: string, href: string) {
   if (href === '/') return pathname === '/'
   if (href === '/os') return pathname === '/os' || (pathname.startsWith('/os/') && !pathname.startsWith('/os/rapida'))
+  if (href === '/notas-fiscais') return pathname.startsWith('/notas-fiscais') && !pathname.startsWith('/notas-fiscais/fornecedores')
   return pathname.startsWith(href)
 }
 

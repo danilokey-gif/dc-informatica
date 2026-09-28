@@ -203,6 +203,15 @@ model NfeEmissao {
   xmlNfe                String?
   xmlProtocolo          String?
   motivoErro            String?
+  /**
+   * Justificativa enviada à Sefaz no evento de cancelamento (110111).
+   */
+  motivoCancelamento    String?
+  /**
+   * procEventoNFe do cancelamento (evento assinado + retorno da Sefaz): é o documento que comprova
+   * o cancelamento e precisa ser guardado junto com a nota.
+   */
+  xmlEventoCancelamento String?
   origem                String    @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
   destinatarioNome      String?
   destinatarioDocumento String?

@@ -5,11 +5,12 @@ import { getCompanySettings, getNfeConfig } from "@/lib/settings"
 import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfeSoapClient } from "@/lib/nfe/soap-client"
-import { montarXmlNfe, assinarNfe } from "@/lib/nfe/xml"
+import { montarXmlNfe, assinarNfe, montarEventoCancelamento, assinarEventoNfe } from "@/lib/nfe/xml"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 import { gerarPdfDanfe } from "@/lib/pdf-notas"
-import { salvarNotaNoDrive } from "@/lib/drive"
+import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
+import { formatarErro } from "@/lib/formatar-erro"
 
 const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'> = {
   'Dinheiro': 'dinheiro',
@@ -303,4 +304,101 @@ export async function enviarNfeEmail(saleId: string) {
   })
 
   revalidatePath(`/vendas/${saleId}/imprimir`)
+}
+
+export interface ResultadoCancelamentoNfe {
+  ok: boolean
+  mensagem?: string
+  erro?: string
+}
+
+function tagEm(xml: string, nome: string): string | null {
+  return xml.match(new RegExp(`<${nome}>([^<]*)</${nome}>`))?.[1] ?? null
+}
+
+/**
+ * Cancela a NF-e na Sefaz (evento 110111). Só depois que a Sefaz registra o evento a nota passa a
+ * CANCELADA aqui — o botão antigo só trocava o status no banco e a nota continuava válida.
+ * Devolve o erro em vez de lançar: em produção o Next esconde a mensagem de erros lançados.
+ */
+export async function cancelarNfe(emissaoId: string, justificativa: string): Promise<ResultadoCancelamentoNfe> {
+  try {
+    const [emissao, empresa, nfeConfig] = await Promise.all([
+      prisma.nfeEmissao.findUnique({ where: { id: emissaoId } }),
+      getCompanySettings(),
+      getNfeConfig(),
+    ])
+    if (!emissao) return { ok: false, erro: 'Nota não encontrada.' }
+    if (emissao.status !== 'AUTORIZADA') return { ok: false, erro: `Só notas autorizadas podem ser canceladas (esta está ${emissao.status}).` }
+    if (!emissao.chaveAcesso) return { ok: false, erro: 'A nota não tem chave de acesso.' }
+
+    const cnpjEmpresa = (empresa.document || '').replace(/\D/g, '')
+    if (emissao.chaveAcesso.slice(6, 20) !== cnpjEmpresa) {
+      return { ok: false, erro: 'Só a empresa que emitiu a nota pode cancelá-la.' }
+    }
+    const protocolo = emissao.xmlProtocolo?.match(/<nProt>(\d+)<\/nProt>/)?.[1]
+    if (!protocolo) return { ok: false, erro: 'Não encontrei o protocolo de autorização desta nota; sem ele a Sefaz não aceita o cancelamento.' }
+
+    const just = justificativa.trim()
+    if (just.length < 15 || just.length > 255) return { ok: false, erro: 'A justificativa precisa ter entre 15 e 255 caracteres.' }
+
+    if (!nfeConfig.certificado || !nfeConfig.certificadoSenha) {
+      return { ok: false, erro: 'Certificado digital da NF-e não configurado.' }
+    }
+    const pfxBuffer = Buffer.from(nfeConfig.certificado, 'base64')
+    const certSenha = decryptSecret(nfeConfig.certificadoSenha)
+
+    // O cancelamento vai para o mesmo ambiente em que a nota foi autorizada.
+    const ambiente = emissao.ambiente === 'producao' ? 'producao' : 'homologacao'
+    const { xml, id } = montarEventoCancelamento({
+      cnpjEmitente: cnpjEmpresa,
+      chaveAcesso: emissao.chaveAcesso,
+      tpAmb: ambiente === 'producao' ? '1' : '2',
+      protocolo,
+      justificativa: just,
+    })
+    const eventoAssinado = assinarEventoNfe(xml, id, extractCertMaterial(pfxBuffer, certSenha))
+
+    const client = new NfeSoapClient({ ambiente, pfxBuffer, certPassword: certSenha })
+    const resposta = await client.enviarEventoSefaz(String(Date.now()).slice(-15), eventoAssinado)
+
+    const retEvento = resposta.match(/<retEvento[\s\S]*?<\/retEvento>/)?.[0]
+    if (!retEvento) {
+      return { ok: false, erro: `A Sefaz recusou o pedido [${tagEm(resposta, 'cStat')}] ${tagEm(resposta, 'xMotivo') || 'sem motivo informado'}.` }
+    }
+    const cStat = tagEm(retEvento, 'cStat')
+    const xMotivo = tagEm(retEvento, 'xMotivo') || 'sem motivo informado'
+
+    // 135 = cancelamento registrado; 155 = registrado fora do prazo (aceito pela Sefaz).
+    // 573 (evento já registrado) e 218 (nota já cancelada na Sefaz) também significam que ela já está
+    // cancelada lá — o sistema só se alinha. Qualquer outro código: a nota continua válida.
+    if (cStat === '135' || cStat === '155') {
+      await prisma.nfeEmissao.update({
+        where: { id: emissao.id },
+        data: {
+          status: 'CANCELADA',
+          motivoCancelamento: just,
+          xmlEventoCancelamento: `<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">${eventoAssinado}${retEvento}</procEventoNFe>`,
+        },
+      })
+    } else if (cStat === '573' || cStat === '218') {
+      await prisma.nfeEmissao.update({ where: { id: emissao.id }, data: { status: 'CANCELADA', motivoCancelamento: just } })
+    } else {
+      return { ok: false, erro: `A Sefaz não cancelou a nota [${cStat}] ${xMotivo}. Ela continua válida.` }
+    }
+
+    try {
+      await moverNotaNoGoogleDriveCancelada('NFe', emissao.chaveAcesso)
+    } catch (gdriveError) {
+      // O cancelamento já valeu na Sefaz; falha no Drive não desfaz nada.
+      console.error('[Google Drive] Falha ao mover NF-e cancelada:', gdriveError)
+    }
+
+    if (emissao.saleId) revalidatePath(`/vendas/${emissao.saleId}/imprimir`)
+    revalidatePath('/notas-fiscais')
+    revalidatePath('/relatorios')
+    return { ok: true, mensagem: `NF-e nº ${emissao.numero} cancelada na Sefaz [${cStat}] ${xMotivo}.` }
+  } catch (error) {
+    return { ok: false, erro: formatarErro(error) }
+  }
 }

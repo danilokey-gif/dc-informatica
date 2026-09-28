@@ -36,8 +36,10 @@ export interface RetDistDFeInt {
   documentos: DocumentoDistribuido[]
 }
 
-// Evento de cancelamento de NF-e (o emitente cancelou a nota depois de emitir).
-export const TP_EVENTO_CANCELAMENTO = '110111'
+// Evento de cancelamento de NF-e (o emitente cancelou a nota depois de emitir). Definido junto com
+// os outros eventos, em xml.ts; reexportado aqui porque quem lê a distribuição também precisa dele.
+export { TP_EVENTO_CANCELAMENTO } from './xml'
+import { TP_EVENTO_CANCELAMENTO } from './xml'
 
 function tag(xml: string, nome: string): string | null {
   const m = xml.match(new RegExp(`<${nome}(?:\\s[^>]*)?>([^<]*)</${nome}>`))

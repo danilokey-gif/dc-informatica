@@ -9,6 +9,7 @@ import { updateSaleInvoice } from "../../actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "../../../os/[id]/imprimir/CopyPixButton"
 import { emitirNfeVenda, enviarNfeEmail } from "./nfe-actions"
+import CancelarNfeButton from "./CancelarNfeButton"
 import StatusBadge from "@/components/StatusBadge"
 
 export default async function ImprimirVendaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -216,9 +217,14 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
 
           <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
             {ultimaEmissaoNfe?.status === 'CANCELADA' && (
-              <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
-                🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
-              </p>
+              <div style={{ flexBasis: '100%' }}>
+                <p style={{ color: '#b91c1c', fontWeight: 'bold', margin: 0 }}>🚫 Esta NF-e foi cancelada na Sefaz.</p>
+                {ultimaEmissaoNfe.motivoCancelamento && (
+                  <p className="text-muted" style={{ fontSize: '0.85rem', margin: '0.25rem 0 0' }}>
+                    Justificativa: {ultimaEmissaoNfe.motivoCancelamento}
+                  </p>
+                )}
+              </div>
             )}
             {!nfeAutorizada && ultimaEmissaoNfe?.status !== 'CANCELADA' && (
               <form action={emitirNfeAction}>
@@ -238,12 +244,11 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
                   </button>
                   {!venda.customer?.email && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>Cadastre um e-mail para este cliente.</p>}
                 </form>
-                {/* O botão "Cancelar NF-e" que existia aqui só trocava o status no banco: não enviava o
-                    evento de cancelamento à Sefaz, então a nota continuava válida enquanto o sistema
-                    mostrava "Cancelada". Fica fora até o cancelamento de verdade (evento 110111) existir. */}
-                <p className="text-muted" style={{ fontSize: '0.8rem', flexBasis: '100%', margin: 0 }}>
-                  Para cancelar esta NF-e, use o emissor da Sefaz. O prazo é de 24 horas após a autorização.
-                </p>
+                <CancelarNfeButton
+                  emissaoId={ultimaEmissaoNfe.id}
+                  numero={ultimaEmissaoNfe.numero}
+                  autorizadaEm={(ultimaEmissaoNfe.dataEmissao ?? ultimaEmissaoNfe.createdAt).toISOString()}
+                />
               </>
             )}
           </div>

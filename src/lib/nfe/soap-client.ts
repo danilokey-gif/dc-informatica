@@ -21,6 +21,8 @@ const BASE_URLS = {
     retAutorizacao: 'https://nfe.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx',
     statusServico: 'https://nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
     consultaProtocolo: 'https://nfe.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
+    // Eventos da própria nota (cancelamento) vão para a Sefaz que autorizou — SP.
+    recepcaoEvento: 'https://nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx',
     // Serviço nacional (SVAN), único endpoint pra todo o país, diferente dos serviços acima que são da Sefaz-SP.
     distribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
     // Eventos do Ambiente Nacional (manifestação do destinatário). Também nacional, não da Sefaz-SP.
@@ -31,6 +33,7 @@ const BASE_URLS = {
     retAutorizacao: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx',
     statusServico: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
     consultaProtocolo: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
+    recepcaoEvento: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/nferecepcaoevento4.asmx',
     distribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
     recepcaoEventoAN: 'https://hom1.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
   },
@@ -43,6 +46,7 @@ interface NfeUrls {
   retAutorizacao: string
   statusServico: string
   consultaProtocolo: string
+  recepcaoEvento: string
   distribuicaoDFe: string
   recepcaoEventoAN: string
 }
@@ -162,11 +166,10 @@ export class NfeSoapClient {
   }
 
   /**
-   * Envia um lote de eventos já assinados ao Ambiente Nacional (manifestação do destinatário).
-   * O schema aceita até 20 eventos por lote. Aqui o <nfeDadosMsg> é o próprio wrapper do Body,
-   * como nos serviços de autorização (sem o nível extra da Distribuição).
+   * Envia um lote de eventos já assinados (o schema aceita até 20 por lote). Aqui o <nfeDadosMsg>
+   * é o próprio wrapper do Body, como nos serviços de autorização (sem o nível extra da Distribuição).
    */
-  async enviarEventosAN(idLote: string, eventosAssinados: string[]): Promise<string> {
+  private async enviarLoteEventos(url: string, idLote: string, eventosAssinados: string[]): Promise<string> {
     if (eventosAssinados.length === 0 || eventosAssinados.length > 20) {
       throw new Error(`Um lote de eventos precisa ter de 1 a 20 eventos (recebeu ${eventosAssinados.length}).`)
     }
@@ -175,6 +178,16 @@ export class NfeSoapClient {
         `<idLote>${idLote}</idLote>` +
         eventosAssinados.join('') +
       `</envEvento>`
-    return this.soapRequest(this.urls.recepcaoEventoAN, 'NFeRecepcaoEvento4', 'nfeRecepcaoEvento', corpo)
+    return this.soapRequest(url, 'NFeRecepcaoEvento4', 'nfeRecepcaoEvento', corpo)
+  }
+
+  /** Manifestação do destinatário: vai para o Ambiente Nacional. */
+  async enviarEventosAN(idLote: string, eventosAssinados: string[]): Promise<string> {
+    return this.enviarLoteEventos(this.urls.recepcaoEventoAN, idLote, eventosAssinados)
+  }
+
+  /** Eventos do emitente sobre a própria nota (cancelamento): vão para a Sefaz-SP. */
+  async enviarEventoSefaz(idLote: string, eventoAssinado: string): Promise<string> {
+    return this.enviarLoteEventos(this.urls.recepcaoEvento, idLote, [eventoAssinado])
   }
 }

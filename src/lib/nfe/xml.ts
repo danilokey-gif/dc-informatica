@@ -334,24 +334,83 @@ function dataHoraBrasilia(agora = new Date()): string {
   return d.toISOString().slice(0, 19) + '-03:00'
 }
 
-/** Monta o evento de Ciência da Operação (sem assinatura). Retorna o XML e o Id a assinar. */
-export function montarEventoCiencia(params: { cnpjDestinatario: string; chaveAcesso: string; tpAmb: '1' | '2' }): { xml: string; id: string } {
+export const TP_EVENTO_CANCELAMENTO = '110111'
+
+// cOrgao do evento: 91 = Ambiente Nacional (manifestação do destinatário); os demais eventos
+// (como o cancelamento) vão para a Sefaz que autorizou a nota — aqui, SP (35).
+const C_ORGAO_AMBIENTE_NACIONAL = '91'
+const C_ORGAO_SP = '35'
+
+/** Tira acentos e caracteres de controle e escapa o que é especial em XML. */
+function textoParaXml(texto: string): string {
+  return texto
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ').trim()
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/** Monta um evento de NF-e (sem assinatura). Retorna o XML e o Id a assinar. */
+function montarEvento(params: {
+  cOrgao: string
+  tpAmb: '1' | '2'
+  cnpjAutor: string
+  chaveAcesso: string
+  tpEvento: string
+  conteudoDetEvento: string
+}): { xml: string; id: string } {
   const nSeqEvento = '1'
-  const id = `ID${TP_EVENTO_CIENCIA}${params.chaveAcesso}${nSeqEvento.padStart(2, '0')}`
+  const id = `ID${params.tpEvento}${params.chaveAcesso}${nSeqEvento.padStart(2, '0')}`
   const xml =
     `<evento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">` +
       `<infEvento Id="${id}">` +
-        // 91 = Ambiente Nacional: a manifestação do destinatário é registrada lá, não na Sefaz do estado.
-        `<cOrgao>91</cOrgao>` +
+        `<cOrgao>${params.cOrgao}</cOrgao>` +
         `<tpAmb>${params.tpAmb}</tpAmb>` +
-        `<CNPJ>${params.cnpjDestinatario}</CNPJ>` +
+        `<CNPJ>${params.cnpjAutor}</CNPJ>` +
         `<chNFe>${params.chaveAcesso}</chNFe>` +
         `<dhEvento>${dataHoraBrasilia()}</dhEvento>` +
-        `<tpEvento>${TP_EVENTO_CIENCIA}</tpEvento>` +
+        `<tpEvento>${params.tpEvento}</tpEvento>` +
         `<nSeqEvento>${nSeqEvento}</nSeqEvento>` +
         `<verEvento>1.00</verEvento>` +
-        `<detEvento versao="1.00"><descEvento>Ciencia da Operacao</descEvento></detEvento>` +
+        `<detEvento versao="1.00">${params.conteudoDetEvento}</detEvento>` +
       `</infEvento>` +
     `</evento>`
   return { xml, id }
+}
+
+/** Evento de Ciência da Operação, registrado no Ambiente Nacional pelo destinatário da nota. */
+export function montarEventoCiencia(params: { cnpjDestinatario: string; chaveAcesso: string; tpAmb: '1' | '2' }): { xml: string; id: string } {
+  return montarEvento({
+    cOrgao: C_ORGAO_AMBIENTE_NACIONAL,
+    tpAmb: params.tpAmb,
+    cnpjAutor: params.cnpjDestinatario,
+    chaveAcesso: params.chaveAcesso,
+    tpEvento: TP_EVENTO_CIENCIA,
+    conteudoDetEvento: `<descEvento>Ciencia da Operacao</descEvento>`,
+  })
+}
+
+/**
+ * Evento de cancelamento, enviado pelo emitente à Sefaz que autorizou a nota. Precisa do número do
+ * protocolo de autorização e de uma justificativa de 15 a 255 caracteres.
+ */
+export function montarEventoCancelamento(params: {
+  cnpjEmitente: string
+  chaveAcesso: string
+  tpAmb: '1' | '2'
+  protocolo: string
+  justificativa: string
+}): { xml: string; id: string } {
+  const xJust = textoParaXml(params.justificativa)
+  if (xJust.length < 15 || xJust.length > 255) {
+    throw new Error('A justificativa do cancelamento precisa ter entre 15 e 255 caracteres.')
+  }
+  return montarEvento({
+    cOrgao: C_ORGAO_SP,
+    tpAmb: params.tpAmb,
+    cnpjAutor: params.cnpjEmitente,
+    chaveAcesso: params.chaveAcesso,
+    tpEvento: TP_EVENTO_CANCELAMENTO,
+    conteudoDetEvento: `<descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${xJust}</xJust>`,
+  })
 }

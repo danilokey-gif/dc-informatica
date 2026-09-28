@@ -13,8 +13,13 @@ import { revalidatePath } from "next/cache"
 // A NFS-e em especial consulta o governo um NSU por vez (não em lote), então qualquer limite
 // alto vira dezenas/centenas de chamadas sequenciais e estoura o tempo antes de terminar.
 // Prefira cliques mais curtos e repetidos (via "Continuar buscando mais") a um clique gigante.
-const MAX_PAGINAS_NFE = 3
-const MAX_TENTATIVAS_NFSE = 40 // 40 chamadas por clique ≈ 40s — dentro do limite de 60s da Vercel
+//
+// Os limites por CONTAGEM abaixo são um teto de segurança; quem realmente decide quando parar
+// de chamar o governo é o relógio (TEMPO_LIMITE_MS) — o governo pode responder rápido ou devagar
+// dependendo do dia, e um limite fixo de tentativas não se adapta a isso.
+const TEMPO_LIMITE_MS = 7_000 // deixa ~3s de folga pra descriptografia do cert, parsing e resposta
+const MAX_PAGINAS_NFE = 6 // até 50 documentos por página -> até 300 por clique
+const MAX_TENTATIVAS_NFSE = 25 // NSU consultado um a um -> limite de chamadas por clique
 const MAX_NAO_ENCONTRADOS_SEGUIDOS = 10 // só usado no modo simples (sem período)
 
 export interface ResultadoSincronizacao {
@@ -23,7 +28,8 @@ export interface ResultadoSincronizacao {
   erro?: string
   /** Só presente quando a busca é por período: NSU onde a busca no governo parou, pra continuar no próximo clique. */
   proximoNsu?: string
-  /** Só presente quando a busca é por período: true se ainda pode haver mais documentos no governo além do NSU alcançado. */
+  /** true se a busca parou por limite de tempo/tentativas (não porque acabaram os documentos) —
+   * usado pelo botão pra saber se deve chamar a action de novo automaticamente. */
   temMais?: boolean
   /** Só presente quando a busca é por período: chaves de acesso de todas as notas do período (já existentes no
    * sistema + novas encontradas agora no governo), pra poder baixar um .zip com tudo. */
@@ -118,8 +124,9 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
     let ultNsu = modoPeriodo ? (opcoes?.nsuInicial || '000000000000000') : (nfeConfig.ultimoNsu || '000000000000000')
     let novos = 0
     let chegouAoFim = false
+    const inicioExecucao = Date.now()
 
-    for (let pagina = 0; pagina < MAX_PAGINAS_NFE; pagina++) {
+    for (let pagina = 0; pagina < MAX_PAGINAS_NFE && Date.now() - inicioExecucao < TEMPO_LIMITE_MS; pagina++) {
       const respostaXml = await client.consultarDistribuicaoDFe(
         empresa.document.replace(/\D/g, ''),
         nfeConfig.uf,
@@ -212,7 +219,7 @@ export async function sincronizarNfeGoverno(opcoes?: OpcoesSincronizacao): Promi
         chaves: chavesDoPeriodo,
       }
     }
-    return { novos, mensagem: `${novos} nota(s) de produto importada(s) do governo.` }
+    return { novos, mensagem: `${novos} nota(s) de produto importada(s) do governo.`, temMais: !chegouAoFim }
   } catch (error) {
     return { novos: 0, mensagem: '', erro: formatarErro(error) }
   }
@@ -253,7 +260,9 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     // Contador de tentativas usadas de verdade (para ajustar a mensagem)
     let tentativasUsadas = 0
 
-    for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE; tentativa++) {
+    const inicioExecucao = Date.now()
+
+    for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE && Date.now() - inicioExecucao < TEMPO_LIMITE_MS; tentativa++) {
       tentativasUsadas++
       const nsuStr = nsuAtual.toString().padStart(15, '0')
       const resposta = await client.consultarDFePorNsu(nsuStr)
@@ -354,7 +363,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
         chaves: chavesDoPeriodo,
       }
     }
-    return { novos, mensagem: `${novos} nota(s) de serviço importada(s) do governo.` }
+    return { novos, mensagem: `${novos} nota(s) de serviço importada(s) do governo.`, temMais: !chegouAoFim }
   } catch (error) {
     return { novos: 0, mensagem: '', erro: formatarErro(error) }
   }

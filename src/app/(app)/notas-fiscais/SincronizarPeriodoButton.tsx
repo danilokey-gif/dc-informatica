@@ -1,7 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import type { ResultadoSincronizacao, OpcoesSincronizacao } from './sync-actions'
+
+// Rede de segurança contra loop indefinido — cada rodada já é curta o bastante pra caber no
+// tempo da Vercel, então isso não deveria ser atingido num uso normal.
+const MAX_RODADAS = 60
 
 export default function SincronizarPeriodoButton({ tipo, action }: { tipo: 'NFS-e' | 'NF-e'; action: (opcoes?: OpcoesSincronizacao) => Promise<ResultadoSincronizacao> }) {
   const [isPending, startTransition] = useTransition()
@@ -11,49 +15,70 @@ export default function SincronizarPeriodoButton({ tipo, action }: { tipo: 'NFS-
   const [nsuInicialManual, setNsuInicialManual] = useState('')
   const [resultado, setResultado] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
-  const [proximoNsu, setProximoNsu] = useState<string | undefined>(undefined)
-  const [temMais, setTemMais] = useState(false)
+  const [novosTotal, setNovosTotal] = useState(0)
+  const [ultimoNsuVerificado, setUltimoNsuVerificado] = useState<string | undefined>(undefined)
   const [chaves, setChaves] = useState<string[]>([])
+  const cancelarRef = useRef(false)
 
   const tipoRota = tipo === 'NFS-e' ? 'nfse' : 'nfe'
 
-  function buscar(continuar: boolean) {
+  function buscar() {
     setErro(null)
-    if (!continuar) {
-      setResultado(null)
-      setProximoNsu(undefined)
-      setTemMais(false)
-      setChaves([])
-    }
-    startTransition(async () => {
-      try {
-        // Se o usuário digitou um NSU manual e não estamos continuando, usa esse como ponto de partida
-        const nsuParaUsar = continuar
-          ? proximoNsu
-          : (nsuInicialManual.trim() ? nsuInicialManual.trim().padStart(15, '0') : undefined)
+    setResultado(null)
+    setChaves([])
+    setNovosTotal(0)
+    cancelarRef.current = false
 
-        const resposta = await action({
-          inicio: inicio || undefined,
-          fim: fim || undefined,
-          nsuInicial: nsuParaUsar,
-        })
-        if (resposta.erro) {
-          setErro(resposta.erro)
-        } else {
-          setResultado(resposta.mensagem)
-          setProximoNsu(resposta.proximoNsu)
-          setTemMais(!!resposta.temMais)
-          setChaves(prev => continuar ? [...new Set([...prev, ...(resposta.chaves || [])])] : (resposta.chaves || []))
+    startTransition(async () => {
+      // O "NSU inicial" digitado pelo usuário só vale pra primeira rodada; depois disso a busca
+      // segue de onde o governo parou.
+      const nsuInicialUsado = nsuInicialManual.trim() ? nsuInicialManual.trim().padStart(15, '0') : undefined
+      let proximoNsu: string | undefined = undefined
+      let jaExistentes = 0
+      let novos = 0
+      let chavesAcumuladas: string[] = []
+
+      for (let rodada = 0; rodada < MAX_RODADAS; rodada++) {
+        if (cancelarRef.current) {
+          setResultado(`Busca interrompida. ${novos} nota(s) nova(s) encontrada(s) até agora.`)
+          return
         }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
-        if (msg.includes('unexpected response') || msg.includes('digest')) {
-          setErro('A busca demorou demais. Tente novamente ou use um NSU inicial maior.')
-        } else {
-          setErro(msg)
+        try {
+          const resposta = await action({
+            inicio: inicio || undefined,
+            fim: fim || undefined,
+            nsuInicial: rodada === 0 ? nsuInicialUsado : proximoNsu,
+          })
+          if (resposta.erro) {
+            setErro(resposta.erro)
+            return
+          }
+          novos += resposta.novos
+          chavesAcumuladas = rodada === 0 ? (resposta.chaves || []) : [...chavesAcumuladas, ...(resposta.chaves || [])]
+          setNovosTotal(novos)
+          setChaves(chavesAcumuladas)
+          if (rodada === 0) {
+            // A mensagem da 1ª rodada já traz "X já estavam no sistema"; guardamos só pro texto final.
+            const match = resposta.mensagem.match(/^(\d+) nota/)
+            jaExistentes = match ? parseInt(match[1], 10) : 0
+          }
+          proximoNsu = resposta.proximoNsu
+          setUltimoNsuVerificado(resposta.proximoNsu)
+          if (!resposta.temMais) {
+            setResultado(`${jaExistentes} nota(s) já estavam no sistema nesse período. ${novos} nova(s) encontrada(s) agora no governo.`)
+            return
+          }
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : String(e))
+          return
         }
       }
+      setResultado(`${novos} nota(s) nova(s) encontrada(s) nesse período. A busca parou no limite de segurança de rodadas — clique em "Buscar" de novo pra continuar de onde parou.`)
     })
+  }
+
+  function cancelar() {
+    cancelarRef.current = true
   }
 
   async function baixarZip() {
@@ -111,42 +136,42 @@ export default function SincronizarPeriodoButton({ tipo, action }: { tipo: 'NFS-
             />
           </div>
         )}
-        <button type="button" className="btn btn-outline" onClick={() => buscar(false)} disabled={isPending || (!inicio && !fim)}>
-          {isPending ? 'Buscando…' : `🔍 Buscar ${tipo} no período`}
+        <button type="button" className="btn btn-outline" onClick={buscar} disabled={isPending || (!inicio && !fim)}>
+          {isPending ? `Buscando… (${novosTotal} encontrada(s))` : `🔍 Buscar ${tipo} no período`}
         </button>
+        {isPending && (
+          <button type="button" className="btn btn-outline" onClick={cancelar} style={{ fontSize: '0.8rem' }}>
+            Parar
+          </button>
+        )}
       </div>
       {tipo === 'NFS-e' && (
         <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>
-          💡 <strong>Dica:</strong> Cada clique verifica 40 NSUs. Use &quot;NSU inicial&quot; para pular para um número maior e encontrar suas notas mais rápido. O próximo NSU aparece abaixo após cada busca.
+          💡 <strong>Dica:</strong> A busca continua sozinha até o governo dizer que não há mais nada (use &quot;Parar&quot; pra interromper). Se suas notas estiverem em NSUs muito altos, preencha &quot;NSU inicial&quot; pra pular direto pra lá.
         </p>
       )}
       {resultado && <p style={{ color: 'var(--accent-green)', fontSize: '0.85rem', marginTop: '0.5rem', whiteSpace: 'pre-wrap' }}>{resultado}</p>}
       {erro && <p style={{ color: 'var(--accent-red)', fontSize: '0.85rem', marginTop: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{erro}</p>}
-      {proximoNsu && (
+      {ultimoNsuVerificado && (
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-          📌 Próximo NSU a verificar: <strong>{String(BigInt(proximoNsu) + BigInt(1))}</strong>
+          📌 Próximo NSU a verificar: <strong>{String(BigInt(ultimoNsuVerificado) + BigInt(1))}</strong>
           {' — '}
           <button
             type="button"
             style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: '0.78rem' }}
-            onClick={() => setNsuInicialManual(String(BigInt(proximoNsu) + BigInt(1)))}
+            onClick={() => setNsuInicialManual(String(BigInt(ultimoNsuVerificado) + BigInt(1)))}
           >
             Copiar para NSU inicial
           </button>
         </p>
       )}
-      <div className="flex gap-4" style={{ marginTop: '0.5rem', flexWrap: 'wrap' }}>
-        {temMais && !erro && (
-          <button type="button" className="btn btn-primary" onClick={() => buscar(true)} disabled={isPending}>
-            {isPending ? 'Buscando…' : 'Continuar buscando mais'}
-          </button>
-        )}
-        {chaves.length > 0 && !erro && (
+      {chaves.length > 0 && !erro && (
+        <div style={{ marginTop: '0.5rem' }}>
           <button type="button" className="btn btn-outline" onClick={baixarZip} disabled={baixando}>
             {baixando ? 'Gerando .zip…' : `💾 Baixar .zip deste período (${chaves.length})`}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

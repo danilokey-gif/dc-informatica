@@ -195,7 +195,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
 
       {/* Emissão automática de NF-e */}
       {user && (
-        <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', borderLeft: '4px solid var(--primary)', padding: '1rem', borderRadius: '0.5rem' }}>
+        <div id="nota-fiscal" className="no-print" style={{ scrollMarginTop: '1rem', marginTop: '2rem', border: '1px solid #e5e7eb', borderLeft: '4px solid var(--primary)', padding: '1rem', borderRadius: '0.5rem' }}>
           <div className="flex justify-between items-center mb-4" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
             <h3 style={{ margin: 0, fontSize: '1.125rem' }}>📦 Nota Fiscal de Produtos (NF-e)</h3>
             {ultimaEmissaoNfe && <StatusBadge status={ultimaEmissaoNfe.status} />}

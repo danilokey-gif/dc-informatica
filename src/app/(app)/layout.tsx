@@ -26,7 +26,7 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
-      <Sidebar companyName={settings.name} logo={settings.logo} role={user.role} />
+      <Sidebar companyName={settings.nomeFantasia || settings.name} logo={settings.logo} role={user.role} />
 
       <div className="app-content">
         <header className="no-print topbar">

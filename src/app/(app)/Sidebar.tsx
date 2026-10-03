@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 type Icon = (props: React.SVGProps<SVGSVGElement>) => React.ReactElement
-type NavItem = { href: string; label: string; adminOnly: boolean; icon: Icon }
+type NavItem = { href: string; label: string; adminOnly: boolean; icon: Icon; inclui?: string[] }
 
 const IconDashboard: Icon = (props) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
@@ -107,32 +107,40 @@ const IconConfiguracoes: Icon = (props) => (
 )
 
 const topItems: NavItem[] = [
-  { href: '/', label: 'Dashboard', adminOnly: false, icon: IconDashboard },
+  { href: '/', label: 'Início', adminOnly: false, icon: IconDashboard },
 ]
 
+/**
+ * Menu agrupado pelo que a pessoa quer fazer. Cada tela do sistema pertence a um único item:
+ * `inclui` lista as telas que não têm item próprio mas devem acender o item (ex.: a nota avulsa
+ * em /os/rapida é parte de "Emitir Nota", não de "Ordens de Serviço").
+ */
 const sections: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'Atendimento',
+    items: [
+      { href: '/os', label: 'Ordens de Serviço', adminOnly: false, icon: IconOS },
+      { href: '/vendas', label: 'Vendas', adminOnly: false, icon: IconVendas },
+      { href: '/orcamentos', label: 'Orçamentos', adminOnly: false, icon: IconOrcamentos },
+    ],
+  },
+  {
+    label: 'Notas Fiscais',
+    items: [
+      // Ponto único para emitir NFS-e (serviço) e NF-e (produto).
+      { href: '/notas-fiscais/emitir', label: 'Emitir Nota', adminOnly: true, icon: IconNotaServico, inclui: ['/os/rapida'] },
+      { href: '/notas-fiscais', label: 'Notas Emitidas', adminOnly: true, icon: IconNotasFiscais },
+      // NF-e que fornecedores emitiram contra o CNPJ da empresa (compras), buscadas na Sefaz.
+      { href: '/notas-fiscais/fornecedores', label: 'Notas de Compra', adminOnly: true, icon: IconNotasCompra },
+    ],
+  },
   {
     label: 'Cadastros',
     items: [
       { href: '/clientes', label: 'Clientes', adminOnly: false, icon: IconClientes },
-      { href: '/fornecedores', label: 'Fornecedores', adminOnly: true, icon: IconFornecedores },
+      // A entrada de estoque fica dentro de Produtos (botão na lista).
       { href: '/produtos', label: 'Produtos', adminOnly: false, icon: IconProdutos },
-      { href: '/produtos/entrada', label: 'Entrada de Compras', adminOnly: false, icon: IconEntrada },
-    ],
-  },
-  {
-    label: 'Operações',
-    items: [
-      { href: '/orcamentos', label: 'Orçamentos', adminOnly: false, icon: IconOrcamentos },
-      { href: '/vendas', label: 'Vendas', adminOnly: false, icon: IconVendas },
-      { href: '/os', label: 'Ordens de Serviço', adminOnly: false, icon: IconOS },
-      { href: '/os/rapida', label: 'Emitir Nota de Serviço', adminOnly: false, icon: IconNotaServico },
-      // Esta tela gerencia os DOIS tipos de nota (NFS-e de serviço e NF-e de produto), então o
-      // rótulo não pode citar só um deles — antes estava "Nota Fiscal de Produtos", o que fazia
-      // quem procurava a lista de notas de serviço não encontrar.
-      { href: '/notas-fiscais', label: 'Notas Fiscais', adminOnly: true, icon: IconNotasFiscais },
-      // NF-e que fornecedores emitiram contra o CNPJ da empresa (compras), buscadas na Sefaz.
-      { href: '/notas-fiscais/fornecedores', label: 'Notas de Compra', adminOnly: true, icon: IconNotasCompra },
+      { href: '/fornecedores', label: 'Fornecedores', adminOnly: true, icon: IconFornecedores },
     ],
   },
   {
@@ -142,22 +150,35 @@ const sections: { label: string; items: NavItem[] }[] = [
       // Notas de serviço que saem sozinhas todo mês (ex.: aluguel do sistema).
       { href: '/financeiro/cobrancas-mensais', label: 'Cobranças Mensais', adminOnly: true, icon: IconCobrancaMensal },
       { href: '/relatorios', label: 'Relatórios', adminOnly: true, icon: IconRelatorios },
+    ],
+  },
+  {
+    label: 'Sistema',
+    items: [
       { href: '/usuarios', label: 'Usuários', adminOnly: true, icon: IconUsuarios },
       { href: '/configuracoes', label: 'Configurações', adminOnly: true, icon: IconConfiguracoes },
     ],
   },
 ]
 
-function isItemActive(pathname: string, href: string) {
-  if (href === '/') return pathname === '/'
-  if (href === '/os') return pathname === '/os' || (pathname.startsWith('/os/') && !pathname.startsWith('/os/rapida'))
-  if (href === '/notas-fiscais') return pathname.startsWith('/notas-fiscais') && !pathname.startsWith('/notas-fiscais/fornecedores')
-  if (href === '/financeiro') return pathname.startsWith('/financeiro') && !pathname.startsWith('/financeiro/cobrancas-mensais')
-  return pathname.startsWith(href)
+const todosItens = [...topItems, ...sections.flatMap(s => s.items)]
+
+const combina = (pathname: string, prefixo: string) =>
+  prefixo === '/' ? pathname === '/' : pathname === prefixo || pathname.startsWith(`${prefixo}/`)
+
+/** O item ativo é o de endereço mais longo que combina com a página aberta (um só por vez). */
+function itemAtivo(pathname: string): string | null {
+  let melhor: { href: string; tamanho: number } | null = null
+  for (const item of todosItens) {
+    for (const prefixo of [item.href, ...(item.inclui ?? [])]) {
+      if (combina(pathname, prefixo) && (!melhor || prefixo.length > melhor.tamanho)) melhor = { href: item.href, tamanho: prefixo.length }
+    }
+  }
+  return melhor?.href ?? null
 }
 
 function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
-  const isActive = isItemActive(pathname, item.href)
+  const isActive = itemAtivo(pathname) === item.href
   const Icon = item.icon
   return (
     <Link href={item.href} className={`sidebar-link${isActive ? ' active' : ''}`}>

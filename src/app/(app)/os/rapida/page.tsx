@@ -12,7 +12,7 @@ export default async function NotaServicoAvulsaPage() {
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
         <h2>Nota de Serviço Avulsa</h2>
-        <Link href="/os" className="text-muted">Voltar</Link>
+        <Link href="/notas-fiscais/emitir" className="text-muted">Voltar</Link>
       </div>
 
       <p className="text-muted" style={{ marginTop: '-0.5rem', marginBottom: '1rem' }}>

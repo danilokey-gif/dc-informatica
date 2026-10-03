@@ -106,6 +106,8 @@ model SaleItem {
 model CompanySettings {
   id                String   @id @default("main")
   name              String   @default("Dc Informática")
+  /// Nome curto mostrado no sistema (menu, telas). A razão social em "name" segue nas notas.
+  nomeFantasia      String?
   document          String?
   phone             String?
   email             String?

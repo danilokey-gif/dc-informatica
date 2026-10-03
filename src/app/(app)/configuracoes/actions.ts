@@ -19,6 +19,7 @@ const MAX_CERT_SIZE = 20_000 // certificados A1 costumam ter poucos KB
 
 export async function updateSettings(formData: FormData) {
   const name = formData.get('name') as string
+  const nomeFantasia = ((formData.get('nomeFantasia') as string) || '').trim() || null
   const document = (formData.get('document') as string) || null
   const phone = (formData.get('phone') as string) || null
   const email = (formData.get('email') as string) || null
@@ -55,8 +56,8 @@ export async function updateSettings(formData: FormData) {
 
   await prisma.companySettings.upsert({
     where: { id: 'main' },
-    create: { id: 'main', name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey },
-    update: { name, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey }
+    create: { id: 'main', name, nomeFantasia, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey },
+    update: { name, nomeFantasia, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey }
   })
 
   revalidatePath('/', 'layout')

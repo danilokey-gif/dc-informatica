@@ -93,80 +93,65 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
     importada: e.origem !== 'SISTEMA',
   })).sort((a, b) => b.dataExibida.getTime() - a.dataExibida.getTime())
 
+  const ambienteLabel = (a: string) => (a === 'producao' ? 'Produção' : 'Homologação')
+
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-4">
-        <h2>Gerenciamento de Notas Fiscais</h2>
+      <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Notas Emitidas</h2>
+        <div className="flex gap-4" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <Link href="/notas-fiscais/emitir" className="btn btn-primary">+ Emitir Nota</Link>
+          <Link href="/notas-fiscais/importar-xml" className="btn btn-outline">📥 Importar XML</Link>
+          <Link href="/configuracoes#nfse" className="text-muted" style={{ fontSize: '0.85rem' }}>⚙️ Configurações fiscais</Link>
+        </div>
       </div>
 
-      <p className="text-muted mb-4" style={{ fontSize: '0.9rem' }}>
-        Acompanhe e configure as emissões de Notas Fiscais separadas por categoria de Serviço (NFS-e) e Venda de Produtos (NF-e).
-      </p>
+      {/* Situação da configuração de cada tipo de nota, numa linha só */}
+      <div className="flex gap-4" style={{ flexWrap: 'wrap', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+        <span>
+          🧾 NFS-e (serviço): {nfseConfigurada
+            ? <span className="badge badge-success">Pronta · {ambienteLabel(nfseConfig.ambiente)}</span>
+            : <Link href="/configuracoes#nfse" className="badge badge-warning">Configuração incompleta</Link>}
+        </span>
+        <span>
+          📦 NF-e (produto): {nfeConfigurada
+            ? <span className="badge badge-success">Pronta · {ambienteLabel(nfeConfig.ambiente)}</span>
+            : <Link href="/configuracoes#nfe" className="badge badge-warning">Configuração incompleta</Link>}
+        </span>
+      </div>
 
-      {/* Configurações Rápidas */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
-          <div className="flex justify-between items-center mb-2">
-            <h3 style={{ margin: 0 }}>🧾 Nota Fiscal de Serviço</h3>
-            {nfseConfigurada
-              ? <span className="badge badge-success">Configurada</span>
-              : <span className="badge badge-warning">Incompleta</span>}
+      {/* Baixar Notas do Período */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div className="flex justify-between items-center" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h3 style={{ margin: 0 }}>⬇️ Baixar notas do período</h3>
+            <p className="text-muted" style={{ fontSize: '0.8rem', margin: '0.25rem 0 0' }}>Um .zip com os XMLs e PDFs das NFS-e e NF-e autorizadas.</p>
           </div>
-          <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-            NFS-e Nacional para Ordens de Serviço concluídas. Ambiente atual: <strong>{nfseConfig.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong>.
-          </p>
-          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-            <Link href="/configuracoes#nfse" className="btn btn-outline">Configurar NFS-e</Link>
-          </div>
-          {nfseConfigurada && (
-            <div style={{ marginTop: '0.75rem' }}>
-              <SincronizarButton tipo="NFS-e" action={sincronizarNfseGoverno} />
-              <SincronizarPeriodoButton tipo="NFS-e" action={sincronizarNfseGoverno} />
+          <form action="/notas-fiscais/download" method="get" className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="inicio">De</label>
+              <input type="date" id="inicio" name="inicio" className="input-field" defaultValue={primeiroDiaMes} required />
             </div>
-          )}
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="fim">Até</label>
+              <input type="date" id="fim" name="fim" className="input-field" defaultValue={hoje} required />
+            </div>
+            <button type="submit" className="btn btn-outline">Baixar .zip</button>
+          </form>
         </div>
+      </div>
 
-        <div className="card" style={{ borderLeft: '4px solid var(--primary)' }}>
-          <div className="flex justify-between items-center mb-2">
-            <h3 style={{ margin: 0 }}>📦 Nota Fiscal de Produtos</h3>
-            {nfeConfigurada
-              ? <span className="badge badge-success">Configurada</span>
-              : <span className="badge badge-warning">Incompleta</span>}
-          </div>
-          <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-            NF-e para vendas de produtos. Ambiente atual: <strong>{nfeConfig.ambiente === 'producao' ? 'Produção' : 'Homologação'}</strong>.
+      {/* Busca de NFS-e no governo: usada de vez em quando, então fica recolhida */}
+      {nfseConfigurada && (
+        <details className="card" style={{ marginBottom: '1.5rem' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>🔄 Trazer NFS-e emitidas no portal do governo</summary>
+          <p className="text-muted" style={{ fontSize: '0.8rem', margin: '0.75rem 0' }}>
+            Para notas de serviço que você emitiu direto no emissor nacional, fora do sistema.
           </p>
-          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
-            <Link href="/configuracoes#nfe" className="btn btn-outline">Configurar NF-e</Link>
-          </div>
-          {/* A Sefaz não devolve ao emitente as NF-e que ele mesmo emitiu, então não existe "buscar minhas
-              notas de venda no governo" para NF-e (diferente da NFS-e). O que a Sefaz entrega são as notas
-              de fornecedores; vendas emitidas fora do sistema entram por importação do XML. */}
-          <div className="flex gap-4" style={{ flexWrap: 'wrap', marginTop: '0.75rem' }}>
-            <Link href="/notas-fiscais/fornecedores" className="btn btn-outline">🔄 Notas de compra</Link>
-            <Link href="/notas-fiscais/importar-xml" className="btn btn-outline">📥 Importar XML</Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Download do Período */}
-      <div className="card" style={{ marginBottom: '2rem' }}>
-        <h3 className="mb-4">⬇️ Baixar Notas do Período</h3>
-        <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
-          Baixa um arquivo .zip contendo todos os XMLs e PDFs de NFS-e e NF-e autorizados no período selecionado.
-        </p>
-        <form action="/notas-fiscais/download" method="get" className="flex gap-4" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label" htmlFor="inicio">De</label>
-            <input type="date" id="inicio" name="inicio" className="input-field" defaultValue={primeiroDiaMes} required />
-          </div>
-          <div className="input-group" style={{ marginBottom: 0 }}>
-            <label className="input-label" htmlFor="fim">Até</label>
-            <input type="date" id="fim" name="fim" className="input-field" defaultValue={hoje} required />
-          </div>
-          <button type="submit" className="btn btn-primary">Baixar .zip</button>
-        </form>
-      </div>
+          <SincronizarButton tipo="NFS-e" action={sincronizarNfseGoverno} />
+          <SincronizarPeriodoButton tipo="NFS-e" action={sincronizarNfseGoverno} />
+        </details>
+      )}
 
       {/* Lista Separada de Notas Fiscais */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

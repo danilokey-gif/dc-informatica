@@ -37,8 +37,13 @@ export default async function ConfiguracoesPage() {
         <h3 className="mb-4">Dados da Empresa</h3>
         <form action={updateSettings}>
           <div className="input-group">
-            <label className="input-label" htmlFor="name">Nome da Empresa *</label>
+            <label className="input-label" htmlFor="name">Razão social (como no CNPJ) *</label>
             <input type="text" id="name" name="name" className="input-field" required defaultValue={settings.name} />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="nomeFantasia">Nome fantasia (aparece no menu do sistema)</label>
+            <input type="text" id="nomeFantasia" name="nomeFantasia" className="input-field" defaultValue={settings.nomeFantasia || ''} placeholder="Ex.: Dc Informática" />
           </div>
 
           <div className="input-group">

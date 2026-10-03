@@ -54,10 +54,7 @@ export default async function NotasFornecedoresPage({ searchParams }: { searchPa
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <h2 style={{ margin: 0 }}>Notas de Compra (NF-e de fornecedores)</h2>
-        <div className="flex gap-4">
-          <Link href="/notas-fiscais/importar-xml" className="btn btn-outline">Importar XML</Link>
-          <Link href="/notas-fiscais" className="text-muted" style={{ alignSelf: 'center' }}>Voltar</Link>
-        </div>
+        <Link href="/notas-fiscais" className="text-muted">Voltar</Link>
       </div>
 
       <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--primary)' }}>

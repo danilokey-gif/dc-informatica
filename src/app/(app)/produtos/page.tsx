@@ -14,7 +14,8 @@ export default async function ProdutosPage() {
       <div className="flex justify-between items-center mb-4">
         <h2>Produtos</h2>
         <div className="flex gap-4">
-          <Link href="/produtos/entrada" className="btn btn-outline">Entrada de Compras</Link>
+          {/* A entrada de estoque fica só aqui (saiu do menu lateral, onde aparecia repetida). */}
+          <Link href="/produtos/entrada" className="btn btn-outline">📥 Entrada de estoque</Link>
           <Link href="/produtos/novo" className="btn btn-primary">Novo Produto</Link>
         </div>
       </div>

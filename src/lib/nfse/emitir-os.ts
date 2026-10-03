@@ -4,13 +4,13 @@ import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfseClient } from "@/lib/nfse/client"
 import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
-import { gerarPdfDanfse } from "@/lib/pdf-notas"
+import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import { salvarNotaNoDrive } from "@/lib/drive"
 
-/** Código de serviço próprio, no lugar do que está na configuração geral da NFS-e. */
+/** Código de serviço próprio, no lugar do que está na configuração geral da NFS-e. A descrição
+ * do código não vai na DPS: a Sefin devolve o xTribNac na NFS-e e o DANFSe lê de lá. */
 export interface ServicoNfse {
   codigoServico: string
-  descricaoCodServico?: string | null
 }
 
 export type ResultadoEmissaoNfse =
@@ -32,7 +32,6 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     ])
 
     const codigoServico = servico?.codigoServico || nfseConfig.codigoServico
-    const descricaoCodServico = servico ? (servico.descricaoCodServico ?? null) : nfseConfig.descricaoCodServico
 
     if (!nfseConfig.certificado || !nfseConfig.certificadoSenha) {
       throw new Error('Certificado digital não configurado. Vá em Configurações > Nota Fiscal de Serviço.')
@@ -122,39 +121,10 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     // A nota já está autorizada daqui pra baixo: falha no PDF ou no Drive não muda o resultado.
     let pdf: Buffer | null = null
     try {
-      const valor = os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-      const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
-      const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
-
-      pdf = await gerarPdfDanfse({
-        ambiente,
-        numeroNfse,
-        numeroDps,
-        serieDps: nfseConfig.serieDps,
-        chaveAcesso: resposta.chaveAcesso || '',
-        dataEmissao,
-        prestadorNome: empresa.name,
-        prestadorCnpj: empresa.document || '',
-        prestadorTelefone: empresa.phone,
-        prestadorEmail: empresa.email,
-        prestadorEndereco: enderecoPrestador,
-        prestadorCep: empresa.enderCep,
-        tomadorNome: os.customer.name,
-        tomadorDocumento: os.customer.document,
-        tomadorTelefone: os.customer.phone,
-        tomadorEmail: os.customer.email,
-        tomadorEndereco: os.customer.address,
-        descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
-        codigoServico,
-        descricaoCodServico,
-        municipioLabel,
-        regimeTributario: nfseConfig.regimeTributario,
-        aliquotaIss: nfseConfig.aliquotaIss,
-        valorTotal: valor,
-      })
-
+      // DANFSe v2.0 (NT 008/2026): sai do XML devolvido pela Sefin, não dos dados da OS.
+      if (resposta.xmlNfse) pdf = await gerarDanfsePdf(resposta.xmlNfse)
       const key = resposta.chaveAcesso || String(numeroDps)
-      await salvarNotaNoDrive('NFSe', key, resposta.xmlNfse || null, pdf)
+      if (pdf) await salvarNotaNoDrive('NFSe', key, resposta.xmlNfse || null, pdf)
     } catch (err) {
       console.error('[Drive] Erro ao gerar/salvar PDF da NFSe:', err)
     }

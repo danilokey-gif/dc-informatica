@@ -31,7 +31,7 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
   const [cobrancas, clientes, nfseConfig] = await Promise.all([
     prisma.cobrancaMensal.findMany({ include: { customer: true }, orderBy: { createdAt: 'asc' } }),
     prisma.customer.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-    prisma.nfseConfig.findUnique({ where: { id: 'main' }, select: { codigoServico: true, descricaoCodServico: true } }),
+    prisma.nfseConfig.findUnique({ where: { id: 'main' }, select: { codigoServico: true } }),
   ])
   const emEdicao = editar ? cobrancas.find(c => c.id === editar) : undefined
 
@@ -157,10 +157,6 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
               <label className="input-label" htmlFor="codigoServico">Código de serviço *</label>
               <input id="codigoServico" name="codigoServico" className="input-field" required defaultValue={emEdicao?.codigoServico ?? nfseConfig?.codigoServico ?? ''} />
             </div>
-          </div>
-          <div className="input-group">
-            <label className="input-label" htmlFor="descricaoCodServico">Descrição do código de serviço</label>
-            <input id="descricaoCodServico" name="descricaoCodServico" className="input-field" defaultValue={emEdicao?.descricaoCodServico ?? nfseConfig?.descricaoCodServico ?? ''} />
           </div>
           <div className="flex gap-4" style={{ flexWrap: 'wrap', margin: '0.5rem 0 1.5rem', fontSize: '0.9rem' }}>
             <label><input type="checkbox" name="ativa" defaultChecked={emEdicao?.ativa ?? true} /> Ligada (emite sozinha no dia)</label>

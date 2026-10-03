@@ -18,7 +18,6 @@ export async function salvarCobranca(formData: FormData) {
   const valor = parseFloat(((formData.get('valor') as string) || '').replace(',', '.'))
   const diaDoMes = parseInt(formData.get('diaDoMes') as string, 10)
   const codigoServico = ((formData.get('codigoServico') as string) || '').replace(/\D/g, '')
-  const descricaoCodServico = ((formData.get('descricaoCodServico') as string) || '').trim() || null
   const diasParaVencimento = parseInt(formData.get('diasParaVencimento') as string, 10)
 
   if (!customerId) voltarCom('erro', 'Escolha o cliente.')
@@ -35,7 +34,6 @@ export async function salvarCobranca(formData: FormData) {
     valor,
     diaDoMes,
     codigoServico,
-    descricaoCodServico,
     diasParaVencimento,
     ativa: formData.get('ativa') === 'on',
     enviarEmail: formData.get('enviarEmail') === 'on',

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
-import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
-import { gerarPdfDanfse, gerarPdfDanfe } from "@/lib/pdf-notas"
-import { codigoServicoDaNota } from "@/lib/nfse/codigo-servico"
+import { getCompanySettings, getNfeConfig } from "@/lib/settings"
+import { gerarPdfDanfe } from "@/lib/pdf-notas"
+import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import JSZip from "jszip"
 import { NextRequest } from "next/server"
 
@@ -29,9 +29,8 @@ export async function GET(request: NextRequest) {
     ],
   }
 
-  const [empresa, nfseConfig, nfeConfig, emissoesNfse, emissoesNfe] = await Promise.all([
+  const [empresa, nfeConfig, emissoesNfse, emissoesNfe] = await Promise.all([
     getCompanySettings(),
-    getNfseConfig(),
     getNfeConfig(),
     prisma.nfseEmissao.findMany({
       where: { status: 'AUTORIZADA', ...periodo },
@@ -55,44 +54,14 @@ export async function GET(request: NextRequest) {
     const dataStr = (e.dataEmissao ?? e.createdAt).toISOString().slice(0, 10)
     const clienteNomeBase = e.serviceOrder?.customer.name || e.tomadorNome || 'cliente'
     const clienteSlug = clienteNomeBase.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
-    const nomeBase = `${dataStr}_NFSe-${e.numeroDps}_${clienteSlug}`
+    const numeroNfse = e.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || String(e.numeroDps)
+    const nomeBase = `${dataStr}_NFSe-${numeroNfse}_${clienteSlug}`
 
-    if (e.xmlNfse) zip.file(`NFSe/${nomeBase}.xml`, e.xmlNfse)
-
-    // Notas importadas do governo (sem OS vinculada aqui) só entram no zip como XML —
-    // não temos os dados completos (aparelho/defeito/endereço) pra montar o PDF do DANFSe.
-    if (!e.serviceOrder) continue
-
-    const os = e.serviceOrder
-    const numeroNfse = e.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || e.numeroDps
-    const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
-    const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
-    const pdf = await gerarPdfDanfse({
-      ambiente: e.ambiente,
-      numeroNfse,
-      numeroDps: e.numeroDps,
-      serieDps: e.serieDps,
-      chaveAcesso: e.chaveAcesso || '',
-      dataEmissao: e.dataEmissao ?? e.createdAt,
-      prestadorNome: empresa.name,
-      prestadorCnpj: empresa.document || '',
-      prestadorTelefone: empresa.phone,
-      prestadorEmail: empresa.email,
-      prestadorEndereco: enderecoPrestador,
-      prestadorCep: empresa.enderCep,
-      tomadorNome: os.customer.name,
-      tomadorDocumento: os.customer.document,
-      tomadorTelefone: os.customer.phone,
-      tomadorEmail: os.customer.email,
-      tomadorEndereco: os.customer.address,
-      descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
-      ...(await codigoServicoDaNota(e.xmlDps, nfseConfig)),
-      municipioLabel,
-      regimeTributario: nfseConfig.regimeTributario,
-      aliquotaIss: nfseConfig.aliquotaIss,
-      valorTotal: (os.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-    })
-    zip.file(`NFSe/${nomeBase}.pdf`, pdf)
+    if (!e.xmlNfse) continue
+    zip.file(`NFSe/${nomeBase}.xml`, e.xmlNfse)
+    // DANFSe v2.0 (NT 008/2026): sai do XML, então vale também para as notas importadas do governo,
+    // que antes iam no .zip só como XML.
+    zip.file(`NFSe/${nomeBase}.pdf`, await gerarDanfsePdf(e.xmlNfse))
   }
 
   for (const e of emissoesNfe) {

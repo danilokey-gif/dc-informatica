@@ -9,8 +9,7 @@ import { montarXmlPedRegEventoCancelamento, assinarPedRegEvento } from "@/lib/nf
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
 import { emitirNfseDaOs } from "@/lib/nfse/emitir-os"
-import { codigoServicoDaNota } from "@/lib/nfse/codigo-servico"
-import { gerarPdfDanfse } from "@/lib/pdf-notas"
+import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import fs from 'fs'
 import path from 'path'
 import { moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
@@ -23,11 +22,10 @@ export async function emitirNfseServiceOrder(serviceOrderId: string) {
 }
 
 export async function enviarNfseEmail(serviceOrderId: string) {
-  const [os, empresa, emissao, nfseConfig] = await Promise.all([
+  const [os, empresa, emissao] = await Promise.all([
     prisma.serviceOrder.findUniqueOrThrow({ where: { id: serviceOrderId }, include: { customer: true } }),
     getCompanySettings(),
     prisma.nfseEmissao.findFirst({ where: { serviceOrderId, status: 'AUTORIZADA' }, orderBy: { createdAt: 'desc' } }),
-    getNfseConfig(),
   ])
 
   if (!os.customer.email) {
@@ -39,36 +37,11 @@ export async function enviarNfseEmail(serviceOrderId: string) {
 
   const valor = os.price ? os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''
   
-  // Gerar anexo em PDF do DANFSe oficial
-  const numeroNfse = emissao.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || emissao.numeroDps
-  const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
-  const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
-  
-  const pdfBuffer = await gerarPdfDanfse({
-    ambiente: emissao.ambiente,
-    numeroNfse,
-    numeroDps: emissao.numeroDps,
-    serieDps: emissao.serieDps,
-    chaveAcesso: emissao.chaveAcesso || '',
-    dataEmissao: emissao.dataEmissao ?? emissao.createdAt,
-    prestadorNome: empresa.name,
-    prestadorCnpj: empresa.document || '',
-    prestadorTelefone: empresa.phone,
-    prestadorEmail: empresa.email,
-    prestadorEndereco: enderecoPrestador,
-    prestadorCep: empresa.enderCep,
-    tomadorNome: os.customer.name,
-    tomadorDocumento: os.customer.document,
-    tomadorTelefone: os.customer.phone,
-    tomadorEmail: os.customer.email,
-    tomadorEndereco: os.customer.address,
-    descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
-    ...(await codigoServicoDaNota(emissao.xmlDps, nfseConfig)),
-    municipioLabel,
-    regimeTributario: nfseConfig.regimeTributario,
-    aliquotaIss: nfseConfig.aliquotaIss,
-    valorTotal: valor,
-  })
+  if (!emissao.xmlNfse) {
+    throw new Error('A NFS-e não tem XML para gerar o DANFSe.')
+  }
+  // DANFSe v2.0 (NT 008/2026), montado do XML da própria nota.
+  const pdfBuffer = await gerarDanfsePdf(emissao.xmlNfse)
 
   await enviarEmail({
     to: os.customer.email,

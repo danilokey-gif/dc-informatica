@@ -15,7 +15,7 @@ export interface NfeEmitente {
   cnpj: string
   razaoSocial: string
   inscricaoEstadual: string
-  crt: string // 1=Simples Nacional (inclui MEI), 2=Simples excesso sublimite, 3=Normal
+  crt: string // 1=Simples Nacional (ME/EPP), 2=Simples excesso sublimite, 3=Normal, 4=MEI (obrigatório para MEI desde 01/04/2025, NT 2024.001)
   endereco: NfeEndereco
 }
 

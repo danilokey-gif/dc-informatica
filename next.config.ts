@@ -7,8 +7,9 @@ const nextConfig: NextConfig = {
   },
   // O cliente da NF-e lê esse .pem via fs em tempo de execução (não é um import), então o
   // rastreamento automático de arquivos da Vercel não o inclui sozinho no bundle serverless.
+  // O mesmo vale para o logo oficial da NFS-e, que o DANFSe v2.0 lê do disco.
   outputFileTracingIncludes: {
-    '/**/*': ['./src/lib/nfe/ca-icp-brasil.pem'],
+    '/**/*': ['./src/lib/nfe/ca-icp-brasil.pem', './public/logo-nfse-horizontal.png'],
   },
   // O pdfkit calcula o caminho das fontes padrão (.afm) com base em __dirname. Empacotado pelo
   // Next isso quebra (o arquivo final fica numa pasta diferente da original do pacote). Mantendo

@@ -172,7 +172,7 @@ model NfseEmissao {
 model NfeConfig {
   id                String    @id @default("main")
   ambiente          String    @default("homologacao")
-  crt               String    @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (inclui MEI), 2=Simples excesso sublimite, 3=Regime Normal
+  crt               String    @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (ME/EPP), 2=Simples excesso sublimite, 3=Regime Normal, 4=MEI (obrigatorio para MEI desde 01/04/2025 — com 1 a Sefaz rejeita com 481)
   codigoMunicipio   String?
   nomeMunicipio     String?
   uf                String    @default("SP")
@@ -346,9 +346,10 @@ model CobrancaMensal {
    */
   diaDoMes            Int
   /**
-   * Código de tributação nacional (cTribNac, 6 dígitos) e sua descrição, só desta cobrança.
+   * Código de tributação nacional (cTribNac, 6 dígitos) só desta cobrança.
    */
   codigoServico       String
+  /// Sem uso desde o DANFSe v2.0 (a descrição vem do xTribNac da NFS-e). Mantida para não apagar coluna em produção.
   descricaoCodServico String?
   diasParaVencimento  Int       @default(10)
   /**

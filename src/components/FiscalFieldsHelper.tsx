@@ -189,8 +189,11 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '', 
             className="input-field"
             value={gtin}
             onChange={(e) => setGtin(e.target.value.replace(/\D/g, '').slice(0, 14))}
+            // Leitor de código de barras USB digita o código e aperta Enter: sem isto, o Enter
+            // salvaria o produto no meio do cadastro.
+            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
             ref={(el) => el?.setCustomValidity(gtinInvalido ? 'Código de barras inválido (dígito verificador não confere).' : '')}
-            placeholder="Vazio = SEM GTIN"
+            placeholder="Leia com o leitor ou digite (vazio = SEM GTIN)"
           />
           {gtinInvalido && (
             <p style={{ color: 'var(--accent-red)', fontSize: '0.75rem', marginTop: '0.25rem' }}>

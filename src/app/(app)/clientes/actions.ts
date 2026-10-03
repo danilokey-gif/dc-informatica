@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import type { QuickCustomerData } from "@/components/QuickCustomerModal"
 
 function enderecoFields(formData: FormData) {
   return {
@@ -30,12 +31,19 @@ export async function createCustomer(formData: FormData) {
   redirect('/clientes')
 }
 
-export async function createCustomerQuick(data: { name: string, document: string, phone: string }) {
+export async function createCustomerQuick(data: QuickCustomerData) {
   const customer = await prisma.customer.create({
     data: {
       name: data.name,
       document: data.document || null,
       phone: data.phone || null,
+      enderCep: data.enderCep || null,
+      enderLogradouro: data.enderLogradouro || null,
+      enderNumero: data.enderNumero || null,
+      enderBairro: data.enderBairro || null,
+      enderMunicipio: data.enderMunicipio || null,
+      enderUf: data.enderUf || null,
+      enderCodMunicipio: data.enderCodMunicipio || null,
     }
   })
   return { id: customer.id, name: customer.name, document: customer.document }

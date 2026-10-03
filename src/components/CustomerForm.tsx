@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import CampoCep from './CampoCep'
+import type { EnderecoCep } from '@/lib/cep'
 
 interface CustomerFormProps {
   action: (formData: FormData) => void
@@ -75,13 +77,11 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
   const [phone, setPhone] = useState(defaultValues.phone || '')
   const [docError, setDocError] = useState('')
   
-  const [cep, setCep] = useState(defaultValues.enderCep || '')
   const [logradouro, setLogradouro] = useState(defaultValues.enderLogradouro || '')
   const [bairro, setBairro] = useState(defaultValues.enderBairro || '')
   const [municipio, setMunicipio] = useState(defaultValues.enderMunicipio || '')
   const [uf, setUf] = useState(defaultValues.enderUf || '')
   const [codMunicipio, setCodMunicipio] = useState(defaultValues.enderCodMunicipio || '')
-  const [loading, setLoading] = useState(false)
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value
@@ -123,36 +123,18 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
     setDocError('')
   }
 
-  const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value
-    const cleanedCep = rawValue.replace(/\D/g, '')
-    setCep(cleanedCep)
-
-    if (cleanedCep.length === 8) {
-      setLoading(true)
-      try {
-        const response = await fetch(`https://viacep.com.br/ws/${cleanedCep}/json/`)
-        if (response.ok) {
-          const data = await response.json()
-          if (!data.erro) {
-            setLogradouro(data.logradouro || '')
-            setBairro(data.bairro || '')
-            setMunicipio(data.localidade || '')
-            setUf(data.uf || '')
-            setCodMunicipio(data.ibge || '')
-            
-            const fullAddressInput = document.getElementById('address') as HTMLInputElement
-            if (fullAddressInput && !fullAddressInput.value) {
-              fullAddressInput.value = `${data.logradouro || ''}, ${data.bairro || ''} - ${data.localidade || ''}/${data.uf || ''}`
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Erro ao consultar CEP:', err)
-      } finally {
-        setLoading(false)
-      }
+  const aoEncontrarCep = (e: EnderecoCep) => {
+    setLogradouro(e.logradouro)
+    setBairro(e.bairro)
+    setMunicipio(e.municipio)
+    setUf(e.uf)
+    setCodMunicipio(e.codigoIbge || '')
+    const enderecoCompleto = document.getElementById('address') as HTMLInputElement | null
+    if (enderecoCompleto && !enderecoCompleto.value) {
+      enderecoCompleto.value = [e.logradouro, e.bairro].filter(Boolean).join(', ') + ` - ${e.municipio}/${e.uf}`
     }
+    // Rua e bairro já vieram: o próximo campo a preencher é o número.
+    document.getElementById(e.logradouro ? 'enderNumero' : 'enderLogradouro')?.focus()
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -223,19 +205,7 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
       </h3>
       
       <div className="input-group">
-        <label className="input-label" htmlFor="enderCep">
-          CEP {loading && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}> (Buscando...)</span>}
-        </label>
-        <input 
-          type="text" 
-          id="enderCep" 
-          name="enderCep" 
-          className="input-field" 
-          value={cep} 
-          onChange={handleCepChange}
-          placeholder="Ex: 17500000"
-          maxLength={8}
-        />
+        <CampoCep defaultValue={defaultValues.enderCep} onEndereco={aoEncontrarCep} label="CEP (preenche o endereço sozinho)" />
       </div>
 
       <div className="input-group">

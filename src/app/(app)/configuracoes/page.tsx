@@ -1,3 +1,4 @@
+import CampoCep from "@/components/CampoCep"
 import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
 import { updateSettings, updateNfseConfig, updateNfeConfig } from "./actions"
 import { decryptSecret } from "@/lib/crypto"
@@ -65,6 +66,14 @@ export default async function ConfiguracoesPage() {
             <input type="text" id="inscricaoEstadual" name="inscricaoEstadual" className="input-field" defaultValue={settings.inscricaoEstadual || ''} placeholder="Necessária para emitir NF-e de produtos" />
           </div>
 
+          <div className="input-group" style={{ maxWidth: '260px' }}>
+            <CampoCep
+              defaultValue={settings.enderCep}
+              label="CEP (preenche o endereço sozinho)"
+              preencherCampos={{ logradouro: 'enderLogradouro', bairro: 'enderBairro', focar: 'enderNumero' }}
+            />
+          </div>
+
           <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
             <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
               <label className="input-label" htmlFor="enderLogradouro">Logradouro</label>
@@ -80,10 +89,6 @@ export default async function ConfiguracoesPage() {
             <div className="input-group" style={{ flex: 2, minWidth: '200px' }}>
               <label className="input-label" htmlFor="enderBairro">Bairro</label>
               <input type="text" id="enderBairro" name="enderBairro" className="input-field" defaultValue={settings.enderBairro || ''} />
-            </div>
-            <div className="input-group" style={{ flex: 1, minWidth: '100px' }}>
-              <label className="input-label" htmlFor="enderCep">CEP</label>
-              <input type="text" id="enderCep" name="enderCep" className="input-field" defaultValue={settings.enderCep || ''} />
             </div>
           </div>
 

@@ -7,9 +7,22 @@ export interface DpsPrestador {
   razaoSocial?: string
 }
 
+/** Endereço nacional do tomador (grupo toma/end/endNac do leiaute). Todos obrigatórios, menos o complemento. */
+export interface DpsEnderecoTomador {
+  codigoMunicipio: string // IBGE, 7 dígitos
+  cep: string // 8 dígitos
+  logradouro: string
+  numero: string
+  complemento?: string
+  bairro: string
+}
+
 export interface DpsTomador {
   documento?: string
   nome: string
+  endereco?: DpsEnderecoTomador
+  telefone?: string // DDD + número, só dígitos (6 a 20)
+  email?: string
 }
 
 export interface DpsServico {
@@ -95,7 +108,20 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
     const tagDocTomador = docTomador
       ? (docTomador.length === 11 ? `<CPF>${docTomador}</CPF>` : `<CNPJ>${docTomador}</CNPJ>`)
       : `<cNaoNIF>0</cNaoNIF>`
-    return `<toma>${tagDocTomador}<xNome>${esc(input.tomador!.nome)}</xNome></toma>`
+    // Ordem do leiaute (Anexo I, grupo toma): documento, xNome, end, fone, email.
+    const t = input.tomador!
+    const endXml = t.endereco
+      ? `<end>` +
+          `<endNac><cMun>${t.endereco.codigoMunicipio}</cMun><CEP>${t.endereco.cep}</CEP></endNac>` +
+          `<xLgr>${esc(t.endereco.logradouro.slice(0, 255))}</xLgr>` +
+          `<nro>${esc(t.endereco.numero.slice(0, 60))}</nro>` +
+          (t.endereco.complemento ? `<xCpl>${esc(t.endereco.complemento.slice(0, 156))}</xCpl>` : '') +
+          `<xBairro>${esc(t.endereco.bairro.slice(0, 60))}</xBairro>` +
+        `</end>`
+      : ''
+    const foneXml = t.telefone ? `<fone>${t.telefone}</fone>` : ''
+    const emailXml = t.email ? `<email>${esc(t.email)}</email>` : ''
+    return `<toma>${tagDocTomador}<xNome>${esc(t.nome)}</xNome>${endXml}${foneXml}${emailXml}</toma>`
   })() : ''
 
   const xml =

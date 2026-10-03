@@ -122,7 +122,9 @@ export async function processarCobranca(cobrancaId: string, opcoes: { manual?: b
       pdf: emissao.pdf,
     })
 
-    const detalhe = `NFS-e nº ${emissao.numeroNfse} de ${hoje.rotulo} emitida em ${dataBR(new Date())}. ${situacaoEmail}`
+    const detalhe = `NFS-e nº ${emissao.numeroNfse} de ${hoje.rotulo} emitida em ${dataBR(new Date())}. ${situacaoEmail}` +
+      (emissao.aviso ? ` Atenção: ${emissao.aviso}` : '')
+    if (emissao.aviso) await avisarDono(`Nota mensal de ${cliente} saiu com pendência no cadastro`, emissao.aviso)
     await prisma.cobrancaMensal.update({ where: { id: cobranca.id }, data: { ultimoResultado: detalhe, ultimaOsId: os.id } })
     return { cobrancaId, cliente, status: 'emitida', detalhe }
   } catch (error) {

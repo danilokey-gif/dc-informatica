@@ -3,7 +3,8 @@ import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfseClient } from "@/lib/nfse/client"
-import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
+import { montarXmlDps, assinarDps, type DpsTomador } from "@/lib/nfse/dps"
+import tabelasIbge from "@/lib/nfse/tabelas-ibge.json"
 import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import { salvarNotaNoDrive } from "@/lib/drive"
 
@@ -14,7 +15,8 @@ export interface ServicoNfse {
 }
 
 export type ResultadoEmissaoNfse =
-  | { ok: true; emissaoId: string; chaveAcesso: string | null; numeroNfse: string; pdf: Buffer | null }
+  /** aviso: a nota saiu, mas sem algum dado do cliente que a Sefin recusou (ex.: CEP de outro município). */
+  | { ok: true; emissaoId: string; chaveAcesso: string | null; numeroNfse: string; pdf: Buffer | null; aviso: string | null }
   | { ok: false; erro: string; emissaoId: string | null }
 
 /**
@@ -22,6 +24,49 @@ export type ResultadoEmissaoNfse =
  * cobrança mensal também poder chamar), com dois acréscimos: aceita um código de serviço próprio
  * e devolve o resultado em vez de só gravar o status.
  */
+interface ClienteNfse {
+  name: string
+  document: string | null
+  phone: string | null
+  email: string | null
+  enderLogradouro: string | null
+  enderNumero: string | null
+  enderBairro: string | null
+  enderCep: string | null
+  enderCodMunicipio: string | null
+}
+
+const MUNICIPIOS_IBGE = tabelasIbge.municipios as Record<string, string>
+
+/**
+ * Dados do tomador para a DPS. O endereço só vai quando está completo e com código de município
+ * que existe na tabela do IBGE (regra E0238); telefone e e-mail, quando têm formato válido.
+ * O leiaute exige endereço para tomador com CNPJ (regra E0235), e é ele que aparece no DANFSe.
+ */
+export function montarTomador(c: ClienteNfse, opcoes: { semEndereco: boolean; semEmail: boolean }): DpsTomador {
+  const soDigitos = (v: string | null) => (v || '').replace(/\D/g, '')
+  const cMun = soDigitos(c.enderCodMunicipio)
+  const cep = soDigitos(c.enderCep)
+  const enderecoCompleto = cMun.length === 7 && !!MUNICIPIOS_IBGE[cMun] && cep.length === 8 &&
+    !!c.enderLogradouro?.trim() && !!c.enderNumero?.trim() && !!c.enderBairro?.trim()
+  const fone = soDigitos(c.phone)
+  const email = (c.email || '').trim()
+  return {
+    documento: c.document || undefined,
+    nome: c.name,
+    endereco: enderecoCompleto && !opcoes.semEndereco
+      ? { codigoMunicipio: cMun, cep, logradouro: c.enderLogradouro!.trim(), numero: c.enderNumero!.trim(), bairro: c.enderBairro!.trim() }
+      : undefined,
+    telefone: fone.length >= 10 && fone.length <= 20 ? fone : undefined,
+    email: !opcoes.semEmail && email.length <= 80 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined,
+  }
+}
+
+// Recusas da Sefin causadas por dado do cadastro do cliente que dá para simplesmente não mandar:
+// E0238 = município do endereço não existe; E0240 = CEP não pertence ao município; E0247 = e-mail inválido.
+const ERROS_ENDERECO = /\[E0238\]|\[E0240\]/
+const ERROS_EMAIL = /\[E0247\]/
+
 export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNfse): Promise<ResultadoEmissaoNfse> {
   let emissaoId: string | null = null
   try {
@@ -54,30 +99,31 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     const ambiente = nfseConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
     const descricaoServico = [os.device, os.issue].filter(Boolean).join(' - ').slice(0, 2000)
 
-    const { xml, id } = montarXmlDps({
-      ambiente,
-      codigoMunicipio: nfseConfig.codigoMunicipio,
-      serie: nfseConfig.serieDps,
-      numero: numeroDps,
-      dataCompetencia: new Date(),
-      prestador: {
-        documento: empresa.document,
-        razaoSocial: empresa.name,
-      },
-      tomador: {
-        documento: os.customer.document || undefined,
-        nome: os.customer.name,
-      },
-      servico: {
-        codigoTributacaoNacional: codigoServico,
-        descricao: descricaoServico,
-        valor: os.price,
-      },
-      aliquotaIss: nfseConfig.aliquotaIss,
-      regimeTributario: nfseConfig.regimeTributario as 'MEI' | 'SIMPLES' | 'NORMAL',
-    })
+    const montarDps = (opcoes: { semEndereco: boolean; semEmail: boolean }) => {
+      const { xml, id } = montarXmlDps({
+        ambiente,
+        codigoMunicipio: nfseConfig.codigoMunicipio!,
+        serie: nfseConfig.serieDps,
+        numero: numeroDps,
+        dataCompetencia: new Date(),
+        prestador: {
+          documento: empresa.document!,
+          razaoSocial: empresa.name,
+        },
+        tomador: montarTomador(os.customer, opcoes),
+        servico: {
+          codigoTributacaoNacional: codigoServico!,
+          descricao: descricaoServico,
+          valor: os.price!,
+        },
+        aliquotaIss: nfseConfig.aliquotaIss!,
+        regimeTributario: nfseConfig.regimeTributario as 'MEI' | 'SIMPLES' | 'NORMAL',
+      })
+      return assinarDps(xml, id, certMaterial)
+    }
 
-    const xmlAssinado = assinarDps(xml, id, certMaterial)
+    const opcoesTomador = { semEndereco: false, semEmail: false }
+    let xmlAssinado = montarDps(opcoesTomador)
 
     const emissao = await prisma.nfseEmissao.create({
       data: {
@@ -92,7 +138,28 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     emissaoId = emissao.id
 
     const client = new NfseClient({ ambiente, pfxBuffer, certPassword: certSenha })
-    const resposta = await client.emitirNfse(xmlAssinado)
+    // Se a Sefin recusar só por causa do endereço ou do e-mail do cliente, emite de novo sem esse
+    // dado (no máximo duas vezes) em vez de deixar a nota sem sair. A recusa acontece antes de
+    // qualquer nota existir, então reenviar a mesma DPS não gera nota em dobro.
+    let aviso: string | null = null
+    let resposta: Awaited<ReturnType<NfseClient['emitirNfse']>>
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        resposta = await client.emitirNfse(xmlAssinado)
+        break
+      } catch (erro) {
+        const msg = erro instanceof Error ? erro.message : String(erro)
+        const podeTirarEndereco = !opcoesTomador.semEndereco && ERROS_ENDERECO.test(msg)
+        const podeTirarEmail = !opcoesTomador.semEmail && ERROS_EMAIL.test(msg)
+        if (tentativa >= 2 || (!podeTirarEndereco && !podeTirarEmail)) throw erro
+        if (podeTirarEndereco) opcoesTomador.semEndereco = true
+        if (podeTirarEmail) opcoesTomador.semEmail = true
+        aviso = `Nota emitida sem ${[podeTirarEndereco && 'o endereço', podeTirarEmail && 'o e-mail'].filter(Boolean).join(' e ')} ` +
+          `do cliente, que a Sefin recusou: ${msg}. Corrija o cadastro de ${os.customer.name}.`
+        xmlAssinado = montarDps(opcoesTomador)
+        await prisma.nfseEmissao.update({ where: { id: emissao.id }, data: { xmlDps: xmlAssinado } })
+      }
+    }
 
     const dataEmissao = resposta.xmlNfse?.match(/<dhProc>([^<]+)<\/dhProc>/)?.[1]
       ? new Date(resposta.xmlNfse.match(/<dhProc>([^<]+)<\/dhProc>/)![1])
@@ -105,6 +172,8 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
           status: 'AUTORIZADA',
           chaveAcesso: resposta.chaveAcesso,
           xmlNfse: resposta.xmlNfse || null,
+          // A nota é válida; o aviso fica visível na lista de notas para o cadastro ser corrigido.
+          motivoErro: aviso,
           // Grava a data real de emissao aqui tambem (nao so nas notas importadas do governo),
           // pra que os relatorios e filtros por periodo leiam sempre o mesmo campo.
           dataEmissao,
@@ -129,7 +198,7 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
       console.error('[Drive] Erro ao gerar/salvar PDF da NFSe:', err)
     }
 
-    return { ok: true, emissaoId: emissao.id, chaveAcesso: resposta.chaveAcesso || null, numeroNfse, pdf }
+    return { ok: true, emissaoId: emissao.id, chaveAcesso: resposta.chaveAcesso || null, numeroNfse, pdf, aviso }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     if (emissaoId) {

@@ -8,7 +8,7 @@ import { NfeSoapClient } from "@/lib/nfe/soap-client"
 import { montarXmlNfe, assinarNfe, montarEventoCancelamento, assinarEventoNfe } from "@/lib/nfe/xml"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
-import { gerarPdfDanfe } from "@/lib/pdf-notas"
+import { gerarDanfePdf, logoDeDataUrl } from "@/lib/nfe/danfe"
 import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
 import { formatarErro } from "@/lib/formatar-erro"
 import ncmVigentes from "@/lib/ncm-vigentes.json"
@@ -161,41 +161,9 @@ export async function emitirNfeVenda(saleId: string) {
       ])
 
       try {
-        const valor = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-        const pdfBuffer = await gerarPdfDanfe({
-          ambiente,
-          numero,
-          serie: nfeConfig.serie,
-          chaveAcesso,
-          emitenteNome: empresa.name,
-          emitenteCnpj: empresa.document || '',
-          emitenteIe: empresa.inscricaoEstadual,
-          emitenteLogo: empresa.logo,
-          emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
-          emitenteMunicipio: nfeConfig.nomeMunicipio,
-          emitenteUf: nfeConfig.uf,
-          destinatarioNome: venda.customer?.name || 'Consumidor',
-          destinatarioDocumento: venda.customer?.document,
-          destinatarioEndereco: venda.customer ? `${venda.customer.enderLogradouro || ''}${venda.customer.enderNumero ? `, ${venda.customer.enderNumero}` : ''}` : '-',
-          destinatarioBairro: venda.customer?.enderBairro || '-',
-          destinatarioCep: venda.customer?.enderCep || '-',
-          destinatarioMunicipio: venda.customer?.enderMunicipio || '-',
-          destinatarioUf: venda.customer?.enderUf || '-',
-          destinatarioTelefone: venda.customer?.phone || '-',
-          itens: venda.items.map(item => ({
-            codigo: item.product.sku || item.productId.slice(-8),
-            descricao: item.product.name,
-            ncm: item.product.ncm || '-',
-            cfop: item.product.cfop || '-',
-            quantidade: item.quantity,
-            valorUnitario: item.unitPrice,
-            valorTotal: item.unitPrice * item.quantity,
-          })),
-          valorTotal: valor,
-          protocolo: respostaXml.match(/<nProt>(\d+)<\/nProt>/)?.[1] || null,
-          dataEmissao: new Date(),
-        })
-        
+        // DANFE a partir do XML autorizado (NT 2026.010), não dos dados da venda.
+        const pdfBuffer = await gerarDanfePdf(xmlAssinado, { xmlProtocolo: respostaXml, logo: logoDeDataUrl(empresa.logo) })
+
         await salvarNotaNoDrive('NFe', chaveAcesso, xmlAssinado, pdfBuffer)
       } catch (err) {
         console.error('[Drive] Erro ao gerar/salvar PDF da NFe no drive local:', err)
@@ -250,39 +218,8 @@ export async function enviarNfeEmail(saleId: string) {
 
   const valor = venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-  const pdfBuffer = await gerarPdfDanfe({
-    ambiente: emissao.ambiente,
-    numero: emissao.numero,
-    serie: emissao.serie,
-    chaveAcesso: emissao.chaveAcesso || '',
-    emitenteNome: empresa.name,
-    emitenteCnpj: empresa.document || '',
-    emitenteIe: empresa.inscricaoEstadual,
-    emitenteLogo: empresa.logo,
-    emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
-    emitenteMunicipio: nfeConfig.nomeMunicipio,
-    emitenteUf: nfeConfig.uf,
-    destinatarioNome: venda.customer?.name || 'Consumidor',
-    destinatarioDocumento: venda.customer?.document,
-    destinatarioEndereco: venda.customer ? `${venda.customer.enderLogradouro || ''}${venda.customer.enderNumero ? `, ${venda.customer.enderNumero}` : ''}` : '-',
-    destinatarioBairro: venda.customer?.enderBairro || '-',
-    destinatarioCep: venda.customer?.enderCep || '-',
-    destinatarioMunicipio: venda.customer?.enderMunicipio || '-',
-    destinatarioUf: venda.customer?.enderUf || '-',
-    destinatarioTelefone: venda.customer?.phone || '-',
-    itens: venda.items.map(item => ({
-      codigo: item.product.sku || item.productId.slice(-8),
-      descricao: item.product.name,
-      ncm: item.product.ncm || '-',
-      cfop: item.product.cfop || '-',
-      quantidade: item.quantity,
-      valorUnitario: item.unitPrice,
-      valorTotal: item.unitPrice * item.quantity,
-    })),
-    valorTotal: valor,
-    protocolo: emissao.xmlProtocolo?.match(/<nProt>(\d+)<\/nProt>/)?.[1] || null,
-    dataEmissao: emissao.dataEmissao ?? emissao.createdAt,
-  })
+  if (!emissao.xmlNfe) throw new Error('A NF-e não tem XML para gerar o DANFE.')
+  const pdfBuffer = await gerarDanfePdf(emissao.xmlNfe, { xmlProtocolo: emissao.xmlProtocolo, logo: logoDeDataUrl(empresa.logo) })
 
   await enviarEmail({
     to: venda.customer.email,

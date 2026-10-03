@@ -11,9 +11,3 @@ export async function gerarCode128Buffer(texto: string): Promise<Buffer> {
     backgroundcolor: 'FFFFFF',
   })
 }
-
-/** Gera um código de barras Code128 como data URL PNG (para uso em <img> no HTML). */
-export async function gerarCode128DataUrl(texto: string): Promise<string> {
-  const buffer = await gerarCode128Buffer(texto)
-  return `data:image/png;base64,${buffer.toString('base64')}`
-}

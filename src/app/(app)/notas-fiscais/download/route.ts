@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { getCompanySettings, getNfeConfig } from "@/lib/settings"
-import { gerarPdfDanfe } from "@/lib/pdf-notas"
+import { getCompanySettings } from "@/lib/settings"
+import { gerarDanfePdf, logoDeDataUrl } from "@/lib/nfe/danfe"
 import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import JSZip from "jszip"
 import { NextRequest } from "next/server"
@@ -29,9 +29,8 @@ export async function GET(request: NextRequest) {
     ],
   }
 
-  const [empresa, nfeConfig, emissoesNfse, emissoesNfe] = await Promise.all([
+  const [empresa, emissoesNfse, emissoesNfe] = await Promise.all([
     getCompanySettings(),
-    getNfeConfig(),
     prisma.nfseEmissao.findMany({
       where: { status: 'AUTORIZADA', ...periodo },
       include: { serviceOrder: { include: { customer: true } } },
@@ -39,7 +38,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.nfeEmissao.findMany({
       where: { status: 'AUTORIZADA', ...periodo },
-      include: { sale: { include: { customer: true, items: { include: { product: true } } } } },
+      include: { sale: { include: { customer: true } } },
       orderBy: [{ dataEmissao: 'asc' }, { createdAt: 'asc' }],
     }),
   ])
@@ -64,52 +63,18 @@ export async function GET(request: NextRequest) {
     zip.file(`NFSe/${nomeBase}.pdf`, await gerarDanfsePdf(e.xmlNfse))
   }
 
+  const logo = logoDeDataUrl(empresa.logo)
   for (const e of emissoesNfe) {
     const dataStr = (e.dataEmissao ?? e.createdAt).toISOString().slice(0, 10)
     const clienteNome = e.sale?.customer?.name || e.destinatarioNome || 'Consumidor'
     const clienteSlug = clienteNome.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-')
     const nomeBase = `${dataStr}_NFe-${e.numero}_${clienteSlug}`
 
-    if (e.xmlNfe) zip.file(`NFe/${nomeBase}.xml`, e.xmlNfe)
-
-    // Notas importadas do governo (sem Venda vinculada aqui) só entram no zip como XML —
-    // não temos os itens da venda pra montar o PDF do DANFE.
-    if (!e.sale) continue
-
-    const pdf = await gerarPdfDanfe({
-      ambiente: e.ambiente,
-      numero: e.numero,
-      serie: e.serie,
-      chaveAcesso: e.chaveAcesso || '',
-      emitenteNome: empresa.name,
-      emitenteCnpj: empresa.document || '',
-      emitenteIe: empresa.inscricaoEstadual,
-      emitenteLogo: empresa.logo,
-      emitenteEndereco: `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`,
-      emitenteMunicipio: nfeConfig.nomeMunicipio,
-      emitenteUf: nfeConfig.uf,
-      destinatarioNome: clienteNome,
-      destinatarioDocumento: e.sale.customer?.document,
-      destinatarioEndereco: e.sale.customer ? `${e.sale.customer.enderLogradouro || ''}${e.sale.customer.enderNumero ? `, ${e.sale.customer.enderNumero}` : ''}` : '-',
-      destinatarioBairro: e.sale.customer?.enderBairro || '-',
-      destinatarioCep: e.sale.customer?.enderCep || '-',
-      destinatarioMunicipio: e.sale.customer?.enderMunicipio || '-',
-      destinatarioUf: e.sale.customer?.enderUf || '-',
-      destinatarioTelefone: e.sale.customer?.phone || '-',
-      itens: e.sale.items.map(item => ({
-        codigo: item.product.sku || item.productId.slice(-8),
-        descricao: item.product.name,
-        ncm: item.product.ncm || '-',
-        cfop: item.product.cfop || '-',
-        quantidade: item.quantity,
-        valorUnitario: item.unitPrice,
-        valorTotal: item.unitPrice * item.quantity,
-      })),
-      valorTotal: e.sale.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      protocolo: e.xmlProtocolo?.match(/<nProt>(\d+)<\/nProt>/)?.[1] || null,
-      dataEmissao: e.dataEmissao ?? null,
-    })
-    zip.file(`NFe/${nomeBase}.pdf`, pdf)
+    if (!e.xmlNfe) continue
+    zip.file(`NFe/${nomeBase}.xml`, e.xmlNfe)
+    // DANFE a partir do XML: vale também para as notas importadas (emissor do Sebrae), que antes
+    // iam no .zip só como XML por não terem venda vinculada.
+    zip.file(`NFe/${nomeBase}.pdf`, await gerarDanfePdf(e.xmlNfe, { xmlProtocolo: e.xmlProtocolo, logo }))
   }
 
   const zipBuffer = await zip.generateAsync({ type: 'uint8array' })

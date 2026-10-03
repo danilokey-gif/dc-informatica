@@ -5,163 +5,20 @@ import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfseClient } from "@/lib/nfse/client"
-import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
 import { montarXmlPedRegEventoCancelamento, assinarPedRegEvento } from "@/lib/nfse/evento"
 import { enviarEmail } from "@/lib/email"
 import { revalidatePath } from "next/cache"
+import { emitirNfseDaOs } from "@/lib/nfse/emitir-os"
+import { codigoServicoDaNota } from "@/lib/nfse/codigo-servico"
 import { gerarPdfDanfse } from "@/lib/pdf-notas"
 import fs from 'fs'
 import path from 'path'
-import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
+import { moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
 
 export async function emitirNfseServiceOrder(serviceOrderId: string) {
-  let emissaoId: string | null = null
-  try {
-    const [os, empresa, nfseConfig] = await Promise.all([
-      prisma.serviceOrder.findUniqueOrThrow({ where: { id: serviceOrderId }, include: { customer: true } }),
-      getCompanySettings(),
-      getNfseConfig(),
-    ])
-
-    if (!nfseConfig.certificado || !nfseConfig.certificadoSenha) {
-      throw new Error('Certificado digital não configurado. Vá em Configurações > Nota Fiscal de Serviço.')
-    }
-    if (!nfseConfig.codigoMunicipio || !nfseConfig.codigoServico || nfseConfig.aliquotaIss === null) {
-      throw new Error('Configuração fiscal incompleta (município, código de serviço ou alíquota de ISS). Vá em Configurações.')
-    }
-    if (!empresa.document) {
-      throw new Error('CNPJ/CPF da empresa não configurado. Vá em Configurações > Dados da Empresa.')
-    }
-    if (!os.price) {
-      throw new Error('Informe o valor da OS antes de emitir a nota fiscal.')
-    }
-
-    const pfxBuffer = Buffer.from(nfseConfig.certificado, 'base64')
-    const certSenha = decryptSecret(nfseConfig.certificadoSenha)
-    const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
-
-    const numeroDps = nfseConfig.proximoNumeroDps
-    const ambiente = nfseConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
-
-    const { xml, id } = montarXmlDps({
-      ambiente,
-      codigoMunicipio: nfseConfig.codigoMunicipio,
-      serie: nfseConfig.serieDps,
-      numero: numeroDps,
-      dataCompetencia: new Date(),
-      prestador: {
-        documento: empresa.document,
-        razaoSocial: empresa.name,
-      },
-      tomador: {
-        documento: os.customer.document || undefined,
-        nome: os.customer.name,
-      },
-      servico: {
-        codigoTributacaoNacional: nfseConfig.codigoServico,
-        descricao: [os.device, os.issue].filter(Boolean).join(' - ').slice(0, 2000),
-        valor: os.price,
-      },
-      aliquotaIss: nfseConfig.aliquotaIss,
-      regimeTributario: nfseConfig.regimeTributario as 'MEI' | 'SIMPLES' | 'NORMAL',
-    })
-
-    const xmlAssinado = assinarDps(xml, id, certMaterial)
-
-    const emissao = await prisma.nfseEmissao.create({
-      data: {
-        serviceOrderId,
-        ambiente,
-        numeroDps,
-        serieDps: nfseConfig.serieDps,
-        status: 'PROCESSANDO',
-        xmlDps: xmlAssinado,
-      }
-    })
-    emissaoId = emissao.id
-
-    const client = new NfseClient({ ambiente, pfxBuffer, certPassword: certSenha })
-    const resposta = await client.emitirNfse(xmlAssinado)
-
-    await prisma.$transaction([
-      prisma.nfseEmissao.update({
-        where: { id: emissao.id },
-        data: {
-          status: 'AUTORIZADA',
-          chaveAcesso: resposta.chaveAcesso,
-          xmlNfse: resposta.xmlNfse || null,
-          // Grava a data real de emissao aqui tambem (nao so nas notas importadas do governo),
-          // pra que os relatorios e filtros por periodo leiam sempre o mesmo campo.
-          dataEmissao: resposta.xmlNfse?.match(/<dhProc>([^<]+)<\/dhProc>/)?.[1]
-            ? new Date(resposta.xmlNfse.match(/<dhProc>([^<]+)<\/dhProc>/)![1])
-            : new Date(),
-        }
-      }),
-      prisma.nfseConfig.update({
-        where: { id: 'main' },
-        data: { proximoNumeroDps: { increment: 1 } }
-      })
-    ])
-
-    try {
-      const valor = os.price ? os.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : ''
-      const numeroNfse = resposta.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || String(numeroDps)
-      const municipioLabel = nfseConfig.nomeMunicipio ? `${nfseConfig.nomeMunicipio} - SP` : '-'
-      const enderecoPrestador = `${empresa.enderLogradouro || ''}${empresa.enderNumero ? `, ${empresa.enderNumero}` : ''}${empresa.enderBairro ? `, ${empresa.enderBairro}` : ''}`
-      
-      const pdfBuffer = await gerarPdfDanfse({
-        ambiente,
-        numeroNfse,
-        numeroDps,
-        serieDps: nfseConfig.serieDps,
-        chaveAcesso: resposta.chaveAcesso || '',
-        dataEmissao: new Date(),
-        prestadorNome: empresa.name,
-        prestadorCnpj: empresa.document || '',
-        prestadorTelefone: empresa.phone,
-        prestadorEmail: empresa.email,
-        prestadorEndereco: enderecoPrestador,
-        prestadorCep: empresa.enderCep,
-        tomadorNome: os.customer.name,
-        tomadorDocumento: os.customer.document,
-        tomadorTelefone: os.customer.phone,
-        tomadorEmail: os.customer.email,
-        tomadorEndereco: os.customer.address,
-        descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
-        codigoServico: nfseConfig.codigoServico,
-        descricaoCodServico: nfseConfig.descricaoCodServico,
-        municipioLabel,
-        regimeTributario: nfseConfig.regimeTributario,
-        aliquotaIss: nfseConfig.aliquotaIss,
-        valorTotal: valor,
-      })
-
-      const key = resposta.chaveAcesso || String(numeroDps)
-      await salvarNotaNoDrive('NFSe', key, resposta.xmlNfse || null, pdfBuffer)
-    } catch (err) {
-      console.error('[Drive] Erro ao gerar/salvar PDF da NFSe no drive local:', err)
-    }
-  } catch (error: any) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    if (emissaoId) {
-      await prisma.nfseEmissao.update({
-        where: { id: emissaoId },
-        data: { status: 'REJEITADA', motivoErro: errorMsg }
-      })
-    } else {
-      await prisma.nfseEmissao.create({
-        data: {
-          serviceOrderId,
-          ambiente: 'homologacao',
-          numeroDps: 0,
-          serieDps: '0',
-          status: 'REJEITADA',
-          motivoErro: errorMsg,
-        }
-      })
-    }
-  }
-
+  // O fluxo de emissão mora em src/lib/nfse/emitir-os.ts, compartilhado com a cobrança mensal.
+  // Erros ficam registrados na própria emissão (status REJEITADA + motivo), que a tela mostra.
+  await emitirNfseDaOs(serviceOrderId)
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
 }
 
@@ -206,8 +63,7 @@ export async function enviarNfseEmail(serviceOrderId: string) {
     tomadorEmail: os.customer.email,
     tomadorEndereco: os.customer.address,
     descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
-    codigoServico: nfseConfig.codigoServico,
-    descricaoCodServico: nfseConfig.descricaoCodServico,
+    ...(await codigoServicoDaNota(emissao.xmlDps, nfseConfig)),
     municipioLabel,
     regimeTributario: nfseConfig.regimeTributario,
     aliquotaIss: nfseConfig.aliquotaIss,

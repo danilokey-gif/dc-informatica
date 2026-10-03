@@ -16,15 +16,18 @@ interface AnexoArquivo {
   filename: string
   content: string | Buffer
   contentType?: string
+  /** Com cid, a imagem pode ser exibida no corpo do e-mail via <img src="cid:...">. */
+  cid?: string
 }
 
-export async function enviarEmail(params: { to: string; subject: string; html: string; logoDataUrl?: string | null; arquivos?: AnexoArquivo[] }) {
+export async function enviarEmail(params: { to: string; bcc?: string; subject: string; html: string; logoDataUrl?: string | null; arquivos?: AnexoArquivo[] }) {
   const transporter = getTransporter()
 
   const attachments: Array<{ filename: string; content: string | Buffer; cid?: string; contentType?: string }> = (params.arquivos || []).map(a => ({
     filename: a.filename,
     content: a.content,
     contentType: a.contentType,
+    ...(a.cid ? { cid: a.cid } : {}),
   }))
   let htmlComLogo = params.html
   if (params.logoDataUrl) {
@@ -42,6 +45,7 @@ export async function enviarEmail(params: { to: string; subject: string; html: s
   await transporter.sendMail({
     from: `"${process.env.EMAIL_REMETENTE_NOME || 'Dc Informática'}" <${process.env.GMAIL_USER}>`,
     to: params.to,
+    ...(params.bcc ? { bcc: params.bcc } : {}),
     subject: params.subject,
     html: htmlComLogo,
     attachments,

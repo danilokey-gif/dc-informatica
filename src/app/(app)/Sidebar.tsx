@@ -79,6 +79,12 @@ const IconFinanceiro: Icon = (props) => (
     <path d="M10 6v8M12.25 8.1c0-.94-1.007-1.7-2.25-1.7s-2.25.76-2.25 1.7S8.757 9.8 10 9.8s2.25.76 2.25 1.7-1.007 1.7-2.25 1.7-2.25-.76-2.25-1.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
   </svg>
 )
+const IconCobrancaMensal: Icon = (props) => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect x="3" y="4" width="14" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M3 8h14M7 2.5v3M13 2.5v3M8 12.5l1.5 1.5L12.5 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
 const IconRelatorios: Icon = (props) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path d="M4 16.5V11m5 5.5V6.5m5 10V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -133,6 +139,8 @@ const sections: { label: string; items: NavItem[] }[] = [
     label: 'Gestão',
     items: [
       { href: '/financeiro', label: 'Financeiro', adminOnly: true, icon: IconFinanceiro },
+      // Notas de serviço que saem sozinhas todo mês (ex.: aluguel do sistema).
+      { href: '/financeiro/cobrancas-mensais', label: 'Cobranças Mensais', adminOnly: true, icon: IconCobrancaMensal },
       { href: '/relatorios', label: 'Relatórios', adminOnly: true, icon: IconRelatorios },
       { href: '/usuarios', label: 'Usuários', adminOnly: true, icon: IconUsuarios },
       { href: '/configuracoes', label: 'Configurações', adminOnly: true, icon: IconConfiguracoes },
@@ -144,6 +152,7 @@ function isItemActive(pathname: string, href: string) {
   if (href === '/') return pathname === '/'
   if (href === '/os') return pathname === '/os' || (pathname.startsWith('/os/') && !pathname.startsWith('/os/rapida'))
   if (href === '/notas-fiscais') return pathname.startsWith('/notas-fiscais') && !pathname.startsWith('/notas-fiscais/fornecedores')
+  if (href === '/financeiro') return pathname.startsWith('/financeiro') && !pathname.startsWith('/financeiro/cobrancas-mensais')
   return pathname.startsWith(href)
 }
 

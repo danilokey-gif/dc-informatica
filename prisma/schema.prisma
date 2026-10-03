@@ -36,6 +36,7 @@ model Customer {
   sales             Sale[]
   transactions      FinanceTransaction[]
   quotes            Quote[]
+  cobrancasMensais  CobrancaMensal[]
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }
@@ -326,4 +327,44 @@ model NfeRecebida {
   origem        String    @default("DISTRIBUICAO_DFE") // DISTRIBUICAO_DFE | IMPORTADA_XML
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+/// Serviço cobrado todo mês (ex.: aluguel do sistema). No dia combinado, a rotina diária
+/// (/api/cron/cobrancas-mensais) cria uma OS da competência, emite a NFS-e, lança a receita pendente
+/// e manda a nota com o PIX por e-mail.
+model CobrancaMensal {
+  id                  String    @id @default(cuid())
+  customer            Customer  @relation(fields: [customerId], references: [id])
+  customerId          String
+  /**
+   * Texto da nota; a competência (MM/AAAA) é acrescentada no fim automaticamente.
+   */
+  descricao           String
+  valor               Float
+  /**
+   * Dia do mês em que a nota sai (1 a 28 — evita meses sem dia 29/30/31).
+   */
+  diaDoMes            Int
+  /**
+   * Código de tributação nacional (cTribNac, 6 dígitos) e sua descrição, só desta cobrança.
+   */
+  codigoServico       String
+  descricaoCodServico String?
+  diasParaVencimento  Int       @default(10)
+  /**
+   * Desligada até o usuário confirmar o código de serviço com o contador.
+   */
+  ativa               Boolean   @default(false)
+  enviarEmail         Boolean   @default(true)
+  incluirPix          Boolean   @default(true)
+  /**
+   * 'AAAA-MM' da última competência já iniciada. É marcada ANTES de emitir: se a emissão falhar
+   * sem resposta clara, a nota não é emitida de novo sozinha (evita nota em dobro); o usuário é avisado.
+   */
+  ultimaCompetencia   String?
+  ultimoResultado     String?
+  ultimoProcessamento DateTime?
+  ultimaOsId          String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }

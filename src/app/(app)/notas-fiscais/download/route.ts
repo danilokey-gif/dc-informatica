@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
 import { gerarPdfDanfse, gerarPdfDanfe } from "@/lib/pdf-notas"
+import { codigoServicoDaNota } from "@/lib/nfse/codigo-servico"
 import JSZip from "jszip"
 import { NextRequest } from "next/server"
 
@@ -85,8 +86,7 @@ export async function GET(request: NextRequest) {
       tomadorEmail: os.customer.email,
       tomadorEndereco: os.customer.address,
       descricaoServico: [os.device, os.issue].filter(Boolean).join(' — '),
-      codigoServico: nfseConfig.codigoServico,
-      descricaoCodServico: nfseConfig.descricaoCodServico,
+      ...(await codigoServicoDaNota(e.xmlDps, nfseConfig)),
       municipioLabel,
       regimeTributario: nfseConfig.regimeTributario,
       aliquotaIss: nfseConfig.aliquotaIss,

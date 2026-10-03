@@ -53,7 +53,7 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
 
       {!process.env.CRON_SECRET && (
         <div className="card" style={{ borderLeft: '4px solid var(--accent-yellow, #d97706)', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          A rotina automática está funcionando, mas sem senha própria. Recomendado: cadastrar a variável <code>CRON_SECRET</code> nas
+          A rotina automática está funcionando com proteção básica (só aceita o agendador da Vercel). Para proteção completa, cadastre a variável <code>CRON_SECRET</code> nas
           configurações do projeto na Vercel (Settings → Environment Variables), com qualquer texto longo e aleatório.
         </div>
       )}

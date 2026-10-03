@@ -6,6 +6,14 @@ import { redirect } from "next/navigation"
 import { encryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 
+/**
+ * Nome exibido do certificado: o titular que vem de dentro do arquivo, e não o nome do arquivo.
+ * Nome de arquivo é escolhido por quem salvou e já chegou a conter a própria senha do certificado.
+ */
+function nomeDoCertificado(titular: string): string {
+  return (titular || 'Certificado digital A1').slice(0, 120)
+}
+
 const MAX_LOGO_SIZE = 1_500_000 // ~1.5MB, suficiente para um logo em base64
 const MAX_CERT_SIZE = 20_000 // certificados A1 costumam ter poucos KB
 
@@ -98,11 +106,11 @@ export async function updateNfseConfig(formData: FormData) {
     }
     const buffer = Buffer.from(await certFile.arrayBuffer())
     // Valida o certificado e a senha antes de salvar (lança erro se a senha estiver errada).
-    extractCertMaterial(buffer, certSenha)
+    const material = extractCertMaterial(buffer, certSenha)
 
     data.certificado = buffer.toString('base64')
     data.certificadoSenha = encryptSecret(certSenha)
-    data.certificadoNome = certFile.name
+    data.certificadoNome = nomeDoCertificado(material.commonName)
   } else if (certSenha) {
     // Trocou só a senha, mantendo o certificado já enviado.
     data.certificadoSenha = encryptSecret(certSenha)
@@ -149,11 +157,11 @@ export async function updateNfeConfig(formData: FormData) {
       throw new Error('Informe a senha do certificado para poder validá-lo.')
     }
     const buffer = Buffer.from(await certFile.arrayBuffer())
-    extractCertMaterial(buffer, certSenha)
+    const material = extractCertMaterial(buffer, certSenha)
 
     data.certificado = buffer.toString('base64')
     data.certificadoSenha = encryptSecret(certSenha)
-    data.certificadoNome = certFile.name
+    data.certificadoNome = nomeDoCertificado(material.commonName)
   } else if (certSenha) {
     data.certificadoSenha = encryptSecret(certSenha)
   }

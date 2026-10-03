@@ -10,19 +10,8 @@ export async function loginAction(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
 
-  // Para fins de demonstração, criaremos um admin inicial se o banco estiver vazio.
-  const userCount = await prisma.user.count()
-  if (userCount === 0) {
-    await prisma.user.create({
-      data: {
-        name: 'Administrador',
-        email: 'admin@dcinformatica.com',
-        passwordHash: await bcrypt.hash('admin123', 10),
-        role: 'ADMIN'
-      }
-    })
-  }
-
+  // Não existe mais criação automática de administrador com senha padrão: o código é público no
+  // GitHub, então qualquer pessoa conheceria a senha se o banco ficasse vazio algum dia.
   const user = await prisma.user.findUnique({ where: { email } })
   const passwordMatches = user ? await bcrypt.compare(password, user.passwordHash) : false
 

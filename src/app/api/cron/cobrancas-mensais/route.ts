@@ -12,12 +12,16 @@ export const maxDuration = 60
  *
  * As rotas /api ficam fora do login (middleware), então a proteção é o CRON_SECRET: quando ele está
  * cadastrado nas variáveis de ambiente da Vercel, ela manda "Authorization: Bearer <CRON_SECRET>"
- * e qualquer outra chamada é recusada. Sem ele a rota continua segura contra nota em dobro (cada
- * competência só é emitida uma vez), mas qualquer pessoa poderia antecipar o horário da emissão.
+ * e qualquer outra chamada é recusada. Sem ele, só passa quem se identifica como o agendador da
+ * Vercel. Em qualquer caso não há risco de nota em dobro (cada competência sai uma vez só).
  */
 export async function GET(request: NextRequest) {
   const segredo = process.env.CRON_SECRET
-  if (segredo && request.headers.get('authorization') !== `Bearer ${segredo}`) {
+  if (segredo) {
+    if (request.headers.get('authorization') !== `Bearer ${segredo}`) return new Response('Não autorizado.', { status: 401 })
+  } else if (!(request.headers.get('user-agent') || '').startsWith('vercel-cron/')) {
+    // Sem CRON_SECRET, aceita só o agendador da Vercel (que se identifica como "vercel-cron/1.0").
+    // Não é à prova de quem forje o cabeçalho; por isso a tela de cobranças segue recomendando o segredo.
     return new Response('Não autorizado.', { status: 401 })
   }
 

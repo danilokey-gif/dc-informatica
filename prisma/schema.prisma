@@ -69,6 +69,8 @@ model Product {
   stockQty      Int         @default(0)
   minStockAlert Int         @default(0)
   ncm           String?
+  /// Código de barras (GTIN-8/12/13/14). Vazio = "SEM GTIN" na NF-e. Obrigatório informar quando o produto tem código de barras (Ajuste SINIEF 07/05).
+  gtin          String?
   cfop          String?
   saleItems     SaleItem[]
   quoteItems    QuoteItem[]

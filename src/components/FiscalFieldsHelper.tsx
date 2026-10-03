@@ -1,19 +1,27 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ncmVigentes from '@/lib/ncm-vigentes.json'
+import { gtinValido } from '@/lib/gtin'
 
 interface FiscalFieldsHelperProps {
   defaultNcm?: string
   defaultCfop?: string
+  defaultGtin?: string
 }
 
+// Tabela oficial de NCM (Siscomex). NCM fora dela faz a Sefaz recusar a NF-e (erro 778).
+const NCMS_VALIDOS = new Set(ncmVigentes.ncms)
+
+
 const COMMON_NCMS = [
-  { label: 'Outras peças/acessórios (Padrão)', value: '84733099' },
+  { label: 'Outras peças/acessórios de computador', value: '84733090' },
   { label: 'SSD (Unidade de Estado Sólido)', value: '84717040' },
   { label: 'Pen drive / Memória USB', value: '85235190' },
   { label: 'Memória RAM', value: '84733042' },
   { label: 'Processador / Placa-Mãe', value: '84733041' },
-  { label: 'Periféricos (Teclado/Mouse/Fone)', value: '84716050' },
+  { label: 'Teclado', value: '84716052' },
+  { label: 'Mouse', value: '84716053' },
   { label: 'Notebook / Computador', value: '84713019' },
   { label: 'Cabos / Adaptadores / Conectores', value: '85444200' },
   { label: 'Roteador / Switch / Placa de Rede', value: '85176277' },
@@ -25,8 +33,11 @@ const COMMON_CFOPS = [
   { label: '6102 - Venda para outro Estado', value: '6102' },
 ]
 
-export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }: FiscalFieldsHelperProps) {
+export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '', defaultGtin = '' }: FiscalFieldsHelperProps) {
   const [ncm, setNcm] = useState(defaultNcm)
+  const [gtin, setGtin] = useState(defaultGtin)
+  const ncmInvalido = ncm.length === 8 && !NCMS_VALIDOS.has(ncm)
+  const gtinInvalido = gtin.length > 0 && !gtinValido(gtin)
   const [cfop, setCfop] = useState(defaultCfop)
   const [isManuallyEdited, setIsManuallyEdited] = useState(!!defaultNcm)
 
@@ -80,7 +91,8 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
         text.includes('caixa de som') ||
         text.includes('microfone')
       ) {
-        setNcm('84716050')
+        if (text.includes('mouse')) setNcm('84716053')
+        else if (text.includes('teclado')) setNcm('84716052')
       } else if (
         text.includes('notebook') ||
         text.includes('computador') ||
@@ -141,9 +153,15 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
               setNcm(e.target.value.replace(/\D/g, '').slice(0, 8))
               setIsManuallyEdited(true)
             }}
+            ref={(el) => el?.setCustomValidity(ncmInvalido ? 'Este NCM não existe na tabela oficial vigente.' : '')}
             placeholder="8 dígitos (obrigatório)"
             required
           />
+          {ncmInvalido && (
+            <p style={{ color: 'var(--accent-red)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Este NCM não existe na tabela oficial vigente — a Sefaz recusaria a nota (erro 778).
+            </p>
+          )}
         </div>
 
         {/* CFOP */}
@@ -158,6 +176,27 @@ export default function FiscalFieldsHelper({ defaultNcm = '', defaultCfop = '' }
             onChange={(e) => setCfop(e.target.value.replace(/\D/g, '').slice(0, 4))}
             placeholder="Deixe em branco para usar o padrão"
           />
+        </div>
+
+        {/* GTIN (código de barras) */}
+        <div className="input-group" style={{ flex: 1, minWidth: '170px', marginBottom: 0 }}>
+          <label className="input-label" htmlFor="gtin">Código de barras (GTIN)</label>
+          <input
+            type="text"
+            id="gtin"
+            name="gtin"
+            inputMode="numeric"
+            className="input-field"
+            value={gtin}
+            onChange={(e) => setGtin(e.target.value.replace(/\D/g, '').slice(0, 14))}
+            ref={(el) => el?.setCustomValidity(gtinInvalido ? 'Código de barras inválido (dígito verificador não confere).' : '')}
+            placeholder="Vazio = SEM GTIN"
+          />
+          {gtinInvalido && (
+            <p style={{ color: 'var(--accent-red)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Código de barras inválido: confira os números (dígito verificador não confere).
+            </p>
+          )}
         </div>
 
       </div>

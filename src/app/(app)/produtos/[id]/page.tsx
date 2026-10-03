@@ -66,7 +66,7 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
             <input type="number" step="1" min="0" id="minStockAlert" name="minStockAlert" className="input-field" defaultValue={produto.minStockAlert} />
           </div>
 
-          <FiscalFieldsHelper defaultNcm={produto.ncm || ''} defaultCfop={produto.cfop || ''} />
+          <FiscalFieldsHelper defaultNcm={produto.ncm || ''} defaultCfop={produto.cfop || ''} defaultGtin={produto.gtin || ''} />
 
           <div style={{ marginTop: '2rem' }}>
             <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>

@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache"
 import { gerarPdfDanfe } from "@/lib/pdf-notas"
 import { salvarNotaNoDrive, moverNotaNoGoogleDriveCancelada } from "@/lib/drive"
 import { formatarErro } from "@/lib/formatar-erro"
+import ncmVigentes from "@/lib/ncm-vigentes.json"
 
 const TP_PAGAMENTO_POR_METODO: Record<string, 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'> = {
   'Dinheiro': 'dinheiro',
@@ -47,6 +48,12 @@ export async function emitirNfeVenda(saleId: string) {
     const itensSemNcm = venda.items.filter(item => !item.product.ncm)
     if (itensSemNcm.length > 0) {
       throw new Error(`Produto(s) sem NCM cadastrado: ${itensSemNcm.map(i => i.product.name).join(', ')}. Edite o produto em Produtos.`)
+    }
+    // NCM fora da tabela oficial vigente: a Sefaz recusaria com o erro 778. Melhor avisar antes.
+    const ncmsValidos = new Set(ncmVigentes.ncms)
+    const itensNcmInexistente = venda.items.filter(item => !ncmsValidos.has(item.product.ncm!.replace(/\D/g, '')))
+    if (itensNcmInexistente.length > 0) {
+      throw new Error(`NCM inexistente na tabela oficial: ${itensNcmInexistente.map(i => `${i.product.name} (${i.product.ncm})`).join(', ')}. Corrija em Produtos.`)
     }
 
     const cliente = venda.customer
@@ -98,6 +105,7 @@ export async function emitirNfeVenda(saleId: string) {
       } : undefined,
       itens: venda.items.map(item => ({
         codigo: item.product.sku || item.productId.slice(-8),
+        gtin: item.product.gtin,
         descricao: item.product.name,
         ncm: item.product.ncm!,
         cfop: item.product.cfop || nfeConfig.cfopPadrao,

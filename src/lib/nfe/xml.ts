@@ -27,6 +27,8 @@ export interface NfeDestinatario {
 
 export interface NfeItem {
   codigo: string
+  /** Código de barras; sem ele vai o literal "SEM GTIN" (permitido para produto sem código). */
+  gtin?: string | null
   descricao: string
   ncm: string
   cfop: string
@@ -142,7 +144,7 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
       `<det nItem="${index + 1}">` +
         `<prod>` +
           `<cProd>${esc(item.codigo)}</cProd>` +
-          `<cEAN>SEM GTIN</cEAN>` +
+          `<cEAN>${item.gtin || 'SEM GTIN'}</cEAN>` +
           `<xProd>${esc(item.descricao)}</xProd>` +
           `<NCM>${item.ncm}</NCM>` +
           `<CFOP>${item.cfop}</CFOP>` +
@@ -150,7 +152,7 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
           `<qCom>${item.quantidade.toFixed(4)}</qCom>` +
           `<vUnCom>${item.valorUnitario.toFixed(10)}</vUnCom>` +
           `<vProd>${formatarDecimal(vProd)}</vProd>` +
-          `<cEANTrib>SEM GTIN</cEANTrib>` +
+          `<cEANTrib>${item.gtin || 'SEM GTIN'}</cEANTrib>` +
           `<uTrib>${esc(item.unidade)}</uTrib>` +
           `<qTrib>${item.quantidade.toFixed(4)}</qTrib>` +
           `<vUnTrib>${item.valorUnitario.toFixed(10)}</vUnTrib>` +

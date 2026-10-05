@@ -1,16 +1,14 @@
 /**
  * DANFE da NF-e (modelo 55), retrato, gerado a partir do XML da nota.
  *
- * Segue o modelo de referência da Nota Técnica 2026.010 v1.00 (Reforma Tributária, publicada em
- * 01/10/2026 no portal nacional da NF-e), que mantém a estrutura do DANFE atual e acrescenta:
- * o Código do Regime Tributário e o campo reservado do regime de apuração do IBS/CBS no quadro do
- * emitente (4.2), o bloco "Total do IBS/CBS/IS" (4.1) e as bases, alíquotas e valores de IBS, CBS
- * e IS em cada item (4.3). Esses acréscimos passam a ser impressos em 01/12/2026, data de início
- * do novo modelo em produção; antes disso o DANFE sai sem eles.
+ * Leiaute tradicional do Manual do DANFE (o mesmo dos DANFEs de fornecedores): canhoto, quadro do
+ * emitente/DANFE/chave, cálculo do imposto num quadro só, transportador, tabela de produtos com as
+ * colunas clássicas, ISSQN e dados adicionais logo abaixo dos produtos.
  *
- * Como a NT determina (4.4), nada é impresso se não estiver no XML: quadros facultativos
- * (canhoto, fatura, FCP/DIFAL/monofásico, ISSQN, transportador, QR Code) só aparecem quando há
- * dado, e campos sem informação ficam em branco.
+ * A partir de 01/12/2026 (NT 2026.010, modelo da Reforma Tributária) entram sozinhos: o Código do
+ * Regime Tributário e o campo reservado do regime de apuração do IBS/CBS (4.2), o quadro "Total do
+ * IBS/CBS/IS" (4.1) e, em cada item, cClassTrib e bases/alíquotas/valores de IBS, CBS e IS (4.3).
+ * Nada é impresso que não esteja no XML (4.4).
  */
 import PDFDocument from 'pdfkit'
 import QRCode from 'qrcode'
@@ -52,7 +50,7 @@ function telefone(f: string | null): string {
   if (d.length === 11) return d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
   return f || ''
 }
-/** Data no fuso do próprio XML (ex.: 2026-08-02T15:45:33-03:00 → 02/08/2026). */
+/** Data e hora no fuso do próprio XML (ex.: 2026-08-02T15:45:33-03:00). */
 const data = (iso: string | null) => iso?.match(/^(\d{4})-(\d{2})-(\d{2})/)?.slice(1).reverse().join('/') ?? ''
 const hora = (iso: string | null) => iso?.match(/T(\d{2}:\d{2}:\d{2})/)?.[1] ?? ''
 function numero(v: string | null, casas = 2): string {
@@ -60,7 +58,12 @@ function numero(v: string | null, casas = 2): string {
   const n = Number(v)
   return Number.isFinite(n) ? n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) : v
 }
-const percentual = (v: string | null) => (v ? `${numero(v)}%` : '')
+/** Quantidade sem zeros inúteis (1,0000 → 1; 2,5000 → 2,5). */
+function quantidade(v: string | null): string {
+  if (!v) return ''
+  const n = Number(v)
+  return Number.isFinite(n) ? n.toLocaleString('pt-BR', { maximumFractionDigits: 4 }) : v
+}
 const numeroNota = (n: string | null) => (n || '').padStart(9, '0').replace(/^(\d{3})(\d{3})(\d{3})$/, '$1.$2.$3')
 
 const CRT: Record<string, string> = {
@@ -70,316 +73,300 @@ const CRT: Record<string, string> = {
   '4': '4 - SIMPLES NACIONAL - MICROEMPREENDEDOR INDIVIDUAL (MEI)',
 }
 const MOD_FRETE: Record<string, string> = {
-  '0': '0 - Remetente', '1': '1 - Destinatário', '2': '2 - Terceiros',
-  '3': '3 - Próprio Remetente', '4': '4 - Próprio Destinatário', '9': '9 - Sem Frete',
+  '0': 'Emitente', '1': 'Destinatário', '2': 'Terceiros', '3': 'Próprio Rem.', '4': 'Próprio Dest.', '9': 'Sem Frete',
 }
 
-// ─────────────────────────────── dados ───────────────────────────────
+// ─────────────────────────────── itens ───────────────────────────────
 
 interface Item {
+  codigo: string
   descricao: string
-  infAdProd: string | null
-  ncmClass: string
-  cstCfop: [string, string]
-  qtdUn: [string, string]
+  ncm: string
+  cst: string
+  cfop: string
+  unidade: string
+  quantidade: string
   vUnit: string
   vTotal: string
-  bases: string[]
-  aliquotas: string[]
-  valores: string[]
+  bcIcms: string
+  vIcms: string
+  vIpi: string
+  aliqIcms: string
+  aliqIpi: string
+  /** Linha extra com IBS/CBS/IS do item (só no modelo da Reforma e quando existir no XML). */
+  rtc: string | null
 }
 
 function lerItem(det: string, rtc: boolean): Item {
   const prod = bloco(det, 'prod') || ''
   const imposto = bloco(det, 'imposto') || ''
-  const icmsGrupo = bloco(imposto, 'ICMS') || ''
-  const orig = tag(icmsGrupo, 'orig') || ''
-  const cst = tag(icmsGrupo, 'CST')
-  const csosn = tag(icmsGrupo, 'CSOSN')
+  const icms = bloco(imposto, 'ICMS') || ''
   const ipi = bloco(imposto, 'IPITrib')
-  const ibscbs = bloco(imposto, 'IBSCBS')
-  const g = bloco(ibscbs, 'gIBSCBS')
-  const gUF = bloco(g, 'gIBSUF'), gMun = bloco(g, 'gIBSMun'), gCBS = bloco(g, 'gCBS')
-  const is = bloco(imposto, 'IS')
-
-  // Linhas de tributo: só as que existem no XML (NT 2026.010, item 4.4).
-  const bases: string[] = [], aliquotas: string[] = [], valores: string[] = []
-  const vBCICMS = tag(icmsGrupo, 'vBC')
-  if (vBCICMS) {
-    bases.push(`ICMS ${numero(vBCICMS)}`)
-    aliquotas.push(`ICMS ${percentual(tag(icmsGrupo, 'pICMS'))}`)
-    valores.push(`ICMS ${numero(tag(icmsGrupo, 'vICMS'))}`)
+  let linhaRtc: string | null = null
+  if (rtc) {
+    const ibscbs = bloco(imposto, 'IBSCBS')
+    const g = bloco(ibscbs, 'gIBSCBS')
+    const is = bloco(imposto, 'IS')
+    const partes: string[] = []
+    if (tag(ibscbs, 'cClassTrib')) partes.push(`cClassTrib ${tag(ibscbs, 'cClassTrib')}`)
+    if (g) {
+      // Com redução de alíquota (gRed) vale a alíquota efetiva; sem ela, a vigente (NT 2026.010, 4.3).
+      const aliq = (grupo: string | null, nome: string) => tag(bloco(grupo, 'gRed'), 'pAliqEfet') || tag(grupo, nome)
+      const gUF = bloco(g, 'gIBSUF'), gMun = bloco(g, 'gIBSMun'), gCBS = bloco(g, 'gCBS')
+      partes.push(`BC IBS/CBS ${numero(tag(g, 'vBC'))}`,
+        `IBS UF ${numero(aliq(gUF, 'pIBSUF'))}% ${numero(tag(gUF, 'vIBSUF'))}`,
+        `IBS Mun ${numero(aliq(gMun, 'pIBSMun'))}% ${numero(tag(gMun, 'vIBSMun'))}`,
+        `CBS ${numero(aliq(gCBS, 'pCBS'))}% ${numero(tag(gCBS, 'vCBS'))}`)
+    }
+    if (is) partes.push(`IS ${numero(tag(is, 'pIS'))}% ${numero(tag(is, 'vIS'))}`)
+    linhaRtc = partes.length ? partes.join(' · ') : null
   }
-  if (rtc && g) {
-    // Com redução de alíquota (gRed) vale a alíquota efetiva; sem ela, a alíquota vigente.
-    const aliq = (grupo: string | null, nome: string) => tag(bloco(grupo, 'gRed'), 'pAliqEfet') || tag(grupo, nome)
-    bases.push(`IBS / CBS ${numero(tag(g, 'vBC'))}`)
-    aliquotas.push(`CBS ${percentual(aliq(gCBS, 'pCBS'))}`, `IBS UF ${percentual(aliq(gUF, 'pIBSUF'))}`, `IBS MUN ${percentual(aliq(gMun, 'pIBSMun'))}`)
-    valores.push(`CBS ${numero(tag(gCBS, 'vCBS'))}`, `IBS UF ${numero(tag(gUF, 'vIBSUF'))}`, `IBS MUN ${numero(tag(gMun, 'vIBSMun'))}`)
-  }
-  if (rtc && is) {
-    bases.push(`IS ${numero(tag(is, 'vBCIS'))}`)
-    aliquotas.push(`IS ${percentual(tag(is, 'pIS'))}`)
-    valores.push(`IS ${numero(tag(is, 'vIS'))}`)
-  }
-  if (ipi && tag(ipi, 'vBC')) {
-    bases.push(`IPI ${numero(tag(ipi, 'vBC'))}`)
-    aliquotas.push(`IPI ${percentual(tag(ipi, 'pIPI'))}`)
-    valores.push(`IPI ${numero(tag(ipi, 'vIPI'))}`)
-  }
-
-  const cClassTrib = rtc ? tag(ibscbs, 'cClassTrib') : null
+  const csosn = tag(icms, 'CSOSN')
   return {
-    descricao: tag(prod, 'xProd') || '',
-    infAdProd: tag(det, 'infAdProd'),
-    ncmClass: `[NCM ${tag(prod, 'NCM') || ''}]${cClassTrib ? ` [cClassTrib ${cClassTrib}]` : ''}`,
-    cstCfop: [csosn ? `CSOSN ${orig}${csosn}` : `CST ${orig}${cst || ''}`, `CFOP ${tag(prod, 'CFOP') || ''}`],
-    qtdUn: [numero(tag(prod, 'qCom'), 4), tag(prod, 'uCom') || ''],
-    vUnit: numero(tag(prod, 'vUnCom'), 4),
+    codigo: tag(prod, 'cProd') || '',
+    descricao: [tag(prod, 'xProd'), tag(det, 'infAdProd')].filter(Boolean).join(' '),
+    ncm: tag(prod, 'NCM') || '',
+    cst: `${tag(icms, 'orig') || ''}${csosn || tag(icms, 'CST') || ''}`,
+    cfop: tag(prod, 'CFOP') || '',
+    unidade: tag(prod, 'uCom') || '',
+    quantidade: quantidade(tag(prod, 'qCom')),
+    vUnit: numero(tag(prod, 'vUnCom')),
     vTotal: numero(tag(prod, 'vProd')),
-    bases, aliquotas, valores,
+    bcIcms: numero(tag(icms, 'vBC')),
+    vIcms: numero(tag(icms, 'vICMS')),
+    vIpi: numero(tag(ipi, 'vIPI')),
+    aliqIcms: numero(tag(icms, 'pICMS')),
+    aliqIpi: numero(tag(ipi, 'pIPI')),
+    rtc: linhaRtc,
   }
 }
 
 // ──────────────────────────────── desenho ────────────────────────────────
 
-const MARGEM = 18
-const LARGURA = 595.28 - MARGEM * 2
-const ALTURA_PAGINA = 841.89
-const LIMITE = ALTURA_PAGINA - MARGEM
-const COR_ROTULO = '#555555'
-const CINZA_TITULO = '#EFEFEF'
-
 type Doc = PDFKit.PDFDocument
+const M = 17 // margem
+const W = 595.28 - M * 2
+const ALTURA_PAGINA = 841.89
+const LIMITE = ALTURA_PAGINA - M
+const COR_ROTULO = '#333333'
+const H = 22 // altura padrão de campo
 
-/** Célula com rótulo pequeno em cima e conteúdo embaixo, cortado com reticências se não couber. */
-function celula(doc: Doc, x: number, y: number, w: number, h: number, rotulo: string, valor: string, opcoes: { alinhar?: 'left' | 'right' | 'center'; tamanho?: number; negrito?: boolean } = {}) {
-  doc.lineWidth(0.5).strokeColor('#000000').rect(x, y, w, h).stroke()
-  doc.font('Helvetica').fontSize(5.5).fillColor(COR_ROTULO).text(rotulo, x + 2, y + 2, { width: w - 4, height: 7, ellipsis: true, lineBreak: false })
-  const tamanho = opcoes.tamanho ?? 8
-  doc.font(opcoes.negrito ? 'Helvetica-Bold' : 'Helvetica').fontSize(tamanho).fillColor('#000000')
-    .text(valor, x + 2, y + h - tamanho - 3, { width: w - 4, height: tamanho + 2, ellipsis: true, lineBreak: false, align: opcoes.alinhar ?? 'left' })
+/** Campo com moldura arredondada: rótulo pequeno em cima, valor embaixo (cortado se não couber). */
+function campo(doc: Doc, x: number, y: number, w: number, h: number, rotulo: string, valor: string, opcoes: { alinhar?: 'left' | 'right' | 'center'; tamanho?: number } = {}) {
+  doc.lineWidth(0.6).strokeColor('#000000').roundedRect(x, y, w, h, 3).stroke()
+  doc.font('Helvetica').fontSize(5).fillColor(COR_ROTULO).text(rotulo, x + 2.5, y + 2, { width: w - 5, height: 6, ellipsis: true, lineBreak: false })
+  const tamanho = opcoes.tamanho ?? 9
+  doc.font('Helvetica').fontSize(tamanho).fillColor('#000000')
+    .text(valor, x + 2.5, y + h - tamanho - 2.5, { width: w - 5, height: tamanho + 2, ellipsis: true, lineBreak: false, align: opcoes.alinhar ?? 'left' })
 }
 
-function tituloQuadro(doc: Doc, y: number, titulo: string): number {
-  doc.rect(MARGEM, y, LARGURA, 11).fillAndStroke(CINZA_TITULO, '#000000')
-  doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#000000').text(titulo, MARGEM + 3, y + 2.5, { lineBreak: false })
-  return y + 11
+/** Título de quadro: texto simples acima do quadro, como no DANFE tradicional. */
+function titulo(doc: Doc, y: number, texto: string): number {
+  doc.font('Helvetica').fontSize(6.5).fillColor('#000000').text(texto, M + 1, y + 2, { lineBreak: false })
+  return y + 10
 }
 
-/** Linha de células com larguras proporcionais. */
-function linha(doc: Doc, y: number, h: number, celulas: [string, string, number?, ('left' | 'right' | 'center')?][]): number {
-  const total = celulas.reduce((s, c) => s + (c[2] ?? 1), 0)
-  let x = MARGEM
-  for (const [rotulo, valor, peso = 1, alinhar] of celulas) {
-    const w = (LARGURA * peso) / total
-    celula(doc, x, y, w, h, rotulo, valor, { alinhar })
+/** Linha de campos com larguras proporcionais aos pesos. */
+function linha(doc: Doc, y: number, campos: [string, string, number?, ('left' | 'right' | 'center')?][], h = H): number {
+  const total = campos.reduce((s, c) => s + (c[2] ?? 1), 0)
+  let x = M
+  for (const [rotulo, valor, peso = 1, alinhar] of campos) {
+    const w = (W * peso) / total
+    campo(doc, x, y, w, h, rotulo, valor, { alinhar })
     x += w
   }
   return y + h
 }
 
-interface Cabecalho {
-  emitNome: string; emitEndereco: string[]; tpNF: string; numero: string; serie: string
-  chave: string; natOp: string; protocolo: string; ie: string; iest: string; cnpj: string; crt: string | null
-}
-
-async function desenharCabecalho(doc: Doc, y: number, c: Cabecalho, folha: string, codigoBarras: Buffer, logo: Buffer | null, rtc: boolean): Promise<number> {
-  const h = 92
-  const wEmit = LARGURA * 0.37, wDanfe = LARGURA * 0.205, wChave = LARGURA - wEmit - wDanfe
-  // Emitente
-  doc.lineWidth(0.5).rect(MARGEM, y, wEmit, h).stroke()
-  let ty = y + 8
-  if (logo) {
-    try { doc.image(logo, MARGEM + 4, y + 6, { fit: [wEmit - 8, 30], align: 'center' }); ty = y + 40 } catch { /* logo inválido: segue sem */ }
-  }
-  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#000000').text(c.emitNome, MARGEM + 4, ty, { width: wEmit - 8, align: 'center', height: 24, ellipsis: true })
-  doc.font('Helvetica').fontSize(7).text(c.emitEndereco.join('\n'), MARGEM + 4, doc.y + 2, { width: wEmit - 8, align: 'center', height: y + h - doc.y - 4, ellipsis: true })
-  // DANFE
-  const xD = MARGEM + wEmit
-  doc.rect(xD, y, wDanfe, h).stroke()
-  doc.font('Helvetica-Bold').fontSize(12).text('DANFE', xD, y + 5, { width: wDanfe, align: 'center' })
-  doc.font('Helvetica').fontSize(5.5).text('DOCUMENTO AUXILIAR DA\nNOTA FISCAL ELETRÔNICA', xD, y + 20, { width: wDanfe, align: 'center' })
-  doc.fontSize(7).text('0 - ENTRADA\n1 - SAÍDA', xD + 8, y + 40)
-  doc.rect(xD + wDanfe - 26, y + 40, 16, 16).stroke()
-  doc.font('Helvetica-Bold').fontSize(11).text(c.tpNF, xD + wDanfe - 26, y + 43, { width: 16, align: 'center' })
-  doc.font('Helvetica-Bold').fontSize(8).text(`Nº ${c.numero}`, xD, y + 62, { width: wDanfe, align: 'center' })
-  doc.font('Helvetica').fontSize(7.5).text(`SÉRIE ${c.serie}   FOLHA ${folha}`, xD, y + 73, { width: wDanfe, align: 'center' })
-  // Chave de acesso
-  const xC = xD + wDanfe
-  doc.rect(xC, y, wChave, h).stroke()
-  doc.image(codigoBarras, xC + 8, y + 4, { width: wChave - 16, height: 30 })
-  doc.moveTo(xC, y + 38).lineTo(xC + wChave, y + 38).stroke()
-  doc.font('Helvetica').fontSize(5.5).fillColor(COR_ROTULO).text('CHAVE DE ACESSO', xC + 3, y + 40)
-  doc.font('Helvetica-Bold').fontSize(8).fillColor('#000000').text(c.chave.replace(/(\d{4})(?=\d)/g, '$1 '), xC, y + 50, { width: wChave, align: 'center' })
-  doc.moveTo(xC, y + 64).lineTo(xC + wChave, y + 64).stroke()
-  doc.font('Helvetica').fontSize(6.5).text('Consulte a autenticidade no portal nacional da NF-e www.nfe.fazenda.gov.br/portal ou no site da SEFAZ autorizadora', xC + 4, y + 69, { width: wChave - 8, align: 'center' })
-  y += h
-
-  // Natureza / protocolo / inscrições
-  y = linha(doc, y, 20, [['NATUREZA DA OPERAÇÃO', c.natOp, 1], ['PROTOCOLO DE AUTORIZAÇÃO DE USO', c.protocolo, 1, 'right']])
-  y = linha(doc, y, 20, [['INSCRIÇÃO ESTADUAL', c.ie, 1], ['INSCRIÇÃO ESTADUAL DO SUBSTITUTO TRIBUTÁRIO', c.iest, 1.2], ['CNPJ / CPF', c.cnpj, 0.9, 'right']])
-  if (rtc) {
-    // NT 2026.010, 4.2: CRT e campo reservado do regime de apuração do IBS/CBS (não preencher
-    // enquanto não houver tag publicada).
-    y = linha(doc, y, 20, [['CÓDIGO DO REGIME TRIBUTÁRIO', c.crt ? (CRT[c.crt] ?? c.crt) : '', 1], ['TIPO DE REGIME DE APURAÇÃO DO IBS E DA CBS', '', 1]])
-  }
-  return y
-}
-
-/** Tudo o que o desenho precisa, já lido do XML. */
 interface Nota {
   rtc: boolean
-  cab: Cabecalho
-  ide: string; emit: string; dest: string | null; enderDest: string | null
+  ide: string; emit: string; ender: string; dest: string | null; enderDest: string | null
   total: string; icmsTot: string; ibsTot: string | null; issqnTot: string | null
   transp: string | null; transporta: string | null; veiculo: string | null; vol: string | null
   cobr: string | null; infAdic: string | null; qrCode: string | null
+  numero: string; serie: string; chave: string; protocolo: string
   itens: Item[]
   logo: Buffer | null
   codigoBarras: Buffer
 }
 
-const COLUNAS = [0.28, 0.08, 0.08, 0.08, 0.085, 0.14, 0.12, 0.135].map(p => p * LARGURA)
-const ALTURA_TITULO_ITENS = 3 + 11 + 16
-const ALTURA_DADOS_ADICIONAIS = 110
+// Colunas da tabela de produtos (pesos), na ordem do DANFE tradicional.
+const COLUNAS: [string, number, 'left' | 'right' | 'center'][] = [
+  ['CÓDIGO', 52, 'left'], ['DESCRIÇÃO DOS PRODUTOS / SERVIÇOS', 150, 'left'], ['NCM/SH', 36, 'center'], ['CST', 20, 'center'],
+  ['CFOP', 22, 'center'], ['UNID', 20, 'center'], ['QUANT.', 26, 'right'], ['VALOR UNITÁRIO', 44, 'right'],
+  ['VALOR TOTAL', 44, 'right'], ['BC.ICMS', 40, 'right'], ['V. ICMS', 32, 'right'], ['V. IPI', 28, 'right'],
+  ['ALÍQ. ICMS', 24, 'right'], ['ALÍQ. IPI', 22, 'right'],
+]
+const LARGURAS = (() => { const t = COLUNAS.reduce((s, c) => s + c[1], 0); return COLUNAS.map(c => (W * c[1]) / t) })()
 
 function alturaItem(doc: Doc, it: Item): number {
   doc.font('Helvetica').fontSize(6.5)
-  const desc = doc.heightOfString([it.descricao, it.infAdProd].filter(Boolean).join('\n'), { width: COLUNAS[0] - 4 }) + 9 // + linha do NCM
-  const tributos = Math.max(it.bases.length, it.aliquotas.length, it.valores.length, 2) * 8
-  return Math.max(desc, tributos) + 6
+  let h = doc.heightOfString(it.descricao, { width: LARGURAS[1] - 4 })
+  if (it.rtc) { doc.fontSize(5.5); h += doc.heightOfString(it.rtc, { width: LARGURAS[1] - 4 }) + 1; doc.fontSize(6.5) }
+  return Math.max(h, doc.heightOfString(it.codigo, { width: LARGURAS[0] - 4 })) + 5
 }
 
-/** Quadros fixos da primeira folha (canhoto até transportador). Devolve onde começam os itens. */
-async function desenharQuadrosPrimeiraFolha(doc: Doc, n: Nota, folha: string): Promise<number> {
-  const { cab, ide, dest, enderDest, icmsTot, ibsTot, issqnTot, total, emit, transp, transporta, veiculo, vol, cobr, rtc } = n
-  let y = MARGEM
-  // Canhoto (facultativo pela NT 2026.010; mantido, como no DANFE atual)
-  const wNfe = LARGURA * 0.18
-  doc.lineWidth(0.5).strokeColor('#000000').rect(MARGEM, y, LARGURA - wNfe, 18).stroke()
-  doc.font('Helvetica-Bold').fontSize(6).fillColor('#000000')
-    .text(`RECEBEMOS DE ${cab.emitNome.toUpperCase()} OS PRODUTOS/SERVIÇOS CONSTANTES DA NOTA FISCAL ELETRÔNICA INDICADA AO LADO`, MARGEM + 3, y + 5, { width: LARGURA - wNfe - 6, height: 12, ellipsis: true })
-  celula(doc, MARGEM, y + 18, (LARGURA - wNfe) * 0.3, 20, 'DATA DE RECEBIMENTO', '')
-  celula(doc, MARGEM + (LARGURA - wNfe) * 0.3, y + 18, (LARGURA - wNfe) * 0.7, 20, 'IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR', '')
-  doc.rect(MARGEM + LARGURA - wNfe, y, wNfe, 38).stroke()
-  doc.font('Helvetica-Bold').fontSize(11).text('NF-e', MARGEM + LARGURA - wNfe, y + 5, { width: wNfe, align: 'center' })
-  doc.font('Helvetica').fontSize(7.5).text(`Nº ${cab.numero}\nSÉRIE ${cab.serie}`, MARGEM + LARGURA - wNfe, y + 19, { width: wNfe, align: 'center' })
-  y += 38
-  doc.dash(2, { space: 2 }).moveTo(MARGEM, y + 4).lineTo(MARGEM + LARGURA, y + 4).stroke().undash()
-  y += 8
+/** Canhoto + emitente/DANFE/chave + natureza/protocolo + inscrições. Usado em todas as folhas. */
+async function desenharCabecalho(doc: Doc, n: Nota, folha: string, comCanhoto: boolean): Promise<number> {
+  let y = M
+  const emitNome = tag(n.emit, 'xNome') || ''
+  if (comCanhoto) {
+    const wNfe = W * 0.155
+    doc.lineWidth(0.6).strokeColor('#000000').roundedRect(M, y, W - wNfe, 24, 3).stroke()
+    doc.font('Helvetica').fontSize(5.5).fillColor('#000000')
+      .text(`RECEBEMOS DE ${emitNome.toUpperCase()} OS PRODUTOS CONSTANTES NA NOTA FISCAL INDICADA AO LADO`, M + 3, y + 3, { width: W - wNfe - 6, height: 8, ellipsis: true })
+    campo(doc, M, y + 24, (W - wNfe) * 0.2, 24, 'DATA DE RECEBIMENTO', '')
+    campo(doc, M + (W - wNfe) * 0.2, y + 24, (W - wNfe) * 0.8, 24, 'IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR', '')
+    doc.roundedRect(M + W - wNfe, y, wNfe, 48, 3).stroke()
+    doc.font('Helvetica').fontSize(8).fillColor('#000000').text('NF-e', M + W - wNfe, y + 5, { width: wNfe, align: 'center' })
+    doc.fontSize(9).text(`Nº ${n.numero}`, M + W - wNfe, y + 17, { width: wNfe, align: 'center' })
+    doc.text(`SÉRIE ${n.serie}`, M + W - wNfe, y + 31, { width: wNfe, align: 'center' })
+    y += 52
+    doc.lineWidth(0.6).dash(3, { space: 2 }).moveTo(M, y).lineTo(M + W, y).stroke().undash()
+    y += 4
+  }
 
-  y = await desenharCabecalho(doc, y, cab, folha, n.codigoBarras, n.logo, rtc)
+  // Emitente | DANFE | controle do fisco
+  const h = 100
+  const wEmit = W * 0.43, wDanfe = W * 0.15, wChave = W - wEmit - wDanfe
+  doc.lineWidth(0.6).roundedRect(M, y, wEmit, h, 3).stroke()
+  let ty = y + 14
+  if (n.logo) {
+    try { doc.image(n.logo, M + 6, y + 5, { fit: [wEmit - 12, 40], align: 'center' }); ty = y + 49 } catch { /* logo inválido: segue sem */ }
+  }
+  const ender = n.ender
+  const linhasEndereco = [
+    [tag(ender, 'xLgr'), tag(ender, 'nro')].filter(Boolean).join(', ') + (tag(ender, 'xCpl') ? ` ${tag(ender, 'xCpl')}` : ''),
+    `${tag(ender, 'xBairro') || ''} - CEP ${cep(tag(ender, 'CEP'))}`,
+    `${tag(ender, 'xMun') || ''} - ${tag(ender, 'UF') || ''}${tag(ender, 'fone') ? `  Fone: ${telefone(tag(ender, 'fone'))}` : ''}`,
+  ]
+  doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#000000').text(emitNome, M + 4, ty, { width: wEmit - 8, align: 'center', height: 24, ellipsis: true })
+  doc.font('Helvetica').fontSize(7).text(linhasEndereco.join('\n'), M + 4, doc.y + 2, { width: wEmit - 8, align: 'center', height: Math.max(8, y + h - doc.y - 4), ellipsis: true })
 
-  // Destinatário / remetente
-  y = tituloQuadro(doc, y + 3, 'DESTINATÁRIO / REMETENTE')
-  y = linha(doc, y, 20, [['NOME / RAZÃO SOCIAL', tag(dest, 'xNome') || '', 2.6], ['CNPJ / CPF', documento(tag(dest, 'CNPJ') || tag(dest, 'CPF')) || tag(dest, 'idEstrangeiro') || '', 1.1], ['DATA DE EMISSÃO', data(tag(ide, 'dhEmi')), 0.8]])
-  y = linha(doc, y, 20, [['ENDEREÇO', [tag(enderDest, 'xLgr'), tag(enderDest, 'nro'), tag(enderDest, 'xCpl')].filter(Boolean).join(', '), 2], ['BAIRRO / DISTRITO', tag(enderDest, 'xBairro') || '', 1.1], ['CEP', cep(tag(enderDest, 'CEP')), 0.6], ['DATA DE ENTRADA / SAÍDA', data(tag(ide, 'dhSaiEnt')), 0.8]])
-  y = linha(doc, y, 20, [['MUNICÍPIO', tag(enderDest, 'xMun') || '', 1.4], ['FONE / FAX', telefone(tag(enderDest, 'fone')), 0.9], ['UF', tag(enderDest, 'UF') || '', 0.3], ['INSCRIÇÃO ESTADUAL', tag(dest, 'IE') || '', 1.1], ['HORA DE SAÍDA', hora(tag(ide, 'dhSaiEnt')), 0.8]])
+  const xD = M + wEmit
+  doc.roundedRect(xD, y, wDanfe, h, 3).stroke()
+  doc.font('Helvetica-Bold').fontSize(11).text('DANFE', xD, y + 5, { width: wDanfe, align: 'center' })
+  doc.font('Helvetica').fontSize(6).text('DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRÔNICA', xD + 4, y + 19, { width: wDanfe - 8, align: 'center' })
+  doc.fontSize(6.5).text('0 - ENTRADA\n1 - SAÍDA', xD + 7, y + 41)
+  doc.rect(xD + wDanfe - 22, y + 41, 14, 14).stroke()
+  doc.fontSize(10).text(tag(n.ide, 'tpNF') || '1', xD + wDanfe - 22, y + 44, { width: 14, align: 'center' })
+  doc.font('Helvetica-Bold').fontSize(8).text(`Nº ${n.numero}`, xD, y + 62, { width: wDanfe, align: 'center' })
+  doc.text(`SÉRIE ${n.serie}`, xD, y + 73, { width: wDanfe, align: 'center' })
+  doc.font('Helvetica').fontSize(6.5).text(`PÁGINA ${folha.replace('/', ' DE ')}`, xD, y + 86, { width: wDanfe, align: 'center' })
 
-  // Fatura / duplicatas (facultativo: só com dados no XML)
-  const dups = blocos(cobr, 'dup')
+  const xC = xD + wDanfe
+  doc.roundedRect(xC, y, wChave, h, 3).stroke()
+  doc.font('Helvetica').fontSize(5).fillColor(COR_ROTULO).text('CONTROLE DO FISCO', xC + 3, y + 2)
+  doc.image(n.codigoBarras, xC + 8, y + 9, { width: wChave - 16, height: 30 })
+  doc.moveTo(xC, y + 43).lineTo(xC + wChave, y + 43).stroke()
+  doc.fontSize(5).text('CHAVE DE ACESSO', xC + 3, y + 45)
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#000000').text(n.chave.replace(/(\d{4})(?=\d)/g, '$1 '), xC + 2, y + 53, { width: wChave - 4, align: 'center', lineBreak: false })
+  doc.moveTo(xC, y + 64).lineTo(xC + wChave, y + 64).stroke()
+  doc.font('Helvetica').fontSize(7).text('Consulta de autenticidade no portal nacional da NF-e www.nfe.fazenda.gov.br/portal ou no site da Sefaz Autorizadora', xC + 5, y + 70, { width: wChave - 10, align: 'center', height: 28, ellipsis: true })
+  y += h
+
+  y = linha(doc, y, [['NATUREZA DA OPERAÇÃO', tag(n.ide, 'natOp') || '', 0.58], ['PROTOCOLO DE AUTORIZAÇÃO DE USO', n.protocolo, 0.42, 'center']])
+  y = linha(doc, y, [['INSCRIÇÃO ESTADUAL', tag(n.emit, 'IE') || '', 1], ['INSCRIÇÃO ESTADUAL DO SUBST. TRIBUT.', tag(n.emit, 'IEST') || '', 1], ['CNPJ', documento(tag(n.emit, 'CNPJ') || tag(n.emit, 'CPF')), 1]])
+  if (n.rtc) {
+    // NT 2026.010, 4.2: CRT e campo reservado do regime de apuração do IBS/CBS (sem conteúdo até sair a tag).
+    const crt = tag(n.emit, 'CRT')
+    y = linha(doc, y, [['CÓDIGO DO REGIME TRIBUTÁRIO', crt ? (CRT[crt] ?? crt) : '', 1], ['TIPO DE REGIME DE APURAÇÃO DO IBS E DA CBS', '', 1]])
+  }
+  return y
+}
+
+/** Quadros que só aparecem na primeira folha, antes dos produtos. */
+function desenharQuadrosNota(doc: Doc, n: Nota, y: number): number {
+  const { ide, dest, enderDest, icmsTot } = n
+  y = titulo(doc, y + 2, 'DESTINATÁRIO / REMETENTE')
+  y = linha(doc, y, [['NOME / RAZÃO SOCIAL', tag(dest, 'xNome') || '', 3.4], ['CNPJ / CPF', documento(tag(dest, 'CNPJ') || tag(dest, 'CPF')) || tag(dest, 'idEstrangeiro') || '', 1.2], ['DATA DA EMISSÃO', data(tag(ide, 'dhEmi')), 0.9, 'center']])
+  y = linha(doc, y, [['ENDEREÇO', [tag(enderDest, 'xLgr'), tag(enderDest, 'nro')].filter(Boolean).join(', ') + (tag(enderDest, 'xCpl') ? ` ${tag(enderDest, 'xCpl')}` : ''), 2.4], ['BAIRRO / DISTRITO', tag(enderDest, 'xBairro') || '', 1.4], ['CEP', cep(tag(enderDest, 'CEP')), 0.8, 'center'], ['DATA DA SAÍDA/ENTRADA', data(tag(ide, 'dhSaiEnt')), 0.9, 'center']])
+  y = linha(doc, y, [['MUNICÍPIO', tag(enderDest, 'xMun') || '', 2.1], ['FONE / FAX', telefone(tag(enderDest, 'fone')), 1], ['UF', tag(enderDest, 'UF') || '', 0.3, 'center'], ['INSCRIÇÃO ESTADUAL', tag(dest, 'IE') || '', 1.2], ['HORA DA SAÍDA/ENTRADA', hora(tag(ide, 'dhSaiEnt')), 0.9, 'center']])
+
+  // Fatura / duplicatas (só com dados no XML)
+  const dups = blocos(n.cobr, 'dup')
   if (dups.length) {
-    y = tituloQuadro(doc, y + 3, 'FATURA / DUPLICATAS')
-    for (let i = 0; i < dups.length; i += 3) {
-      y = linha(doc, y, 20, dups.slice(i, i + 3).flatMap(d => [
-        ['FATURA/DUPLICATA', tag(d, 'nDup') || '', 1] as [string, string, number],
-        ['VENCIMENTO', data(tag(d, 'dVenc')), 0.8] as [string, string, number],
-        ['VALOR', numero(tag(d, 'vDup')), 0.8, 'right'] as [string, string, number, 'right'],
-      ]))
+    y = titulo(doc, y + 2, 'FATURA / DUPLICATAS')
+    for (let i = 0; i < dups.length; i += 4) {
+      y = linha(doc, y, dups.slice(i, i + 4).map(d => [`Nº ${tag(d, 'nDup') || ''} · VENC. ${data(tag(d, 'dVenc'))}`, numero(tag(d, 'vDup')), 1, 'right'] as [string, string, number, 'right']))
     }
   }
 
-  // Totais
-  y = tituloQuadro(doc, y + 3, 'TOTAL DOS PRODUTOS E TOTAL DA NOTA')
-  y = linha(doc, y, 20, [['VALOR TOTAL DOS PRODUTOS', numero(tag(icmsTot, 'vProd')), 1, 'right'], ['VALOR DO FRETE', numero(tag(icmsTot, 'vFrete')), 1, 'right'], ['VALOR DO SEGURO', numero(tag(icmsTot, 'vSeg')), 1, 'right'], ['DESCONTO', numero(tag(icmsTot, 'vDesc')), 1, 'right'], ['OUTRAS DESPESAS', numero(tag(icmsTot, 'vOutro')), 1, 'right'], ['VALOR TOTAL DA NOTA', numero(tag(icmsTot, 'vNF')), 1.1, 'right']])
-  y = tituloQuadro(doc, y + 3, 'TOTAL DO ICMS / IPI')
-  y = linha(doc, y, 20, [['BASE DE CÁLCULO DO ICMS', numero(tag(icmsTot, 'vBC')), 1, 'right'], ['VALOR DO ICMS', numero(tag(icmsTot, 'vICMS')), 1, 'right'], ['BASE DE CÁLCULO DO ICMS ST', numero(tag(icmsTot, 'vBCST')), 1, 'right'], ['VALOR DO ICMS ST', numero(tag(icmsTot, 'vST')), 1, 'right'], ['VALOR DO IPI', numero(tag(icmsTot, 'vIPI')), 1, 'right']])
-  // Linhas condicionadas (FCP, DIFAL, monofásico): só quando houver valor no XML
-  const temValor = (campo: string) => Number(tag(icmsTot, campo) || 0) > 0
-  if (['vFCP', 'vFCPST', 'vICMSUFDest', 'vFCPUFDest'].some(temValor)) {
-    y = linha(doc, y, 20, [['VALOR DO FCP', numero(tag(icmsTot, 'vFCP')), 1, 'right'], ['VALOR DO FCP RETIDO POR ST', numero(tag(icmsTot, 'vFCPST')), 1, 'right'], ['VALOR DO DIFAL NA UF DE DESTINO', numero(tag(icmsTot, 'vICMSUFDest')), 1, 'right'], ['VALOR DO FCP NA UF DE DESTINO', numero(tag(icmsTot, 'vFCPUFDest')), 1, 'right']])
+  // Cálculo do imposto (quadro único, como no DANFE tradicional)
+  y = titulo(doc, y + 2, 'CÁLCULO DO IMPOSTO')
+  y = linha(doc, y, [['BASE DE CÁLCULO DO ICMS', numero(tag(icmsTot, 'vBC')), 1, 'right'], ['VALOR DO ICMS', numero(tag(icmsTot, 'vICMS')), 1, 'right'], ['BASE DE CÁLC. ICMS S.T.', numero(tag(icmsTot, 'vBCST')), 1, 'right'], ['VALOR DO ICMS SUBST.', numero(tag(icmsTot, 'vST')), 1, 'right'], ['V. TOTAL PRODUTOS', numero(tag(icmsTot, 'vProd')), 1.2, 'right']])
+  y = linha(doc, y, [['VALOR DO FRETE', numero(tag(icmsTot, 'vFrete')), 1, 'right'], ['VALOR DO SEGURO', numero(tag(icmsTot, 'vSeg')), 1, 'right'], ['DESCONTO', numero(tag(icmsTot, 'vDesc')), 1, 'right'], ['OUTRAS DESPESAS', numero(tag(icmsTot, 'vOutro')), 1, 'right'], ['VALOR TOTAL IPI', numero(tag(icmsTot, 'vIPI')), 1, 'right'], ['V. TOTAL DA NOTA', numero(tag(icmsTot, 'vNF')), 1.2, 'right']])
+  if (n.rtc) {
+    // NT 2026.010, 4.1: quadro obrigatório; campos em branco se a nota não tiver IBS/CBS/IS.
+    const gIBS = bloco(n.ibsTot, 'gIBS'), gCBS = bloco(n.ibsTot, 'gCBS')
+    y = titulo(doc, y + 2, 'TOTAL DO IBS / CBS / IS')
+    y = linha(doc, y, [['VALOR DA CBS', numero(tag(gCBS, 'vCBS')), 1, 'right'], ['VALOR DO IBS UF', numero(tag(bloco(gIBS, 'gIBSUF'), 'vIBSUF')), 1, 'right'], ['VALOR DO IBS MUNICÍPIO', numero(tag(bloco(gIBS, 'gIBSMun'), 'vIBSMun')), 1, 'right'], ['VALOR DO IMPOSTO SELETIVO', numero(tag(bloco(n.total, 'ISTot'), 'vIS')), 1, 'right']])
   }
-  if (['qBCMono', 'vICMSMono', 'qBCMonoReten', 'vICMSMonoReten'].some(temValor)) {
-    y = linha(doc, y, 20, [['BC DO ICMS MONOFÁSICO', numero(tag(icmsTot, 'qBCMono')), 1, 'right'], ['VALOR DO ICMS MONOFÁSICO', numero(tag(icmsTot, 'vICMSMono')), 1, 'right'], ['BC DO ICMS MONOFÁSICO POR RETENÇÃO', numero(tag(icmsTot, 'qBCMonoReten')), 1, 'right'], ['VALOR DO ICMS MONOFÁSICO POR RETENÇÃO', numero(tag(icmsTot, 'vICMSMonoReten')), 1, 'right']])
-  }
-  if (rtc) {
-    // NT 2026.010, 4.1: bloco obrigatório; campos em branco se a nota não tiver IBS/CBS/IS.
-    const gIBS = bloco(ibsTot, 'gIBS'), gCBS = bloco(ibsTot, 'gCBS'), gMono = bloco(ibsTot, 'gMono')
-    y = tituloQuadro(doc, y + 3, 'TOTAL DO IBS / CBS / IS')
-    y = linha(doc, y, 20, [['VALOR DA CBS', numero(tag(gCBS, 'vCBS')), 1, 'right'], ['VALOR DO IBS UF', numero(tag(bloco(gIBS, 'gIBSUF'), 'vIBSUF')), 1, 'right'], ['VALOR DO IBS MUNICÍPIO', numero(tag(bloco(gIBS, 'gIBSMun'), 'vIBSMun')), 1, 'right'], ['VALOR DO IMPOSTO SELETIVO', numero(tag(bloco(total, 'ISTot'), 'vIS')), 1, 'right']])
-    if (gMono) {
-      y = linha(doc, y, 20, [['VALOR DO IBS MONOFÁSICO', numero(tag(gMono, 'vIBSMono')), 1, 'right'], ['VALOR DA CBS MONOFÁSICA', numero(tag(gMono, 'vCBSMono')), 1, 'right'], ['VALOR DO IBS MONOFÁSICO POR RETENÇÃO', numero(tag(gMono, 'vIBSMonoReten')), 1, 'right'], ['VALOR DA CBS MONOFÁSICA POR RETENÇÃO', numero(tag(gMono, 'vCBSMonoReten')), 1, 'right']])
-    }
-  }
-  // ISSQN (facultativo)
-  if (issqnTot && Number(tag(issqnTot, 'vServ') || 0) > 0) {
-    y = tituloQuadro(doc, y + 3, 'CÁLCULO DO ISSQN')
-    y = linha(doc, y, 20, [['INSCRIÇÃO MUNICIPAL', tag(emit, 'IM') || '', 1], ['VALOR TOTAL DOS SERVIÇOS', numero(tag(issqnTot, 'vServ')), 1, 'right'], ['BASE DE CÁLCULO DO ISSQN', numero(tag(issqnTot, 'vBC')), 1, 'right'], ['VALOR DO ISSQN', numero(tag(issqnTot, 'vISS')), 1, 'right']])
-  }
-  // Transportador (facultativo: só com transportadora, veículo ou volumes)
-  if (transporta || veiculo || vol) {
-    y = tituloQuadro(doc, y + 3, 'TRANSPORTADOR / VOLUMES TRANSPORTADOS')
-    y = linha(doc, y, 20, [['RAZÃO SOCIAL', tag(transporta, 'xNome') || '', 2], ['FRETE POR CONTA', MOD_FRETE[tag(transp, 'modFrete') || ''] || '', 1], ['CÓDIGO ANTT', tag(veiculo, 'RNTC') || '', 0.8], ['PLACA DO VEÍCULO', tag(veiculo, 'placa') || '', 0.8], ['UF', tag(veiculo, 'UF') || '', 0.3], ['CNPJ / CPF', documento(tag(transporta, 'CNPJ') || tag(transporta, 'CPF')), 1.2]])
-    y = linha(doc, y, 20, [['ENDEREÇO', tag(transporta, 'xEnder') || '', 2], ['MUNICÍPIO', tag(transporta, 'xMun') || '', 1.2], ['UF', tag(transporta, 'UF') || '', 0.3], ['INSCRIÇÃO ESTADUAL', tag(transporta, 'IE') || '', 1]])
-    y = linha(doc, y, 20, [['QUANTIDADE', tag(vol, 'qVol') || '', 0.8], ['ESPÉCIE', tag(vol, 'esp') || '', 1], ['MARCA', tag(vol, 'marca') || '', 1], ['NUMERAÇÃO', tag(vol, 'nVol') || '', 1], ['PESO BRUTO', tag(vol, 'pesoB') ? `${numero(tag(vol, 'pesoB'), 3)} kg` : '', 1, 'right'], ['PESO LÍQUIDO', tag(vol, 'pesoL') ? `${numero(tag(vol, 'pesoL'), 3)} kg` : '', 1, 'right']])
-  }
+
+  // Transportador / volumes (sempre presente no DANFE tradicional)
+  const { transp, transporta, veiculo, vol } = n
+  y = titulo(doc, y + 2, 'TRANSPORTADOR / VOLUMES TRANSPORTADOS')
+  const modFrete = tag(transp, 'modFrete') || ''
+  y = linha(doc, y, [['NOME / RAZÃO SOCIAL', tag(transporta, 'xNome') || '', 2.6], ['FRETE', modFrete ? `${modFrete} - ${MOD_FRETE[modFrete] ?? ''}` : '', 1], ['CÓDIGO ANTT', tag(veiculo, 'RNTC') || '', 0.8], ['PLACA DO VEÍCULO', tag(veiculo, 'placa') || '', 0.8], ['UF', tag(veiculo, 'UF') || '', 0.3], ['CNPJ / CPF', documento(tag(transporta, 'CNPJ') || tag(transporta, 'CPF')), 1.3]])
+  y = linha(doc, y, [['ENDEREÇO', tag(transporta, 'xEnder') || '', 2.6], ['MUNICÍPIO', tag(transporta, 'xMun') || '', 2.2], ['UF', tag(transporta, 'UF') || '', 0.3], ['INSCRIÇÃO ESTADUAL', tag(transporta, 'IE') || '', 1.6]])
+  y = linha(doc, y, [['QUANTIDADE', tag(vol, 'qVol') || '', 1], ['ESPÉCIE', tag(vol, 'esp') || '', 1], ['MARCA', tag(vol, 'marca') || '', 1], ['NUMERAÇÃO', tag(vol, 'nVol') || '', 1.2], ['PESO BRUTO', tag(vol, 'pesoB') ? numero(tag(vol, 'pesoB'), 3) : '', 1.1, 'right'], ['PESO LÍQUIDO', tag(vol, 'pesoL') ? numero(tag(vol, 'pesoL'), 3) : '', 1.1, 'right']])
   return y
 }
 
-function desenharTabelaItens(doc: Doc, n: Nota, y: number, indices: number[], alturas: number[]): number {
-  y = tituloQuadro(doc, y + 3, 'DADOS DOS PRODUTOS / SERVIÇOS')
-  const titulos = ['DESCRIÇÃO DO PRODUTO / SERVIÇO', 'CST / CFOP', 'QTD / UN', 'VLR UNIT', 'VLR TOTAL', 'BASES DE CÁLCULO', 'ALÍQUOTAS', 'VALOR DOS TRIBUTOS']
-  let x = MARGEM
-  titulos.forEach((t, i) => {
-    doc.lineWidth(0.5).strokeColor('#000000').rect(x, y, COLUNAS[i], 16).stroke()
-    doc.font('Helvetica-Bold').fontSize(5.8).fillColor('#000000').text(t, x + 1, y + 3, { width: COLUNAS[i] - 2, align: 'center', height: 12 })
-    x += COLUNAS[i]
+/** Cabeçalho da tabela de produtos. */
+function cabecalhoItens(doc: Doc, y: number): number {
+  y = titulo(doc, y + 2, 'DADOS DOS PRODUTOS / SERVIÇOS')
+  let x = M
+  COLUNAS.forEach(([t], i) => {
+    doc.lineWidth(0.6).strokeColor('#000000').rect(x, y, LARGURAS[i], 16).stroke()
+    doc.font('Helvetica').fontSize(5.2).fillColor('#000000')
+    const hTexto = doc.heightOfString(t, { width: LARGURAS[i] - 2 })
+    doc.text(t, x + 1, y + (16 - hTexto) / 2, { width: LARGURAS[i] - 2, align: 'center' })
+    x += LARGURAS[i]
   })
-  y += 16
-  for (const indice of indices) {
-    const it = n.itens[indice], h = alturas[indice]
-    const textos: [string, 'left' | 'right' | 'center'][] = [
-      [[it.descricao, it.infAdProd].filter(Boolean).join('\n'), 'left'],
-      [it.cstCfop.join('\n'), 'left'],
-      [it.qtdUn.join('\n'), 'center'],
-      [it.vUnit, 'right'],
-      [it.vTotal, 'right'],
-      [it.bases.join('\n'), 'right'],
-      [it.aliquotas.join('\n'), 'right'],
-      [it.valores.join('\n'), 'right'],
-    ]
-    let xx = MARGEM
-    textos.forEach(([texto, alinhar], i) => {
-      doc.lineWidth(0.5).rect(xx, y, COLUNAS[i], h).stroke()
-      doc.font('Helvetica').fontSize(6.5).fillColor('#000000').text(texto, xx + 2, y + 3, { width: COLUNAS[i] - 4, align: alinhar })
-      if (i === 0) doc.fontSize(6).fillColor(COR_ROTULO).text(it.ncmClass, xx + 2, y + h - 9, { width: COLUNAS[0] - 4, align: 'right', lineBreak: false })
-      xx += COLUNAS[i]
-    })
-    y += h
-  }
-  return y
+  return y + 16
 }
 
-async function desenharDadosAdicionais(doc: Doc, n: Nota) {
-  let y = LIMITE - ALTURA_DADOS_ADICIONAIS - 14
-  y = tituloQuadro(doc, y + 3, 'DADOS ADICIONAIS')
-  const h = LIMITE - y
-  const wQr = n.qrCode ? 105 : 0 // QR Code: facultativo, só quando existir no XML
-  const wInfo = (LARGURA - wQr) * 0.62
-  doc.lineWidth(0.5).strokeColor('#000000').rect(MARGEM, y, wInfo, h).stroke().rect(MARGEM + wInfo, y, LARGURA - wQr - wInfo, h).stroke()
-  doc.font('Helvetica').fontSize(5.5).fillColor(COR_ROTULO).text('INFORMAÇÕES COMPLEMENTARES', MARGEM + 2, y + 2, { lineBreak: false })
-  doc.text('RESERVADO AO FISCO', MARGEM + wInfo + 2, y + 2, { lineBreak: false })
-  doc.fontSize(7).fillColor('#000000').text(tag(n.infAdic, 'infCpl') || '', MARGEM + 2, y + 10, { width: wInfo - 4, height: h - 12, ellipsis: true })
+function linhaItem(doc: Doc, y: number, it: Item, h: number) {
+  const valores = [it.codigo, it.descricao, it.ncm, it.cst, it.cfop, it.unidade, it.quantidade, it.vUnit, it.vTotal, it.bcIcms, it.vIcms, it.vIpi, it.aliqIcms, it.aliqIpi]
+  let x = M
+  valores.forEach((v, i) => {
+    // Só as linhas verticais e a de baixo, como na tabela tradicional.
+    doc.lineWidth(0.4).strokeColor('#000000').moveTo(x, y).lineTo(x, y + h).stroke()
+    doc.font('Helvetica').fontSize(6.5).fillColor('#000000').text(v, x + 2, y + 2.5, { width: LARGURAS[i] - 4, align: COLUNAS[i][2] })
+    if (i === 1 && it.rtc) doc.fontSize(5.5).fillColor(COR_ROTULO).text(it.rtc, x + 2, doc.y + 1, { width: LARGURAS[i] - 4 })
+    x += LARGURAS[i]
+  })
+  doc.moveTo(x, y).lineTo(x, y + h).stroke()
+  doc.lineWidth(0.3).strokeColor('#999999').moveTo(M, y + h).lineTo(M + W, y + h).stroke().strokeColor('#000000')
+}
+
+async function desenharRodape(doc: Doc, n: Nota, y: number) {
+  doc.lineWidth(0.6).moveTo(M, y).lineTo(M + W, y).stroke()
+  // Cálculo do ISSQN
+  y = titulo(doc, y + 2, 'CÁLCULO DO ISSQN')
+  const iss = n.issqnTot
+  y = linha(doc, y, [['INSCRIÇÃO MUNICIPAL', tag(n.emit, 'IM') || '', 1], ['VALOR TOTAL DOS SERVIÇOS', numero(tag(iss, 'vServ')), 1, 'right'], ['BASE DE CÁLCULO DO ISSQN', numero(tag(iss, 'vBC')), 1, 'right'], ['VALOR DO ISSQN', numero(tag(iss, 'vISS')), 1, 'right']])
+
+  // Dados adicionais logo abaixo, como no DANFE tradicional
+  y = titulo(doc, y + 2, 'DADOS ADICIONAIS')
+  const h = Math.min(110, LIMITE - y)
+  const wQr = n.qrCode ? 95 : 0
+  const wInfo = (W - wQr) * 0.65
+  doc.lineWidth(0.6).roundedRect(M, y, wInfo, h, 3).stroke().roundedRect(M + wInfo, y, W - wQr - wInfo, h, 3).stroke()
+  doc.font('Helvetica').fontSize(5).fillColor(COR_ROTULO).text('INFORMAÇÕES COMPLEMENTARES', M + 2.5, y + 2, { lineBreak: false })
+  doc.text('RESERVADO AO FISCO', M + wInfo + 2.5, y + 2, { lineBreak: false })
+  doc.fontSize(7).fillColor('#000000').text(tag(n.infAdic, 'infCpl') || '', M + 3, y + 9, { width: wInfo - 6, height: h - 11, ellipsis: true })
   const fisco = tag(n.infAdic, 'infAdFisco')
-  if (fisco) doc.text(fisco, MARGEM + wInfo + 2, y + 10, { width: LARGURA - wQr - wInfo - 4, height: h - 12, ellipsis: true })
+  if (fisco) doc.text(fisco, M + wInfo + 3, y + 9, { width: W - wQr - wInfo - 6, height: h - 11, ellipsis: true })
   if (n.qrCode) {
-    const xq = MARGEM + LARGURA - wQr
-    doc.rect(xq, y, wQr, h).stroke()
-    doc.font('Helvetica-Bold').fontSize(7).text('QR CODE', xq, y + 3, { width: wQr, align: 'center' })
-    doc.image(await QRCode.toBuffer(n.qrCode, { margin: 0, width: 300 }), xq + 12, y + 14, { width: wQr - 24 })
+    const xq = M + W - wQr
+    doc.roundedRect(xq, y, wQr, h, 3).stroke()
+    doc.image(await QRCode.toBuffer(n.qrCode, { margin: 0, width: 300 }), xq + 10, y + 10, { width: wQr - 20 })
   }
 }
+
+const ALTURA_RODAPE = 12 + H + 2 + 10 + 110
 
 /** Gera o PDF do DANFE a partir do XML da NF-e. O protocolo pode vir no próprio nfeProc ou à parte. */
 export async function gerarDanfePdf(xmlNfe: string, opcoes: { xmlProtocolo?: string | null; cancelada?: boolean; logo?: Buffer | null; dataImpressao?: Date } = {}): Promise<Buffer> {
@@ -387,7 +374,6 @@ export async function gerarDanfePdf(xmlNfe: string, opcoes: { xmlProtocolo?: str
   const infNFe = bloco(xmlNfe, 'infNFe') || ''
   const ide = bloco(infNFe, 'ide') || ''
   const emit = bloco(infNFe, 'emit') || ''
-  const ender = bloco(emit, 'enderEmit') || ''
   const dest = bloco(infNFe, 'dest')
   const total = bloco(infNFe, 'total') || ''
   const transp = bloco(infNFe, 'transp')
@@ -395,57 +381,45 @@ export async function gerarDanfePdf(xmlNfe: string, opcoes: { xmlProtocolo?: str
   const chave = xmlNfe.match(/Id="NFe(\d{44})"/)?.[1] || tag(prot, 'chNFe') || ''
 
   const n: Nota = {
-    rtc,
-    cab: {
-      emitNome: tag(emit, 'xNome') || '',
-      emitEndereco: [
-        [tag(ender, 'xLgr'), tag(ender, 'nro'), tag(ender, 'xCpl')].filter(Boolean).join(', ') + (tag(ender, 'xBairro') ? ` – ${tag(ender, 'xBairro')}` : ''),
-        `${tag(ender, 'xMun') || ''}/${tag(ender, 'UF') || ''} – CEP ${cep(tag(ender, 'CEP'))}`,
-        tag(ender, 'fone') ? `Fone: ${telefone(tag(ender, 'fone'))}` : '',
-      ].filter(Boolean),
-      tpNF: tag(ide, 'tpNF') || '1',
-      numero: numeroNota(tag(ide, 'nNF')),
-      serie: (tag(ide, 'serie') || '').padStart(3, '0'),
-      chave,
-      natOp: tag(ide, 'natOp') || '',
-      protocolo: tag(prot, 'nProt') ? `${tag(prot, 'nProt')} – ${data(tag(prot, 'dhRecbto'))} ${hora(tag(prot, 'dhRecbto'))}` : '',
-      ie: tag(emit, 'IE') || '',
-      iest: tag(emit, 'IEST') || '',
-      cnpj: documento(tag(emit, 'CNPJ') || tag(emit, 'CPF')),
-      crt: tag(emit, 'CRT'),
-    },
-    ide, emit, dest, enderDest: bloco(dest, 'enderDest'),
+    rtc, ide, emit, ender: bloco(emit, 'enderEmit') || '', dest, enderDest: bloco(dest, 'enderDest'),
     total, icmsTot: bloco(total, 'ICMSTot') || '', ibsTot: bloco(total, 'IBSCBSTot'), issqnTot: bloco(total, 'ISSQNtot'),
     transp, transporta: bloco(transp, 'transporta'), veiculo: bloco(transp, 'veicTransp'), vol: bloco(transp, 'vol'),
     cobr: bloco(infNFe, 'cobr'), infAdic: bloco(infNFe, 'infAdic'), qrCode: tag(xmlNfe, 'qrCode'),
+    numero: numeroNota(tag(ide, 'nNF')),
+    serie: (tag(ide, 'serie') || '').padStart(3, '0'),
+    chave,
+    protocolo: tag(prot, 'nProt') ? `${tag(prot, 'nProt')} - ${data(tag(prot, 'dhRecbto'))} ${hora(tag(prot, 'dhRecbto'))}` : '',
     itens: blocos(infNFe, 'det').map(d => lerItem(d, rtc)),
     logo: opcoes.logo ?? null,
     codigoBarras: await gerarCode128Buffer(chave || '0'),
   }
 
-  // ── Paginação. pdfkit não mede sem desenhar, então os quadros fixos da primeira folha são
-  //    desenhados uma vez num documento descartável só para saber onde começam os itens.
+  // ── Paginação: pdfkit não mede sem desenhar, então os quadros da primeira folha são desenhados
+  //    num documento descartável só para saber onde começa a tabela de produtos.
   const medidor = new PDFDocument({ size: 'A4', margin: 0 })
   medidor.on('data', () => {})
-  const yItensPrimeira = await desenharQuadrosPrimeiraFolha(medidor, n, '1/1')
+  const yTabelaPrimeira = desenharQuadrosNota(medidor, n, await desenharCabecalho(medidor, n, '1/1', true))
+  const yTabelaDemais = await desenharCabecalho(medidor, n, '1/1', false)
   const alturas = n.itens.map(it => alturaItem(medidor, it))
   medidor.end()
 
-  const limitePrimeira = LIMITE - ALTURA_DADOS_ADICIONAIS - 17
-  const yItensDemais = MARGEM + 92 + 40 + (rtc ? 20 : 0)
+  const ALTURA_CAB_TABELA = 2 + 10 + 16
   const paginas: number[][] = [[]]
-  let usado = yItensPrimeira + ALTURA_TITULO_ITENS
+  let usado = yTabelaPrimeira + ALTURA_CAB_TABELA
   n.itens.forEach((_, i) => {
-    const limite = paginas.length === 1 ? limitePrimeira : LIMITE
-    if (usado + alturas[i] > limite && paginas[paginas.length - 1].length > 0) {
+    // O rodapé (ISSQN + dados adicionais) precisa caber depois do último item da última folha;
+    // nas folhas intermediárias os itens vão até o fim da página.
+    const reservaRodape = i === n.itens.length - 1 ? ALTURA_RODAPE : 0
+    if (usado + alturas[i] + reservaRodape > LIMITE && paginas[paginas.length - 1].length > 0) {
       paginas.push([])
-      usado = yItensDemais + ALTURA_TITULO_ITENS
+      usado = yTabelaDemais + ALTURA_CAB_TABELA
     }
     paginas[paginas.length - 1].push(i)
     usado += alturas[i]
   })
+  if (usado + ALTURA_RODAPE > LIMITE) paginas.push([]) // rodapé numa folha própria, se não couber
 
-  const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `DANFE ${n.cab.numero}`, Creator: 'Dc Informática' } })
+  const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `DANFE ${n.numero}`, Creator: 'Dc Informática' } })
   const partes: Buffer[] = []
   const pronto = new Promise<Buffer>((resolve, reject) => {
     doc.on('data', p => partes.push(p))
@@ -457,13 +431,15 @@ export async function gerarDanfePdf(xmlNfe: string, opcoes: { xmlProtocolo?: str
   for (let p = 0; p < paginas.length; p++) {
     if (p > 0) doc.addPage({ size: 'A4', margin: 0 })
     const folha = `${p + 1}/${paginas.length}`
-    const y = p === 0
-      ? await desenharQuadrosPrimeiraFolha(doc, n, folha)
-      : await desenharCabecalho(doc, MARGEM, n.cab, folha, n.codigoBarras, n.logo, rtc)
-    desenharTabelaItens(doc, n, y, paginas[p], alturas)
-    if (p === 0) await desenharDadosAdicionais(doc, n)
+    let y = await desenharCabecalho(doc, n, folha, p === 0)
+    if (p === 0) y = desenharQuadrosNota(doc, n, y)
+    if (paginas[p].length) {
+      y = cabecalhoItens(doc, y)
+      for (const i of paginas[p]) { linhaItem(doc, y, n.itens[i], alturas[i]); y += alturas[i] }
+    }
+    if (p === paginas.length - 1) await desenharRodape(doc, n, y)
+    else doc.lineWidth(0.6).moveTo(M, y).lineTo(M + W, y).stroke()
 
-    // Marca d'água: nota cancelada, ou emitida em homologação (sem valor fiscal).
     if (marca) {
       doc.save().rotate(-50, { origin: [297, 421] })
       doc.font('Helvetica-Bold').fontSize(marca === 'CANCELADA' ? 90 : 60).fillColor('#A6A6A6').fillOpacity(0.45)

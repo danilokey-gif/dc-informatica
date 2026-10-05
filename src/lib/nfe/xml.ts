@@ -279,6 +279,11 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
         `</total>` +
         `<transp><modFrete>9</modFrete></transp>` +
         `<pag><detPag><tPag>${tPag}</tPag>${xPag}<vPag>${formatarDecimal(vProdTotal)}</vPag></detPag></pag>` +
+        // Optante do Simples Nacional/MEI (CRT 1, 2 ou 4): a frase é obrigatória no documento fiscal
+        // (LC 123/2006). infAdic vem logo depois de pag na ordem do schema.
+        (['1', '2', '4'].includes(input.emitente.crt)
+          ? `<infAdic><infCpl>DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.</infCpl></infAdic>`
+          : '') +
       `</infNFe>` +
     `</NFe>`
 

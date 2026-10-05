@@ -68,8 +68,10 @@ export async function emitirNfeVenda(saleId: string) {
     const certSenha = decryptSecret(nfeConfig.certificadoSenha)
     const certMaterial = extractCertMaterial(pfxBuffer, certSenha)
 
-    const numero = nfeConfig.proximoNumero
     const ambiente = nfeConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
+    // Produção e homologação têm numeração própria na Sefaz; um contador só faria cada teste
+    // pular um número das notas reais (buraco que depois exige inutilização).
+    const numero = ambiente === 'producao' ? nfeConfig.proximoNumero : nfeConfig.proximoNumeroHomologacao
 
     const { xml, chaveAcesso } = montarXmlNfe({
       ambiente,
@@ -156,7 +158,7 @@ export async function emitirNfeVenda(saleId: string) {
         }),
         prisma.nfeConfig.update({
           where: { id: 'main' },
-          data: { proximoNumero: { increment: 1 } }
+          data: ambiente === 'producao' ? { proximoNumero: { increment: 1 } } : { proximoNumeroHomologacao: { increment: 1 } }
         })
       ])
 

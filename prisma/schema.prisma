@@ -174,26 +174,28 @@ model NfseEmissao {
 }
 
 model NfeConfig {
-  id                String    @id @default("main")
-  ambiente          String    @default("homologacao")
-  crt               String    @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (ME/EPP), 2=Simples excesso sublimite, 3=Regime Normal, 4=MEI (obrigatorio para MEI desde 01/04/2025 — com 1 a Sefaz rejeita com 481)
-  codigoMunicipio   String?
-  nomeMunicipio     String?
-  uf                String    @default("SP")
-  cfopPadrao        String    @default("5102") // Venda de mercadoria dentro do estado, sem substituicao tributaria
-  certificado       String?
-  certificadoSenha  String?
-  certificadoNome   String?
-  serie             String    @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
-  proximoNumero     Int       @default(1)
-  ultimoNsu         String?   @default("000000000000000")
+  id                       String    @id @default("main")
+  ambiente                 String    @default("homologacao")
+  crt                      String    @default("1") // Codigo de Regime Tributario: 1=Simples Nacional (ME/EPP), 2=Simples excesso sublimite, 3=Regime Normal, 4=MEI (obrigatorio para MEI desde 01/04/2025 — com 1 a Sefaz rejeita com 481)
+  codigoMunicipio          String?
+  nomeMunicipio            String?
+  uf                       String    @default("SP")
+  cfopPadrao               String    @default("5102") // Venda de mercadoria dentro do estado, sem substituicao tributaria
+  certificado              String?
+  certificadoSenha         String?
+  certificadoNome          String?
+  serie                    String    @default("2") // serie diferente da usada no emissor externo (Sebrae), evita colisao de numeracao
+  proximoNumero            Int       @default(1)
+  /// Contador separado para notas de teste (homologação): testar não pode pular número das notas reais.
+  proximoNumeroHomologacao Int       @default(1000)
+  ultimoNsu                String?   @default("000000000000000")
   /**
    * A Sefaz exige 1h de espera depois de responder "não há mais documentos" (cStat 137), e bloqueia
    * o CNPJ por 1h (cStat 656) se consultarmos antes. Cada consulta durante o bloqueio ZERA o relógio,
    * então guardamos aqui quando a próxima consulta está liberada e nem chamamos a Sefaz antes disso.
    */
-  distDfeLiberadoEm DateTime?
-  updatedAt         DateTime  @updatedAt
+  distDfeLiberadoEm        DateTime?
+  updatedAt                DateTime  @updatedAt
 }
 
 model NfeEmissao {

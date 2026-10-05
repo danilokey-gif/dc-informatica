@@ -98,6 +98,14 @@ export class NfeSoapClient {
     })
 
     const texto = await res.text()
+    // A Sefaz responde 403 (página HTML, sem XML fiscal) quando recusa o certificado na conexão:
+    // vencido, revogado ou de outro CNPJ. Nesse caso nada foi processado e nenhuma nota existe.
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`A Sefaz recusou a conexão do certificado digital (HTTP ${res.status}). Confira em Configurações se o certificado está dentro da validade e é o e-CNPJ da empresa. Nenhuma nota foi emitida.`)
+    }
+    if (!res.ok && !texto.includes('Fault')) {
+      throw new Error(`A Sefaz respondeu HTTP ${res.status} sem retorno fiscal (serviço fora do ar?). Nenhuma nota foi emitida; tente de novo mais tarde.`)
+    }
     if (texto.includes('soap:Fault') || texto.includes('soap12:Fault')) {
       throw new Error(`Rejeição SOAP (HTTP ${res.status}). Enviado: ${envelope} | Recebido: ${texto}`)
     }

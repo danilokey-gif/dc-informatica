@@ -48,7 +48,12 @@ export interface NfeInput {
 }
 
 function esc(value: string) {
+  // O schema da NF-e (TString) proíbe espaço no início/fim e caracteres de controle: um código de
+  // produto gravado com espaços sobrando derruba a nota inteira com a rejeição 225.
   return value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -200,7 +205,8 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
   })() : ''
 
   const tPag = TP_PAGAMENTO[input.formaPagamento]
-  const xPag = input.formaPagamento === 'pix' ? '<xPag>PIX</xPag>' : ''
+  // tPag 99 (outros) exige a descrição em xPag (NT 2020.006); o PIX também sai como 99 + "PIX".
+  const xPag = input.formaPagamento === 'pix' ? '<xPag>PIX</xPag>' : tPag === '99' ? '<xPag>Outros</xPag>' : ''
 
   // Sem declaração <?xml?> própria: este XML é embutido como elemento filho dentro do envelope
   // SOAP (enviNFe), e uma segunda declaração aninhada tornaria o documento inteiro malformado.

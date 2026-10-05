@@ -22,8 +22,9 @@ export async function processXmlUpload(formData: FormData) {
     
     for (const det of dets) {
       const prod = det.prod[0]
-      const name = prod.xProd[0]
-      const sku = prod.cProd[0]
+      // XML de fornecedor às vezes vem com espaços sobrando, que depois derrubam a NF-e (rejeição 225).
+      const name = String(prod.xProd[0]).replace(/\s+/g, ' ').trim()
+      const sku = String(prod.cProd[0]).trim()
       const quantity = parseFloat(prod.qCom[0])
       const costPrice = parseFloat(prod.vUnCom[0])
       

@@ -14,8 +14,8 @@ function lerGtin(formData: FormData): string | null {
 }
 
 export async function createProduct(formData: FormData) {
-  const name = formData.get('name') as string
-  const sku = (formData.get('sku') as string) || null
+  const name = ((formData.get('name') as string) || '').replace(/\s+/g, ' ').trim()
+  const sku = ((formData.get('sku') as string) || '').trim() || null
   const category = (formData.get('category') as string) || null
   const description = (formData.get('description') as string) || null
   const costPrice = parseFloat(formData.get('costPrice') as string) || 0
@@ -34,8 +34,8 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function updateProduct(id: string, formData: FormData) {
-  const name = formData.get('name') as string
-  const sku = (formData.get('sku') as string) || null
+  const name = ((formData.get('name') as string) || '').replace(/\s+/g, ' ').trim()
+  const sku = ((formData.get('sku') as string) || '').trim() || null
   const category = (formData.get('category') as string) || null
   const description = (formData.get('description') as string) || null
   const costPrice = parseFloat(formData.get('costPrice') as string) || 0

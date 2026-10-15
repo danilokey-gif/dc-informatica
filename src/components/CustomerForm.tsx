@@ -93,6 +93,10 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel, 
   const [situacaoCnpj, setSituacaoCnpj] = useState<{ tipo: 'buscando' | 'ok' | 'aviso' | 'erro'; texto: string } | null>(null)
   const ultimoCnpj = useRef('')
   const [duplicado, setDuplicado] = useState<{ id: string; name: string } | null>(null)
+  const [enderecoSugerido, setEnderecoSugerido] = useState<Omit<DadosDocumento, 'origem'> | null>(null)
+  // Valor atual do logradouro para a consulta assíncrona (o estado capturado na hora do clique fica velho).
+  const logradouroAtual = useRef(logradouro)
+  logradouroAtual.current = logradouro
 
   /** Campo sem estado no React (nome, e-mail, endereço completo): só preenche se estiver vazio. */
   const preencherSeVazio = (id: string, valor: string) => {
@@ -106,6 +110,17 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel, 
     preencherSeVazio('email', d.email)
     if (!phone && d.telefone) handlePhoneChange({ target: { value: d.telefone } } as React.ChangeEvent<HTMLInputElement>)
     if (!d.logradouro && !d.cep) return
+    // Endereço já preenchido (ao editar, ou digitado antes da consulta voltar): não troca sozinho,
+    // senão a correção feita pelo usuário some ao salvar. Oferece um botão para trocar.
+    if (logradouroAtual.current.trim()) {
+      setEnderecoSugerido(d)
+      return
+    }
+    trocarEndereco(d)
+  }
+
+  const trocarEndereco = (d: Omit<DadosDocumento, 'origem'>) => {
+    setEnderecoSugerido(null)
     setLogradouro(d.logradouro)
     setNumero(d.numero || 'S/N')
     setBairro(d.bairro)
@@ -259,6 +274,16 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel, 
           <p style={{ fontSize: '0.78rem', marginTop: '0.25rem', color: { buscando: 'var(--text-muted)', ok: 'var(--accent-green)', aviso: 'var(--accent-orange)', erro: 'var(--accent-red)' }[situacaoCnpj.tipo], fontWeight: situacaoCnpj.tipo === 'aviso' ? 600 : undefined }}>
             {situacaoCnpj.texto}
           </p>
+        )}
+        {enderecoSugerido && (
+          <div style={{ fontSize: '0.8rem', marginTop: '0.4rem', padding: '0.5rem 0.6rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+            Endereço encontrado: <strong>{[[enderecoSugerido.logradouro, enderecoSugerido.numero].filter(Boolean).join(', '), enderecoSugerido.bairro, `${enderecoSugerido.municipio}/${enderecoSugerido.uf}`].filter(Boolean).join(' - ')}</strong>.
+            {' '}O endereço do cadastro foi mantido.
+            <div className="flex gap-4" style={{ marginTop: '0.4rem' }}>
+              <button type="button" className="btn btn-outline" style={{ padding: '0.25rem 0.7rem', fontSize: '0.78rem' }} onClick={() => trocarEndereco(enderecoSugerido)}>Usar este endereço</button>
+              <button type="button" className="btn btn-outline" style={{ padding: '0.25rem 0.7rem', fontSize: '0.78rem' }} onClick={() => setEnderecoSugerido(null)}>Manter o atual</button>
+            </div>
+          </div>
         )}
         {duplicado && (
           <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', color: 'var(--accent-orange)', fontWeight: 600 }}>

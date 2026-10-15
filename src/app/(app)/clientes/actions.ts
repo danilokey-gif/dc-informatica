@@ -61,6 +61,8 @@ export async function updateCustomer(id: string, formData: FormData) {
     data: { name, document, phone, address, email, ...enderecoFields(formData) }
   })
 
+  revalidatePath('/clientes')
+  revalidatePath(`/clientes/${id}`)
   redirect('/clientes')
 }
 

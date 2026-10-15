@@ -1,3 +1,4 @@
+import CampoCnpjFornecedor from "@/components/CampoCnpjFornecedor"
 import { createSupplier } from "../actions"
 import Link from "next/link"
 
@@ -18,7 +19,7 @@ export default function NovoFornecedorPage() {
 
           <div className="input-group">
             <label className="input-label" htmlFor="document">CNPJ/CPF</label>
-            <input type="text" id="document" name="document" className="input-field" />
+            <CampoCnpjFornecedor />
           </div>
 
           <div className="input-group">

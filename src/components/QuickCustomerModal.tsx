@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import CampoCep from './CampoCep'
 import type { EnderecoCep } from '@/lib/cep'
+import { consultarCnpj, validarCnpj } from '@/lib/cnpj'
 
 export interface QuickCustomerData {
   name: string
@@ -34,6 +35,33 @@ export default function QuickCustomerModal({ initialName, onClose, onSave }: Pro
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState<{ municipio: string; uf: string; codigoIbge: string | null } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [versaoCep, setVersaoCep] = useState(0)
+  const [avisoCnpj, setAvisoCnpj] = useState<{ cor: string; texto: string } | null>(null)
+  const ultimoCnpj = useRef('')
+
+  /** Com um CNPJ válido, preenche nome, telefone e endereço pela Receita Federal. */
+  async function aoMudarDocumento(valor: string) {
+    setDocumento(valor)
+    const cnpj = valor.replace(/\D/g, '')
+    if (cnpj.length !== 14) { ultimoCnpj.current = ''; setAvisoCnpj(null); return }
+    if (!validarCnpj(cnpj)) { setAvisoCnpj({ cor: 'var(--accent-red)', texto: 'CNPJ inválido. Verifique os dígitos.' }); return }
+    if (ultimoCnpj.current === cnpj) return
+    ultimoCnpj.current = cnpj
+    setAvisoCnpj({ cor: 'var(--text-muted)', texto: 'Consultando CNPJ na Receita Federal…' })
+    const d = await consultarCnpj(cnpj)
+    if ('erro' in d) { setAvisoCnpj({ cor: 'var(--accent-red)', texto: d.erro }); return }
+    setName(atual => atual.trim() ? atual : d.razaoSocial)
+    setPhone(atual => atual.trim() ? atual : d.telefone)
+    setCep(d.cep)
+    setVersaoCep(v => v + 1)
+    setLogradouro(d.logradouro)
+    setNumero(d.numero || 'S/N')
+    setBairro(d.bairro)
+    setCidade({ municipio: d.municipio, uf: d.uf, codigoIbge: d.codigoIbge })
+    setAvisoCnpj(d.situacao && d.situacao !== 'ATIVA'
+      ? { cor: 'var(--accent-orange)', texto: `Atenção: CNPJ com situação ${d.situacao} na Receita Federal.` }
+      : { cor: 'var(--accent-green)', texto: `Dados da Receita Federal preenchidos${d.nomeFantasia ? ` (${d.nomeFantasia})` : ''}.` })
+  }
 
   function aoEncontrarCep(e: EnderecoCep) {
     setLogradouro(e.logradouro)
@@ -81,7 +109,8 @@ export default function QuickCustomerModal({ initialName, onClose, onSave }: Pro
           </div>
           <div className="input-group">
             <label className="input-label">CPF / CNPJ</label>
-            <input type="text" className="input-field" value={documento} onChange={e => setDocumento(e.target.value)} />
+            <input type="text" className="input-field" value={documento} onChange={e => aoMudarDocumento(e.target.value)} />
+            {avisoCnpj && <p style={{ fontSize: '0.78rem', marginTop: '0.25rem', color: avisoCnpj.cor }}>{avisoCnpj.texto}</p>}
           </div>
           <div className="input-group">
             <label className="input-label">Telefone</label>
@@ -92,7 +121,7 @@ export default function QuickCustomerModal({ initialName, onClose, onSave }: Pro
             Endereço (opcional — necessário para nota fiscal)
           </p>
           <div className="input-group">
-            <CampoCep id="quick-cep" name="quick-cep" onEndereco={aoEncontrarCep} onDigitos={setCep} />
+            <CampoCep key={versaoCep} defaultValue={cep} id="quick-cep" name="quick-cep" onEndereco={aoEncontrarCep} onDigitos={setCep} />
           </div>
           <div className="input-group">
             <label className="input-label" htmlFor="quick-logradouro">Logradouro</label>

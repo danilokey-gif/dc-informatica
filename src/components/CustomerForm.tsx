@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import CampoCep from './CampoCep'
 import type { EnderecoCep } from '@/lib/cep'
+import { consultarCnpj, type DadosCnpj } from '@/lib/cnpj'
 
 interface CustomerFormProps {
   action: (formData: FormData) => void
@@ -82,6 +83,47 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
   const [municipio, setMunicipio] = useState(defaultValues.enderMunicipio || '')
   const [uf, setUf] = useState(defaultValues.enderUf || '')
   const [codMunicipio, setCodMunicipio] = useState(defaultValues.enderCodMunicipio || '')
+  const [numero, setNumero] = useState(defaultValues.enderNumero || '')
+  const [cep, setCep] = useState(defaultValues.enderCep || '')
+  // Muda quando o CNPJ preenche o CEP, para o campo de CEP recomeçar com o valor novo.
+  const [versaoCep, setVersaoCep] = useState(0)
+  const [situacaoCnpj, setSituacaoCnpj] = useState<{ tipo: 'buscando' | 'ok' | 'aviso' | 'erro'; texto: string } | null>(null)
+  const ultimoCnpj = useRef('')
+
+  /** Campo sem estado no React (nome, e-mail, endereço completo): só preenche se estiver vazio. */
+  const preencherSeVazio = (id: string, valor: string) => {
+    const campo = document.getElementById(id) as HTMLInputElement | null
+    if (campo && !campo.value.trim() && valor) campo.value = valor
+  }
+
+  const aoEncontrarCnpj = (d: DadosCnpj) => {
+    preencherSeVazio('name', d.razaoSocial)
+    preencherSeVazio('email', d.email)
+    if (!phone && d.telefone) handlePhoneChange({ target: { value: d.telefone } } as React.ChangeEvent<HTMLInputElement>)
+    // O endereço vem inteiro da Receita: substitui o bloco todo para não misturar endereços.
+    setLogradouro(d.logradouro)
+    setNumero(d.numero || 'S/N')
+    setBairro(d.bairro)
+    setMunicipio(d.municipio)
+    setUf(d.uf)
+    setCodMunicipio(d.codigoIbge || '')
+    setCep(d.cep)
+    setVersaoCep(v => v + 1)
+    preencherSeVazio('address', [[d.logradouro, d.numero].filter(Boolean).join(', '), d.complemento, d.bairro].filter(Boolean).join(' - ') + ` - ${d.municipio}/${d.uf}`)
+    const fantasia = d.nomeFantasia ? ` (${d.nomeFantasia})` : ''
+    setSituacaoCnpj(d.situacao && d.situacao !== 'ATIVA'
+      ? { tipo: 'aviso', texto: `Atenção: CNPJ com situação ${d.situacao} na Receita Federal.${fantasia}` }
+      : { tipo: 'ok', texto: `Dados da Receita Federal preenchidos${fantasia}. Confira antes de salvar.` })
+  }
+
+  const buscarCnpj = async (cnpj: string) => {
+    if (ultimoCnpj.current === cnpj) return
+    ultimoCnpj.current = cnpj
+    setSituacaoCnpj({ tipo: 'buscando', texto: 'Consultando CNPJ na Receita Federal…' })
+    const r = await consultarCnpj(cnpj)
+    if ('erro' in r) setSituacaoCnpj({ tipo: 'erro', texto: r.erro })
+    else aoEncontrarCnpj(r)
+  }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value
@@ -121,6 +163,13 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
     }
     setDoc(formatted.slice(0, 18))
     setDocError('')
+    if (cleaned.length === 14) {
+      if (validarCNPJ(cleaned)) buscarCnpj(cleaned)
+      else setDocError('CNPJ inválido. Verifique os dígitos.')
+    } else {
+      ultimoCnpj.current = ''
+      setSituacaoCnpj(null)
+    }
   }
 
   const aoEncontrarCep = (e: EnderecoCep) => {
@@ -175,6 +224,12 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
           placeholder="Ex: 000.000.000-00 ou 00.000.000/0000-00"
         />
         {docError && <p style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '0.25rem', fontWeight: 600 }}>{docError}</p>}
+        {!docError && situacaoCnpj && (
+          <p style={{ fontSize: '0.78rem', marginTop: '0.25rem', color: { buscando: 'var(--text-muted)', ok: 'var(--accent-green)', aviso: 'var(--accent-orange)', erro: 'var(--accent-red)' }[situacaoCnpj.tipo], fontWeight: situacaoCnpj.tipo === 'aviso' ? 600 : undefined }}>
+            {situacaoCnpj.texto}
+          </p>
+        )}
+        {!situacaoCnpj && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>Com CNPJ, nome, telefone, e-mail e endereço são preenchidos pela Receita Federal.</p>}
       </div>
 
       <div className="input-group">
@@ -205,7 +260,7 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
       </h3>
       
       <div className="input-group">
-        <CampoCep defaultValue={defaultValues.enderCep} onEndereco={aoEncontrarCep} label="CEP (preenche o endereço sozinho)" />
+        <CampoCep key={versaoCep} defaultValue={cep} onDigitos={setCep} onEndereco={aoEncontrarCep} label="CEP (preenche o endereço sozinho)" />
       </div>
 
       <div className="input-group">
@@ -223,7 +278,7 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
 
       <div className="input-group">
         <label className="input-label" htmlFor="enderNumero">Número</label>
-        <input type="text" id="enderNumero" name="enderNumero" className="input-field" defaultValue={defaultValues.enderNumero || ''} />
+        <input type="text" id="enderNumero" name="enderNumero" className="input-field" value={numero} onChange={(e) => setNumero(e.target.value)} />
       </div>
 
       <div className="input-group">

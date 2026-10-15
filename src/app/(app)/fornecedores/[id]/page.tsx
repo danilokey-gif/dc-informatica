@@ -1,3 +1,4 @@
+import CampoCnpjFornecedor from "@/components/CampoCnpjFornecedor"
 import { prisma } from "@/lib/prisma"
 import { updateSupplier } from "../actions"
 import Link from "next/link"
@@ -32,7 +33,7 @@ export default async function EditarFornecedorPage({ params }: { params: Promise
 
           <div className="input-group">
             <label className="input-label" htmlFor="document">CNPJ/CPF</label>
-            <input type="text" id="document" name="document" className="input-field" defaultValue={fornecedor.document || ''} />
+            <CampoCnpjFornecedor defaultValue={fornecedor.document} />
           </div>
 
           <div className="input-group">

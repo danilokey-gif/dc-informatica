@@ -1,4 +1,4 @@
-import { getCompanySettings } from "@/lib/settings";
+import { getCompanySettingsLeve } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/auth";
 import Sidebar from "./Sidebar";
 
@@ -10,7 +10,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }>) {
   const [settings, user] = await Promise.all([
-    getCompanySettings(),
+    getCompanySettingsLeve(),
     getCurrentUser(),
   ]);
 
@@ -26,7 +26,7 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
-      <Sidebar companyName={settings.nomeFantasia || settings.name} logo={settings.logo} role={user.role} />
+      <Sidebar companyName={settings.nomeFantasia || settings.name} logo={settings.temLogo ? `/logo?v=${settings.updatedAt.getTime()}` : null} role={user.role} />
 
       <div className="app-content">
         <header className="no-print topbar">

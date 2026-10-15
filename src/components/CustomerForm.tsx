@@ -3,7 +3,8 @@
 import { useRef, useState } from 'react'
 import CampoCep from './CampoCep'
 import type { EnderecoCep } from '@/lib/cep'
-import { consultarCnpj, type DadosCnpj } from '@/lib/cnpj'
+import Link from 'next/link'
+import { consultarCnpj, consultarDocumentoInterno, type DadosCnpj, type DadosDocumento } from '@/lib/cnpj'
 
 interface CustomerFormProps {
   action: (formData: FormData) => void
@@ -22,6 +23,8 @@ interface CustomerFormProps {
     enderCodMunicipio?: string | null
   }
   submitLabel: string
+  /** Ao editar: o próprio cliente não conta como cadastro repetido. */
+  clienteId?: string
 }
 
 function validarCPF(cpf: string) {
@@ -73,7 +76,7 @@ function validarCNPJ(cnpj: string) {
   return true
 }
 
-export default function CustomerForm({ action, defaultValues = {}, submitLabel }: CustomerFormProps) {
+export default function CustomerForm({ action, defaultValues = {}, submitLabel, clienteId }: CustomerFormProps) {
   const [doc, setDoc] = useState(defaultValues.document || '')
   const [phone, setPhone] = useState(defaultValues.phone || '')
   const [docError, setDocError] = useState('')
@@ -89,6 +92,7 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
   const [versaoCep, setVersaoCep] = useState(0)
   const [situacaoCnpj, setSituacaoCnpj] = useState<{ tipo: 'buscando' | 'ok' | 'aviso' | 'erro'; texto: string } | null>(null)
   const ultimoCnpj = useRef('')
+  const [duplicado, setDuplicado] = useState<{ id: string; name: string } | null>(null)
 
   /** Campo sem estado no React (nome, e-mail, endereço completo): só preenche se estiver vazio. */
   const preencherSeVazio = (id: string, valor: string) => {
@@ -96,11 +100,12 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
     if (campo && !campo.value.trim() && valor) campo.value = valor
   }
 
-  const aoEncontrarCnpj = (d: DadosCnpj) => {
-    preencherSeVazio('name', d.razaoSocial)
+  /** Preenche o formulário: nome, e-mail e telefone só se vazios; o endereço, inteiro (para não misturar dois endereços). */
+  const preencherDados = (d: Omit<DadosDocumento, 'origem'>) => {
+    preencherSeVazio('name', d.nome)
     preencherSeVazio('email', d.email)
     if (!phone && d.telefone) handlePhoneChange({ target: { value: d.telefone } } as React.ChangeEvent<HTMLInputElement>)
-    // O endereço vem inteiro da Receita: substitui o bloco todo para não misturar endereços.
+    if (!d.logradouro && !d.cep) return
     setLogradouro(d.logradouro)
     setNumero(d.numero || 'S/N')
     setBairro(d.bairro)
@@ -110,19 +115,42 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
     setCep(d.cep)
     setVersaoCep(v => v + 1)
     preencherSeVazio('address', [[d.logradouro, d.numero].filter(Boolean).join(', '), d.complemento, d.bairro].filter(Boolean).join(' - ') + ` - ${d.municipio}/${d.uf}`)
-    const fantasia = d.nomeFantasia ? ` (${d.nomeFantasia})` : ''
-    setSituacaoCnpj(d.situacao && d.situacao !== 'ATIVA'
-      ? { tipo: 'aviso', texto: `Atenção: CNPJ com situação ${d.situacao} na Receita Federal.${fantasia}` }
-      : { tipo: 'ok', texto: `Dados da Receita Federal preenchidos${fantasia}. Confira antes de salvar.` })
   }
 
-  const buscarCnpj = async (cnpj: string) => {
-    if (ultimoCnpj.current === cnpj) return
-    ultimoCnpj.current = cnpj
-    setSituacaoCnpj({ tipo: 'buscando', texto: 'Consultando CNPJ na Receita Federal…' })
-    const r = await consultarCnpj(cnpj)
-    if ('erro' in r) setSituacaoCnpj({ tipo: 'erro', texto: r.erro })
-    else aoEncontrarCnpj(r)
+  const deCnpj = (d: DadosCnpj): Omit<DadosDocumento, 'origem'> => ({
+    nome: d.razaoSocial, email: d.email, telefone: d.telefone, logradouro: d.logradouro, numero: d.numero, complemento: d.complemento,
+    bairro: d.bairro, cep: d.cep, municipio: d.municipio, uf: d.uf, codigoIbge: d.codigoIbge,
+  })
+
+  /**
+   * CPF ou CNPJ completo: procura nos clientes (para não duplicar) e nas notas já emitidas; CNPJ
+   * também na Receita Federal, que tem prioridade. Para CPF não existe base pública.
+   */
+  const buscarDocumento = async (doc: string) => {
+    if (ultimoCnpj.current === doc) return
+    ultimoCnpj.current = doc
+    setDuplicado(null)
+    setSituacaoCnpj({ tipo: 'buscando', texto: doc.length === 14 ? 'Consultando CNPJ na Receita Federal…' : 'Procurando o CPF nos clientes e nas notas já emitidas…' })
+    const [interno, receita] = await Promise.all([consultarDocumentoInterno(doc), doc.length === 14 ? consultarCnpj(doc) : Promise.resolve(null)])
+    if (ultimoCnpj.current !== doc) return // o usuário já mudou o documento
+    setDuplicado(interno.cliente && interno.cliente.id !== clienteId ? interno.cliente : null)
+
+    if (receita && !('erro' in receita)) {
+      preencherDados(deCnpj(receita))
+      const fantasia = receita.nomeFantasia ? ` (${receita.nomeFantasia})` : ''
+      setSituacaoCnpj(receita.situacao && receita.situacao !== 'ATIVA'
+        ? { tipo: 'aviso', texto: `Atenção: CNPJ com situação ${receita.situacao} na Receita Federal.${fantasia}` }
+        : { tipo: 'ok', texto: `Dados da Receita Federal preenchidos${fantasia}. Confira antes de salvar.` })
+      return
+    }
+    if (interno.dados) {
+      preencherDados(interno.dados)
+      setSituacaoCnpj({ tipo: 'ok', texto: `Dados preenchidos a partir da ${interno.dados.origem}${interno.dados.logradouro ? '' : ' (a nota não tinha endereço)'}. Confira antes de salvar.` })
+      return
+    }
+    setSituacaoCnpj(receita && 'erro' in receita
+      ? { tipo: 'erro', texto: receita.erro }
+      : { tipo: 'buscando', texto: 'CPF ainda não aparece em nenhuma nota emitida: preencha os dados.' })
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,11 +192,14 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
     setDoc(formatted.slice(0, 18))
     setDocError('')
     if (cleaned.length === 14) {
-      if (validarCNPJ(cleaned)) buscarCnpj(cleaned)
+      if (validarCNPJ(cleaned)) buscarDocumento(cleaned)
       else setDocError('CNPJ inválido. Verifique os dígitos.')
+    } else if (cleaned.length === 11 && validarCPF(cleaned)) {
+      buscarDocumento(cleaned)
     } else {
       ultimoCnpj.current = ''
       setSituacaoCnpj(null)
+      setDuplicado(null)
     }
   }
 
@@ -229,7 +260,12 @@ export default function CustomerForm({ action, defaultValues = {}, submitLabel }
             {situacaoCnpj.texto}
           </p>
         )}
-        {!situacaoCnpj && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>Com CNPJ, nome, telefone, e-mail e endereço são preenchidos pela Receita Federal.</p>}
+        {duplicado && (
+          <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', color: 'var(--accent-orange)', fontWeight: 600 }}>
+            Este documento já está cadastrado: <Link href={`/clientes/${duplicado.id}`} className="text-primary">{duplicado.name}</Link>
+          </p>
+        )}
+        {!situacaoCnpj && <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>Com CNPJ, os dados vêm da Receita Federal. Com CPF, vêm das notas que você já emitiu para a pessoa.</p>}
       </div>
 
       <div className="input-group">

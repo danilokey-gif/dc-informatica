@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import CampoCep from './CampoCep'
 import type { EnderecoCep } from '@/lib/cep'
-import { consultarCnpj, validarCnpj } from '@/lib/cnpj'
+import { consultarCnpj, consultarDocumentoInterno, validarCnpj } from '@/lib/cnpj'
 
 export interface QuickCustomerData {
   name: string
@@ -38,29 +38,47 @@ export default function QuickCustomerModal({ initialName, onClose, onSave }: Pro
   const [versaoCep, setVersaoCep] = useState(0)
   const [avisoCnpj, setAvisoCnpj] = useState<{ cor: string; texto: string } | null>(null)
   const ultimoCnpj = useRef('')
+  const [duplicado, setDuplicado] = useState<{ id: string; name: string } | null>(null)
 
-  /** Com um CNPJ válido, preenche nome, telefone e endereço pela Receita Federal. */
+  /**
+   * CPF/CNPJ completo: avisa se o cliente já existe e preenche nome, telefone e endereço — CNPJ
+   * pela Receita Federal; CPF (ou CNPJ com a Receita fora do ar) pelas notas já emitidas.
+   */
   async function aoMudarDocumento(valor: string) {
     setDocumento(valor)
-    const cnpj = valor.replace(/\D/g, '')
-    if (cnpj.length !== 14) { ultimoCnpj.current = ''; setAvisoCnpj(null); return }
-    if (!validarCnpj(cnpj)) { setAvisoCnpj({ cor: 'var(--accent-red)', texto: 'CNPJ inválido. Verifique os dígitos.' }); return }
-    if (ultimoCnpj.current === cnpj) return
-    ultimoCnpj.current = cnpj
-    setAvisoCnpj({ cor: 'var(--text-muted)', texto: 'Consultando CNPJ na Receita Federal…' })
-    const d = await consultarCnpj(cnpj)
-    if ('erro' in d) { setAvisoCnpj({ cor: 'var(--accent-red)', texto: d.erro }); return }
-    setName(atual => atual.trim() ? atual : d.razaoSocial)
+    const doc = valor.replace(/\D/g, '')
+    if (doc.length !== 14 && doc.length !== 11) { ultimoCnpj.current = ''; setAvisoCnpj(null); setDuplicado(null); return }
+    if (doc.length === 14 && !validarCnpj(doc)) { setAvisoCnpj({ cor: 'var(--accent-red)', texto: 'CNPJ inválido. Verifique os dígitos.' }); return }
+    if (ultimoCnpj.current === doc) return
+    ultimoCnpj.current = doc
+    setAvisoCnpj({ cor: 'var(--text-muted)', texto: doc.length === 14 ? 'Consultando CNPJ na Receita Federal…' : 'Procurando o CPF nas notas já emitidas…' })
+    const [interno, receita] = await Promise.all([consultarDocumentoInterno(doc), doc.length === 14 ? consultarCnpj(doc) : Promise.resolve(null)])
+    if (ultimoCnpj.current !== doc) return
+    setDuplicado(interno.cliente)
+    const d = receita && !('erro' in receita)
+      ? { nome: receita.razaoSocial, telefone: receita.telefone, cep: receita.cep, logradouro: receita.logradouro, numero: receita.numero, bairro: receita.bairro, municipio: receita.municipio, uf: receita.uf, codigoIbge: receita.codigoIbge }
+      : interno.dados
+    if (!d) {
+      setAvisoCnpj(receita && 'erro' in receita ? { cor: 'var(--accent-red)', texto: receita.erro } : { cor: 'var(--text-muted)', texto: 'CPF ainda não aparece em nenhuma nota emitida.' })
+      return
+    }
+    setName(atual => atual.trim() ? atual : d.nome)
     setPhone(atual => atual.trim() ? atual : d.telefone)
-    setCep(d.cep)
-    setVersaoCep(v => v + 1)
-    setLogradouro(d.logradouro)
-    setNumero(d.numero || 'S/N')
-    setBairro(d.bairro)
-    setCidade({ municipio: d.municipio, uf: d.uf, codigoIbge: d.codigoIbge })
-    setAvisoCnpj(d.situacao && d.situacao !== 'ATIVA'
-      ? { cor: 'var(--accent-orange)', texto: `Atenção: CNPJ com situação ${d.situacao} na Receita Federal.` }
-      : { cor: 'var(--accent-green)', texto: `Dados da Receita Federal preenchidos${d.nomeFantasia ? ` (${d.nomeFantasia})` : ''}.` })
+    if (d.logradouro || d.cep) {
+      setCep(d.cep)
+      setVersaoCep(v => v + 1)
+      setLogradouro(d.logradouro)
+      setNumero(d.numero || 'S/N')
+      setBairro(d.bairro)
+      setCidade({ municipio: d.municipio, uf: d.uf, codigoIbge: d.codigoIbge })
+    }
+    if (receita && !('erro' in receita)) {
+      setAvisoCnpj(receita.situacao && receita.situacao !== 'ATIVA'
+        ? { cor: 'var(--accent-orange)', texto: `Atenção: CNPJ com situação ${receita.situacao} na Receita Federal.` }
+        : { cor: 'var(--accent-green)', texto: `Dados da Receita Federal preenchidos${receita.nomeFantasia ? ` (${receita.nomeFantasia})` : ''}.` })
+    } else {
+      setAvisoCnpj({ cor: 'var(--accent-green)', texto: `Dados preenchidos a partir da ${interno.dados!.origem}.` })
+    }
   }
 
   function aoEncontrarCep(e: EnderecoCep) {
@@ -111,6 +129,7 @@ export default function QuickCustomerModal({ initialName, onClose, onSave }: Pro
             <label className="input-label">CPF / CNPJ</label>
             <input type="text" className="input-field" value={documento} onChange={e => aoMudarDocumento(e.target.value)} />
             {avisoCnpj && <p style={{ fontSize: '0.78rem', marginTop: '0.25rem', color: avisoCnpj.cor }}>{avisoCnpj.texto}</p>}
+            {duplicado && <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', color: 'var(--accent-orange)', fontWeight: 600 }}>Já existe um cliente com este documento: {duplicado.name}. Feche e escolha-o na lista.</p>}
           </div>
           <div className="input-group">
             <label className="input-label">Telefone</label>

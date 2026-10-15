@@ -40,3 +40,35 @@ export async function consultarCnpj(cnpj: string): Promise<DadosCnpj | { erro: s
     return { erro: 'Não consegui consultar o CNPJ. Preencha os dados à mão.' }
   }
 }
+
+/** Dados de uma pessoa/empresa achados nas notas já emitidas pelo sistema (/documento/[doc]). */
+export interface DadosDocumento {
+  /** De onde veio (ex.: "NFS-e de 28/09/2026"). */
+  origem: string
+  nome: string
+  telefone: string
+  email: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  cep: string
+  municipio: string
+  uf: string
+  codigoIbge: string | null
+}
+
+export interface ResultadoDocumento {
+  /** Cliente já cadastrado com esse CPF/CNPJ. */
+  cliente: { id: string; name: string } | null
+  dados: DadosDocumento | null
+}
+
+/** Procura o CPF/CNPJ nos clientes e nas notas já emitidas. Em caso de falha devolve "nada achado". */
+export async function consultarDocumentoInterno(doc: string): Promise<ResultadoDocumento> {
+  try {
+    const r = await fetch(`/documento/${doc.replace(/\D/g, '')}`)
+    if (r.ok) return await r.json()
+  } catch { /* segue sem */ }
+  return { cliente: null, dados: null }
+}

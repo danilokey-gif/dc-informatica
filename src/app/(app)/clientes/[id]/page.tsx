@@ -27,7 +27,8 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
       <div className="card">
         <CustomerForm 
           action={updateAction} 
-          submitLabel="Atualizar Cliente" 
+          submitLabel="Atualizar Cliente"
+          clienteId={cliente.id}
           defaultValues={{
             name: cliente.name,
             document: cliente.document,

@@ -1,6 +1,7 @@
 import { getCompanySettingsLeve } from "@/lib/settings";
 import { getCurrentUser } from "@/lib/auth";
 import Sidebar from "./Sidebar";
+import RastreadorNavegacao from "@/components/RastreadorNavegacao";
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,7 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
+      <RastreadorNavegacao />
       <Sidebar companyName={settings.nomeFantasia || settings.name} logo={settings.temLogo ? `/logo?v=${settings.updatedAt.getTime()}` : null} role={user.role} />
 
       <div className="app-content">

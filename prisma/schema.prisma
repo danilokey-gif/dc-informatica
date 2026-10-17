@@ -331,6 +331,8 @@ model NfeRecebida {
   manifestadaEm DateTime?
   xml           String
   origem        String    @default("DISTRIBUICAO_DFE") // DISTRIBUICAO_DFE | IMPORTADA_XML
+  /// Quando os produtos desta nota entraram no estoque (Produtos > Entrada). Impede lançar a mesma nota duas vezes.
+  entradaEstoqueEm DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

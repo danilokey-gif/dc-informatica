@@ -1,13 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { registerManualEntry, processXmlUpload } from './actions'
+import Link from 'next/link'
+import { registerManualEntry, processXmlUpload, type ResultadoImportacao } from './actions'
 
 type Supplier = { id: string, name: string }
 type Product = { id: string, name: string, stockQty: number }
 
 export default function EntradaClient({ suppliers, products }: { suppliers: Supplier[], products: Product[] }) {
   const [tab, setTab] = useState<'xml' | 'chave' | 'manual'>('xml')
+  const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
+  const [enviando, setEnviando] = useState(false)
 
   // Manual entry state
   const [selectedSupplier, setSelectedSupplier] = useState('')
@@ -67,33 +70,70 @@ export default function EntradaClient({ suppliers, products }: { suppliers: Supp
 
       <div className="card">
         {tab === 'xml' && (
-          <form action={async (formData) => {
-            const res = await processXmlUpload(formData)
-            if (res.error) alert(res.error)
-            else {
-              alert('Produtos atualizados com sucesso no estoque!')
-              setTab('manual')
-            }
-          }}>
-            <h3>Upload de XML da NFe</h3>
-            <p className="text-muted mb-4">Selecione o arquivo XML da nota fiscal para importar os produtos.</p>
-            <div className="input-group">
-              <label>Arquivo XML</label>
-              <input type="file" name="xmlFile" accept=".xml" className="input-field" required />
-            </div>
-            <button type="submit" className="btn btn-primary mt-4">Processar XML</button>
-          </form>
+          <div>
+            <form action={async (formData) => {
+              setEnviando(true)
+              setResultado(null)
+              try { setResultado(await processXmlUpload(formData)) } finally { setEnviando(false) }
+            }}>
+              <h3>Upload de XML da NF-e</h3>
+              <p className="text-muted mb-4">
+                Selecione o XML da nota de compra. O sistema cadastra ou atualiza os produtos (código, descrição, NCM, código de barras,
+                custo com impostos e frete), o fornecedor e dá entrada no estoque. A mesma nota não entra duas vezes.
+              </p>
+              <div className="input-group">
+                <label className="input-label">Arquivo XML</label>
+                <input type="file" name="xmlFile" accept=".xml" className="input-field" required />
+              </div>
+              <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                <input type="checkbox" name="lancarFinanceiro" value="1" defaultChecked />
+                Lançar no Financeiro (boletos da nota viram contas a pagar)
+              </label>
+              <button type="submit" className="btn btn-primary mt-4" disabled={enviando}>{enviando ? 'Processando…' : 'Processar XML'}</button>
+            </form>
+
+            {resultado?.error && <p style={{ color: 'var(--accent-red)', marginTop: '1rem', fontWeight: 600 }}>{resultado.error}</p>}
+            {resultado?.success && (
+              <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                <p style={{ color: 'var(--accent-green)', fontWeight: 600 }}>
+                  NF-e nº {resultado.numero} de {resultado.fornecedor} lançada no estoque.
+                  {resultado.fornecedorNovo && ' Fornecedor cadastrado.'}
+                </p>
+                {resultado.financeiro && <p className="text-muted" style={{ fontSize: '0.85rem' }}>{resultado.financeiro}</p>}
+                <div className="table-container" style={{ marginTop: '0.75rem' }}>
+                  <table className="table">
+                    <thead><tr><th>Produto</th><th>Qtd.</th><th>Custo un.</th><th>O que foi preenchido</th></tr></thead>
+                    <tbody>
+                      {resultado.itens?.map((it, i) => (
+                        <tr key={i}>
+                          <td>{it.nome}<div style={{ fontSize: '0.72rem', color: it.novo ? 'var(--accent-green)' : 'var(--text-muted)' }}>{it.novo ? 'Produto novo' : 'Já cadastrado: estoque somado'}</div></td>
+                          <td>{it.quantidade}</td>
+                          <td>{it.custoUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                          <td style={{ fontSize: '0.8rem' }}>
+                            {it.preenchidos.join(', ') || '—'}
+                            {it.avisos.map((a, j) => <div key={j} style={{ color: 'var(--accent-orange)' }}>{a}</div>)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                  Produto novo entra com preço de venda = custo + 50%. Ajuste em <Link href="/produtos" className="text-primary">Produtos</Link>.
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {tab === 'chave' && (
           <div>
             <h3>Buscar por Chave de Acesso</h3>
-            <p className="text-muted mb-4">Digite a chave de 44 dígitos para baixar o XML via Sefaz.</p>
-            <div className="input-group">
-              <label>Chave de Acesso</label>
-              <input type="text" maxLength={44} className="input-field" placeholder="Ex: 352301... (44 dígitos)" />
-            </div>
-            <button className="btn btn-primary mt-4">Consultar Sefaz</button>
+            <p className="text-muted mb-4">
+              As notas emitidas contra o seu CNPJ chegam sozinhas da Sefaz em <Link href="/notas-fiscais/fornecedores" className="text-primary">Notas de Compra</Link>.
+              Lá você dá a Ciência da Operação, baixa o XML completo e depois envia esse XML na aba &quot;Upload XML&quot;.
+            </p>
+            <Link href="/notas-fiscais/fornecedores" className="btn btn-primary">Abrir Notas de Compra</Link>
           </div>
         )}
 

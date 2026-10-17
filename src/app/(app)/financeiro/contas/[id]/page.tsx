@@ -92,7 +92,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
               name="supplierId"
               placeholder="-"
               defaultValue={transacao.supplierId || ''}
-              options={fornecedores.map(f => ({ value: f.id, label: f.name }))}
+              options={fornecedores.map(f => ({ value: f.id, label: f.name, busca: f.document }))}
             />
           </div>
 
@@ -103,7 +103,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
               name="customerId"
               placeholder="-"
               defaultValue={transacao.customerId || ''}
-              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+              options={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
             />
           </div>
 

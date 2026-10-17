@@ -5,6 +5,24 @@ import { useEffect, useRef, useState } from 'react'
 export interface SearchableOption {
   value: string
   label: string
+  /** Texto extra só para a busca (ex.: CPF/CNPJ do cliente), não aparece na lista. */
+  busca?: string | null
+}
+
+/** Minúsculas e sem acento: "Paróquia" e "paroquia" são iguais na busca. */
+const normalizar = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const digitos = (t: string) => t.replace(/\D/g, '')
+
+/**
+ * Todas as palavras digitadas aparecem no nome (em qualquer ordem, sem ligar para acento), ou os
+ * números digitados aparecem no CPF/CNPJ — com ou sem pontuação.
+ */
+function combina(opcao: SearchableOption, consulta: string): boolean {
+  const alvo = normalizar(`${opcao.label} ${opcao.busca || ''}`)
+  const palavras = normalizar(consulta).split(/\s+/).filter(Boolean)
+  if (palavras.every(p => alvo.includes(p))) return true
+  const numeros = digitos(consulta)
+  return numeros.length >= 3 && digitos(`${opcao.label} ${opcao.busca || ''}`).includes(numeros)
 }
 
 interface Props {
@@ -50,7 +68,7 @@ export default function SearchableSelect({
   }, [valorControlado])
 
   const filtradas = texto && texto !== options.find(o => o.value === valorAtual)?.label
-    ? options.filter(o => o.label.toLowerCase().includes(texto.toLowerCase()))
+    ? options.filter(o => combina(o, texto))
     : options
 
   useEffect(() => {

@@ -48,7 +48,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
         <OSEditForm
           updateAction={updateAction}
           os={{ id: os.id, device: os.device, issue: os.issue, technicalReport: os.technicalReport, price: os.price, status: os.status, technicianId: os.technicianId, customerId: os.customerId }}
-          clientes={clientes.map(c => ({ value: c.id, label: c.name }))}
+          clientes={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
           tecnicos={tecnicos.map(t => ({ value: t.id, label: t.name }))}
         />
       </div>

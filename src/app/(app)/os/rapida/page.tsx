@@ -27,8 +27,8 @@ export default async function NotaServicoAvulsaPage() {
               id="customerId"
               name="customerId"
               required
-              placeholder="Digite o nome do cliente..."
-              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+              placeholder="Digite o nome, CPF ou CNPJ do cliente..."
+              options={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
             />
             {clientes.length === 0 && (
               <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>

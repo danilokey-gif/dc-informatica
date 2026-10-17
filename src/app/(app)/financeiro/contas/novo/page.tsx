@@ -62,7 +62,7 @@ export default async function NovoLancamentoPage() {
               id="supplierId"
               name="supplierId"
               placeholder="-"
-              options={fornecedores.map(f => ({ value: f.id, label: f.name }))}
+              options={fornecedores.map(f => ({ value: f.id, label: f.name, busca: f.document }))}
             />
           </div>
 
@@ -72,7 +72,7 @@ export default async function NovoLancamentoPage() {
               id="customerId"
               name="customerId"
               placeholder="-"
-              options={clientes.map(c => ({ value: c.id, label: c.name }))}
+              options={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
             />
           </div>
 

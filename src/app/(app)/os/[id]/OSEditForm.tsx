@@ -15,7 +15,7 @@ interface Props {
     technicianId: string | null
     customerId: string
   }
-  clientes: { value: string; label: string }[]
+  clientes: { value: string; label: string; busca?: string | null }[]
   tecnicos: { value: string; label: string }[]
 }
 

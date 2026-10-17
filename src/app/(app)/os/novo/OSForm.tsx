@@ -39,7 +39,7 @@ export default function OSForm({ clientes, tecnicos }: { clientes: Cliente[], te
           value={selectedCustomerId}
           onValueChange={setSelectedCustomerId}
           required
-          placeholder="Digite o nome do cliente..."
+          placeholder="Digite o nome, CPF ou CNPJ do cliente..."
           options={localClientes.map(c => ({ 
             value: c.id, 
             label: c.document ? `${c.name} (${c.document})` : c.name 

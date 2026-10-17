@@ -30,7 +30,7 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
 
   const [cobrancas, clientes, nfseConfig] = await Promise.all([
     prisma.cobrancaMensal.findMany({ include: { customer: true }, orderBy: { createdAt: 'asc' } }),
-    prisma.customer.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.customer.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, document: true } }),
     prisma.nfseConfig.findUnique({ where: { id: 'main' }, select: { codigoServico: true } }),
   ])
   const emEdicao = editar ? cobrancas.find(c => c.id === editar) : undefined
@@ -132,7 +132,7 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
               required
               defaultValue={emEdicao?.customerId}
               placeholder="Digite o nome do cliente..."
-              options={clientes.map(cl => ({ value: cl.id, label: cl.name }))}
+              options={clientes.map(cl => ({ value: cl.id, label: cl.name, busca: cl.document }))}
             />
           </div>
           <div className="input-group">

@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from "@/lib/prisma"
+import { dividirEmParcelas } from "@/lib/dates"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
@@ -56,7 +57,7 @@ export async function createSale(formData: FormData) {
       }
     })
 
-    const valorParcela = total / parcelas
+    const valores = dividirEmParcelas(total, parcelas)
 
     for (let i = 0; i < parcelas; i++) {
       const dataVencimento = new Date(novaVenda.createdAt)
@@ -75,7 +76,7 @@ export async function createSale(formData: FormData) {
         data: {
           type: 'RECEITA',
           description: descParcela,
-          amount: valorParcela,
+          amount: valores[i],
           dueDate: dataVencimento,
           paidDate: parcelaPaga ? novaVenda.createdAt : null,
           status: parcelaPaga ? 'PAGO' : 'PENDENTE',

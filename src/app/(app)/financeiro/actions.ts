@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { dividirEmParcelas } from "@/lib/dates"
 
 export async function createTransaction(formData: FormData) {
   const type = formData.get('type') as string
@@ -62,6 +63,23 @@ export async function marcarComoPago(id: string) {
   revalidatePath('/financeiro/contas')
 }
 
+/**
+ * Baixa de pagamento com data e forma escolhidas (o pagamento do boleto pode ter sido ontem ou
+ * na semana passada). A data vem do campo do formulário (AAAA-MM-DD) e é gravada ao meio-dia UTC,
+ * para não mudar de dia por causa do fuso.
+ */
+export async function registrarPagamento(id: string, formData: FormData) {
+  const dia = (formData.get('paidDate') as string) || new Date().toISOString().slice(0, 10)
+  const paymentMethod = (formData.get('paymentMethod') as string) || undefined
+  await prisma.financeTransaction.update({
+    where: { id },
+    data: { status: 'PAGO', paidDate: new Date(`${dia}T12:00:00.000Z`), ...(paymentMethod ? { paymentMethod } : {}) },
+  })
+  revalidatePath('/financeiro')
+  revalidatePath('/financeiro/contas')
+  revalidatePath(`/financeiro/contas/${id}`)
+}
+
 export async function marcarComoPendente(id: string) {
   await prisma.financeTransaction.update({
     where: { id },
@@ -106,7 +124,7 @@ export async function gerarContaReceberOS(serviceOrderId: string, formData?: For
     throw new Error('A OS não tem valor definido.')
   }
 
-  const valorParcela = os.price / parcelas
+  const valores = dividirEmParcelas(os.price, parcelas)
 
   for (let i = 0; i < parcelas; i++) {
     const dataVencimento = new Date()
@@ -124,7 +142,7 @@ export async function gerarContaReceberOS(serviceOrderId: string, formData?: For
       data: {
         type: 'RECEITA',
         description: descParcela,
-        amount: valorParcela,
+        amount: valores[i],
         dueDate: dataVencimento,
         paidDate: parcelaPaga ? new Date() : null,
         customerId: os.customerId,

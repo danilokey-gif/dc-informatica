@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
-import { updateTransaction, marcarComoPago, marcarComoPendente } from "../../actions"
+import { updateTransaction, registrarPagamento, marcarComoPendente } from "../../actions"
+import BaixaPagamento from "@/components/BaixaPagamento"
+import { formatarDataUTC } from "@/lib/dates"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import SearchableSelect from "@/components/SearchableSelect"
@@ -21,7 +23,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
   }
 
   const updateAction = updateTransaction.bind(null, id)
-  const marcarPagoAction = marcarComoPago.bind(null, id)
+  const pagarAction = registrarPagamento.bind(null, id)
   const marcarPendenteAction = marcarComoPendente.bind(null, id)
 
   return (
@@ -36,15 +38,13 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
           <div>
             <strong>Status:</strong>{' '}
             {transacao.status === 'PAGO' ? (
-              <span style={{ color: '#16a34a' }}>Pago{transacao.paidDate && ` em ${new Date(transacao.paidDate).toLocaleDateString('pt-BR')}`}</span>
+              <span style={{ color: '#16a34a' }}>Pago{transacao.paidDate && ` em ${formatarDataUTC(transacao.paidDate)}`}{transacao.paymentMethod && ` · ${transacao.paymentMethod}`}</span>
             ) : (
               <span style={{ color: '#f59e0b' }}>Pendente</span>
             )}
           </div>
           {transacao.status === 'PENDENTE' ? (
-            <form action={marcarPagoAction}>
-              <button type="submit" className="btn btn-primary">Marcar como Pago</button>
-            </form>
+            <BaixaPagamento action={pagarAction} tipo={transacao.type} formaAtual={transacao.paymentMethod} />
           ) : (
             <form action={marcarPendenteAction}>
               <button type="submit" className="btn btn-outline">Reabrir</button>

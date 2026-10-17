@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { inicioDoDiaUTC, formatarDataUTC } from "@/lib/dates"
+import { registrarPagamento } from "./actions"
+import BaixaPagamento from "@/components/BaixaPagamento"
 
 export const dynamic = 'force-dynamic'
 
@@ -34,8 +36,8 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
   const nomeMes = new Date(`${anoSel}-${mesStr}-02T00:00:00.000Z`).toLocaleString('pt-BR', { month: 'long' })
 
   const [receitasPagas, despesasPagas, aReceber, aPagar, atrasadas, proximasVencer] = await Promise.all([
-    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PAGO', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
-    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PAGO', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
+    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PAGO', paidDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
+    prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PAGO', paidDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
     prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'RECEITA', status: 'PENDENTE', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
     prisma.financeTransaction.aggregate({ _sum: { amount: true }, where: { type: 'DESPESA', status: 'PENDENTE', dueDate: { gte: inicioDoMes, lt: inicioProximoMes } } }),
     prisma.financeTransaction.findMany({
@@ -107,11 +109,11 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr><th>Descrição</th><th>Venc.</th><th>Valor</th></tr>
+                <tr><th>Descrição</th><th>Venc.</th><th>Valor</th><th></th></tr>
               </thead>
               <tbody>
                 {atrasadas.length === 0 && (
-                  <tr><td colSpan={3} className="text-center text-muted">Nenhuma conta vencida.</td></tr>
+                  <tr><td colSpan={4} className="text-center text-muted">Nenhuma conta vencida.</td></tr>
                 )}
                 {atrasadas.map(t => (
                   <tr key={t.id}>
@@ -121,6 +123,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
                     </td>
                     <td>{formatarDataUTC(t.dueDate)}</td>
                     <td style={{ color: t.type === 'RECEITA' ? '#16a34a' : '#dc2626' }}>{formatarMoeda(t.amount)}</td>
+                    <td><BaixaPagamento action={registrarPagamento.bind(null, t.id)} tipo={t.type} formaAtual={t.paymentMethod} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -133,11 +136,11 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
           <div className="table-container">
             <table className="table">
               <thead>
-                <tr><th>Descrição</th><th>Venc.</th><th>Valor</th></tr>
+                <tr><th>Descrição</th><th>Venc.</th><th>Valor</th><th></th></tr>
               </thead>
               <tbody>
                 {proximasVencer.length === 0 && (
-                  <tr><td colSpan={3} className="text-center text-muted">Nada por vir.</td></tr>
+                  <tr><td colSpan={4} className="text-center text-muted">Nada por vir.</td></tr>
                 )}
                 {proximasVencer.map(t => (
                   <tr key={t.id}>
@@ -147,6 +150,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
                     </td>
                     <td>{formatarDataUTC(t.dueDate)}</td>
                     <td style={{ color: t.type === 'RECEITA' ? '#16a34a' : '#dc2626' }}>{formatarMoeda(t.amount)}</td>
+                    <td><BaixaPagamento action={registrarPagamento.bind(null, t.id)} tipo={t.type} formaAtual={t.paymentMethod} /></td>
                   </tr>
                 ))}
               </tbody>

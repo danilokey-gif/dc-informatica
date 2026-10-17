@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
-import { marcarComoPago, marcarComoPendente, deleteTransaction } from "../actions"
+import { registrarPagamento, marcarComoPendente, deleteTransaction } from "../actions"
+import BaixaPagamento from "@/components/BaixaPagamento"
 import { inicioDoDiaUTC, formatarDataUTC } from "@/lib/dates"
 
 export const dynamic = 'force-dynamic'
@@ -65,7 +66,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
             )}
             {transacoes.map(t => {
               const atrasada = t.status === 'PENDENTE' && new Date(t.dueDate) < hoje
-              const marcarPagoAction = marcarComoPago.bind(null, t.id)
+              const pagarAction = registrarPagamento.bind(null, t.id)
               const marcarPendenteAction = marcarComoPendente.bind(null, t.id)
               const excluirAction = deleteTransaction.bind(null, t.id)
               return (
@@ -78,13 +79,14 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
                   <td>{t.category?.name || '-'}</td>
                   <td>{formatarDataUTC(t.dueDate)}{atrasada && <span style={{ color: '#dc2626', fontWeight: 600, marginLeft: '0.5rem', fontSize: '0.75rem' }}>ATRASADA</span>}</td>
                   <td>{formatarMoeda(t.amount)}</td>
-                  <td><span style={{ color: statusLabel[t.status].cor, fontWeight: 500 }}>{statusLabel[t.status].texto}</span></td>
+                  <td>
+                    <span style={{ color: statusLabel[t.status].cor, fontWeight: 500 }}>{statusLabel[t.status].texto}</span>
+                    {t.status === 'PAGO' && t.paidDate && <div className="text-muted" style={{ fontSize: '0.72rem' }}>em {formatarDataUTC(t.paidDate)}{t.paymentMethod ? ` · ${t.paymentMethod}` : ''}</div>}
+                  </td>
                   <td>
                     <div className="flex gap-4">
                       {t.status === 'PENDENTE' ? (
-                        <form action={marcarPagoAction}>
-                          <button type="submit" className="text-primary" style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Marcar Pago</button>
-                        </form>
+                        <BaixaPagamento action={pagarAction} tipo={t.type} formaAtual={t.paymentMethod} />
                       ) : (
                         <form action={marcarPendenteAction}>
                           <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 500 }}>Reabrir</button>

@@ -1,4 +1,5 @@
 import CampoCep from "@/components/CampoCep"
+import GoogleDriveConfig from "./GoogleDriveConfig"
 import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
 import { updateSettings, updateNfseConfig, updateNfeConfig } from "./actions"
 import { decryptSecret } from "@/lib/crypto"
@@ -18,7 +19,8 @@ function getCertificadoInfo(certificado: string | null, certificadoSenha: string
   }
 }
 
-export default async function ConfiguracoesPage() {
+export default async function ConfiguracoesPage({ searchParams }: { searchParams: Promise<{ drive?: string }> }) {
+  const { drive } = await searchParams
   const settings = await getCompanySettings()
   const nfseConfig = await getNfseConfig()
   const nfeConfig = await getNfeConfig()
@@ -113,30 +115,6 @@ export default async function ConfiguracoesPage() {
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>As Notas Fiscais (PDF e XML) serão salvas em pastas separadas por tipo ("NFe" e "NFSe") neste caminho.</p>
           </div>
 
-          <div style={{ margin: '1.5rem 0', padding: '1rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--surface-hover)' }}>
-            <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-main)' }}>☁️ Backup Automático no Google Drive (Nuvem)</h4>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              Para salvar suas notas na nuvem automaticamente de qualquer lugar (inclusive rodando na Vercel), configure uma Conta de Serviço do Google Cloud e compartilhe a pasta de destino com ela.
-            </p>
-            
-            <div className="input-group">
-              <label className="input-label" htmlFor="gdriveFolderId">ID da Pasta do Google Drive</label>
-              <input type="text" id="gdriveFolderId" name="gdriveFolderId" className="input-field" defaultValue={settings.gdriveFolderId || ''} placeholder="Ex: 1a2b3c4d5e6f..." />
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pegue este ID na URL da pasta do seu Google Drive.</p>
-            </div>
-
-            <div className="input-group">
-              <label className="input-label" htmlFor="gdriveEmail">E-mail da Conta de Serviço (Google Cloud)</label>
-              <input type="text" id="gdriveEmail" name="gdriveEmail" className="input-field" defaultValue={settings.gdriveEmail || ''} placeholder="Ex: emissao-notas@projeto.iam.gserviceaccount.com" />
-            </div>
-
-            <div className="input-group" style={{ marginBottom: 0 }}>
-              <label className="input-label" htmlFor="gdrivePrivateKey">Chave Privada da Conta de Serviço (Private Key)</label>
-              <textarea id="gdrivePrivateKey" name="gdrivePrivateKey" className="input-field" defaultValue={settings.gdrivePrivateKey || ''} placeholder="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7..." style={{ fontFamily: 'monospace', fontSize: '0.75rem', height: '80px', resize: 'vertical' }} />
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Cole a chave privada completa gerada no console do Google Cloud (formato JSON).</p>
-            </div>
-          </div>
-
           <div className="input-group">
             <label className="input-label">Logo Atual</label>
             {settings.logo ? (
@@ -165,6 +143,14 @@ export default async function ConfiguracoesPage() {
           </div>
         </form>
       </div>
+
+      <GoogleDriveConfig
+        clientId={settings.gdriveClientId}
+        temSegredo={!!settings.gdriveClientSecret}
+        conectado={!!settings.gdriveRefreshToken}
+        conta={settings.gdriveConta}
+        situacao={drive}
+      />
 
       <div id="nfse" className="card" style={{ borderLeft: '4px solid var(--primary)', scrollMarginTop: '1rem' }}>
         <h3 className="mb-4">🧾 Nota Fiscal de Serviço (NFS-e Nacional)</h3>

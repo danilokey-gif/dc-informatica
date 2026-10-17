@@ -34,9 +34,6 @@ export async function updateSettings(formData: FormData) {
   const removeLogo = formData.get('removeLogo') === '1'
   const logoFile = formData.get('logo') as File | null
   const localDrivePath = (formData.get('localDrivePath') as string) || null
-  const gdriveFolderId = (formData.get('gdriveFolderId') as string) || null
-  const gdriveEmail = (formData.get('gdriveEmail') as string) || null
-  const gdrivePrivateKey = (formData.get('gdrivePrivateKey') as string) || null
 
   let logo: string | null | undefined = undefined
 
@@ -56,8 +53,8 @@ export async function updateSettings(formData: FormData) {
 
   await prisma.companySettings.upsert({
     where: { id: 'main' },
-    create: { id: 'main', name, nomeFantasia, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey },
-    update: { name, nomeFantasia, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath, gdriveFolderId, gdriveEmail, gdrivePrivateKey }
+    create: { id: 'main', name, nomeFantasia, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, logo: logo ?? undefined, localDrivePath },
+    update: { name, nomeFantasia, document, phone, email, address, pixKey, pixCity, inscricaoEstadual, enderLogradouro, enderNumero, enderBairro, enderCep, ...(logo !== undefined ? { logo } : {}), localDrivePath }
   })
 
   revalidatePath('/', 'layout')
@@ -175,4 +172,23 @@ export async function updateNfeConfig(formData: FormData) {
 
   revalidatePath('/configuracoes')
   redirect('/configuracoes')
+}
+
+/** Client ID e Client Secret do OAuth do Google (o segredo é guardado criptografado). */
+export async function salvarCredenciaisGoogle(formData: FormData) {
+  const clientId = String(formData.get('gdriveClientId') || '').trim()
+  const segredo = String(formData.get('gdriveClientSecret') || '').trim()
+  if (!clientId.endsWith('.apps.googleusercontent.com')) redirect('/configuracoes?drive=client-id-invalido#google-drive')
+  await prisma.companySettings.update({
+    where: { id: 'main' },
+    data: { gdriveClientId: clientId, ...(segredo ? { gdriveClientSecret: encryptSecret(segredo) } : {}) },
+  })
+  revalidatePath('/configuracoes')
+  redirect('/configuracoes?drive=credenciais-salvas#google-drive')
+}
+
+export async function desconectarGoogle() {
+  await prisma.companySettings.update({ where: { id: 'main' }, data: { gdriveRefreshToken: null, gdriveConta: null } })
+  revalidatePath('/configuracoes')
+  redirect('/configuracoes?drive=desconectado#google-drive')
 }

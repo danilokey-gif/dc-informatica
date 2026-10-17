@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { prisma } from './prisma'
+import { driveDoUsuarioConectado, enviarArquivoPequeno, moverArquivo, pastaPorCaminho, tokenDoUsuario } from './google-drive-usuario'
 
 // Obter token de acesso para a API do Google Drive usando JWT (sem dependências externas)
 async function getGoogleAccessToken(email: string, privateKey: string): Promise<string> {
@@ -171,7 +172,23 @@ export async function salvarNotaNoDrive(type: 'NFe' | 'NFSe', keyOrId: string, x
     console.warn(`[Drive Local] Ignorado ou falhou ao salvar no disco local (provavelmente rodando em nuvem/Vercel):`, error)
   }
 
-  // 2. Enviar para o Google Drive se configurado nas preferências
+  // 2a. Google Drive da conta do usuário (OAuth), quando conectado em Configurações
+  try {
+    if (await driveDoUsuarioConectado()) {
+      const token = await tokenDoUsuario()
+      const pasta = await pastaPorCaminho(token, ['Notas Fiscais', type])
+      await enviarArquivoPequeno(token, `${keyOrId}.pdf`, 'application/pdf', pdfBuffer, pasta)
+      if (xmlContent) await enviarArquivoPequeno(token, `${keyOrId}.xml`, 'application/xml', Buffer.from(xmlContent), pasta)
+      console.log(`[Google Drive] Nota ${keyOrId} salva no Drive do usuário.`)
+      return
+    }
+  } catch (error) {
+    console.error(`[Google Drive] Falha ao salvar a nota no Drive do usuário:`, error)
+    return
+  }
+
+  // 2b. Conta de serviço (configuração antiga). O Google não dá cota de armazenamento a contas de
+  //     serviço, então na prática só as pastas são criadas; mantido só para quem ainda não conectou.
   try {
     const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
     if (empresa?.gdriveFolderId && empresa?.gdriveEmail && empresa?.gdrivePrivateKey) {
@@ -197,6 +214,18 @@ export async function salvarNotaNoDrive(type: 'NFe' | 'NFSe', keyOrId: string, x
 }
 
 export async function moverNotaNoGoogleDriveCancelada(type: 'NFe' | 'NFSe', keyOrId: string) {
+  try {
+    if (await driveDoUsuarioConectado()) {
+      const token = await tokenDoUsuario()
+      const pasta = await pastaPorCaminho(token, ['Notas Fiscais', type])
+      const canceladas = await pastaPorCaminho(token, ['Notas Fiscais', type, 'Canceladas'])
+      for (const nome of [`${keyOrId}.pdf`, `${keyOrId}.xml`]) await moverArquivo(token, nome, pasta, canceladas, `[CANCELADA] ${nome}`)
+      return
+    }
+  } catch (error) {
+    console.error(`[Google Drive] Falha ao mover a nota cancelada no Drive do usuário:`, error)
+    return
+  }
   try {
     const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' } })
     if (empresa?.gdriveFolderId && empresa?.gdriveEmail && empresa?.gdrivePrivateKey) {

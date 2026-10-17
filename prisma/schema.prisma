@@ -54,6 +54,7 @@ model ServiceOrder {
   technicianId    String?
   nfseEmissoes    NfseEmissao[]
   transactions    FinanceTransaction[]
+  anexos          OsAnexo[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 }
@@ -124,6 +125,15 @@ model CompanySettings {
   gdriveFolderId    String?
   gdriveEmail       String?
   gdrivePrivateKey  String?
+  /// Google Drive da conta do usuário (OAuth). A conta de serviço acima não tem cota para arquivos.
+  gdriveClientId      String?
+  /// Criptografado com AUTH_SECRET.
+  gdriveClientSecret  String?
+  /// Criptografado com AUTH_SECRET.
+  gdriveRefreshToken  String?
+  gdriveConta         String?
+  /// Pasta "Dc Informática - Sistema" criada pelo próprio sistema no Drive do usuário.
+  gdrivePastaRaizId   String?
   updatedAt         DateTime @updatedAt
 }
 
@@ -376,4 +386,21 @@ model CobrancaMensal {
   ultimaOsId          String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+}
+
+/// Foto ou vídeo do equipamento anexado à OS, guardado no Google Drive do usuário. O registro não
+/// é apagado pelo sistema: data, quem enviou e o SHA-256 servem de prova do estado do equipamento.
+model OsAnexo {
+  id             String       @id @default(cuid())
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id])
+  serviceOrderId String
+  driveFileId    String       @unique
+  nome           String
+  mimeType       String
+  tamanho        Int
+  /// SHA-256 calculado no navegador antes do envio e conferido com o do Google Drive.
+  sha256         String
+  descricao      String?
+  enviadoPor     String?
+  createdAt      DateTime     @default(now())
 }

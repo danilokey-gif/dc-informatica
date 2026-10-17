@@ -34,7 +34,7 @@ function formatarCnpj(d: string) {
 /** Telefone do XML formatado; vazio quando é falso ("00000000", só DDD...). */
 function formatarTelefone(f: string): string | null {
   const d = f.replace(/\D/g, '').replace(/^0/, '')
-  if (d.length < 10 || /^0+$/.test(d) || /^(\d)+$/.test(d)) return null
+  if (d.length < 10 || /^0+$/.test(d) || /^(\d)\1+$/.test(d)) return null
   if (d.length === 10) return d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')
   if (d.length === 11) return d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
   return null

@@ -41,7 +41,10 @@ function formatarTelefone(f: string): string | null {
 }
 
 export interface ItemImportado {
+  produtoId: string
   nome: string
+  /** Preço de venda atual do produto (0 = ainda não definido). */
+  precoVenda: number
   quantidade: number
   custoUnitario: number
   novo: boolean
@@ -155,9 +158,9 @@ export async function processXmlUpload(formData: FormData): Promise<ResultadoImp
           if (!atual.sku && sku) { dados.sku = sku; preenchidos.push('código') }
           if (!atual.cfop) { dados.cfop = '5102'; preenchidos.push('CFOP 5102') }
           await tx.product.update({ where: { id: atual.id }, data: dados })
-          itens.push({ nome: atual.name, quantidade, custoUnitario, novo: false, preenchidos, avisos })
+          itens.push({ produtoId: atual.id, nome: atual.name, precoVenda: atual.salePrice, quantidade, custoUnitario, novo: false, preenchidos, avisos })
         } else {
-          await tx.product.create({
+          const novo = await tx.product.create({
             data: {
               name: nome,
               sku: sku || null,
@@ -166,16 +169,16 @@ export async function processXmlUpload(formData: FormData): Promise<ResultadoImp
               // CFOP da nossa venda (revenda dentro de SP), não o da nota do fornecedor.
               cfop: '5102',
               costPrice: custoUnitario,
-              salePrice: centavos(custoUnitario * 1.5), // margem padrão de 50%: ajuste em Produtos
+              salePrice: 0, // definido pelo usuário logo depois, na tabela do resultado
               stockQty: quantidade,
               category: 'Importado via XML',
               minStockAlert: 1,
             },
           })
-          preenchidos.push('código', 'custo', 'preço de venda (+50%)', 'CFOP 5102')
+          preenchidos.push('código', 'custo', 'CFOP 5102')
           if (ncmOk) preenchidos.push(`NCM ${ncmOk}`)
           if (ean) preenchidos.push('código de barras')
-          itens.push({ nome, quantidade, custoUnitario, novo: true, preenchidos, avisos })
+          itens.push({ produtoId: novo.id, nome, precoVenda: 0, quantidade, custoUnitario, novo: true, preenchidos, avisos })
         }
       }
 
@@ -227,6 +230,15 @@ export async function processXmlUpload(formData: FormData): Promise<ResultadoImp
     revalidatePath('/financeiro')
     revalidatePath('/notas-fiscais/fornecedores')
   }
+}
+
+/** Preços de venda digitados na tabela do resultado da importação. */
+export async function salvarPrecosVenda(precos: { produtoId: string; preco: number }[]): Promise<{ ok: boolean; erro?: string }> {
+  const validos = precos.filter(p => p.produtoId && Number.isFinite(p.preco) && p.preco > 0)
+  if (!validos.length) return { ok: false, erro: 'Informe pelo menos um preço de venda maior que zero.' }
+  await prisma.$transaction(validos.map(p => prisma.product.update({ where: { id: p.produtoId }, data: { salePrice: Math.round(p.preco * 100) / 100 } })))
+  revalidatePath('/produtos')
+  return { ok: true }
 }
 
 export async function registerManualEntry(formData: FormData) {

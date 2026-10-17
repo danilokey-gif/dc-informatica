@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { registerManualEntry, processXmlUpload, type ResultadoImportacao } from './actions'
+import { registerManualEntry, processXmlUpload, salvarPrecosVenda, type ResultadoImportacao } from './actions'
 
 type Supplier = { id: string, name: string }
 type Product = { id: string, name: string, stockQty: number }
@@ -11,6 +11,18 @@ export default function EntradaClient({ suppliers, products }: { suppliers: Supp
   const [tab, setTab] = useState<'xml' | 'chave' | 'manual'>('xml')
   const [resultado, setResultado] = useState<ResultadoImportacao | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [precos, setPrecos] = useState<Record<string, string>>({})
+  const [avisoPrecos, setAvisoPrecos] = useState<{ cor: string; texto: string } | null>(null)
+
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  /** "1.234,50" ou "1234.5" → 1234.5 */
+  const lerValor = (t: string) => Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t)
+
+  async function salvarPrecos() {
+    const lista = (resultado?.itens || []).map(it => ({ produtoId: it.produtoId, preco: lerValor(precos[it.produtoId] ?? '') }))
+    const r = await salvarPrecosVenda(lista)
+    setAvisoPrecos(r.ok ? { cor: 'var(--accent-green)', texto: 'Preços de venda salvos.' } : { cor: 'var(--accent-red)', texto: r.erro || 'Não consegui salvar.' })
+  }
 
   // Manual entry state
   const [selectedSupplier, setSelectedSupplier] = useState('')
@@ -74,7 +86,13 @@ export default function EntradaClient({ suppliers, products }: { suppliers: Supp
             <form action={async (formData) => {
               setEnviando(true)
               setResultado(null)
-              try { setResultado(await processXmlUpload(formData)) } finally { setEnviando(false) }
+              try {
+                const r = await processXmlUpload(formData)
+                setResultado(r)
+                setAvisoPrecos(null)
+                // Produto já cadastrado vem com o preço atual; produto novo, em branco para você digitar.
+                setPrecos(Object.fromEntries((r.itens || []).map(it => [it.produtoId, it.precoVenda > 0 ? it.precoVenda.toFixed(2).replace('.', ',') : ''])))
+              } finally { setEnviando(false) }
             }}>
               <h3>Upload de XML da NF-e</h3>
               <p className="text-muted mb-4">
@@ -102,13 +120,24 @@ export default function EntradaClient({ suppliers, products }: { suppliers: Supp
                 {resultado.financeiro && <p className="text-muted" style={{ fontSize: '0.85rem' }}>{resultado.financeiro}</p>}
                 <div className="table-container" style={{ marginTop: '0.75rem' }}>
                   <table className="table">
-                    <thead><tr><th>Produto</th><th>Qtd.</th><th>Custo un.</th><th>O que foi preenchido</th></tr></thead>
+                    <thead><tr><th>Produto</th><th>Qtd.</th><th>Custo un.</th><th>Preço de venda</th><th>O que foi preenchido</th></tr></thead>
                     <tbody>
                       {resultado.itens?.map((it, i) => (
                         <tr key={i}>
                           <td>{it.nome}<div style={{ fontSize: '0.72rem', color: it.novo ? 'var(--accent-green)' : 'var(--text-muted)' }}>{it.novo ? 'Produto novo' : 'Já cadastrado: estoque somado'}</div></td>
                           <td>{it.quantidade}</td>
-                          <td>{it.custoUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                          <td>{brl(it.custoUnitario)}</td>
+                          <td style={{ minWidth: '140px' }}>
+                            <input
+                              type="text" inputMode="decimal" className="input-field" placeholder="0,00"
+                              value={precos[it.produtoId] ?? ''}
+                              onChange={e => setPrecos(p => ({ ...p, [it.produtoId]: e.target.value }))}
+                              style={{ padding: '0.35rem 0.5rem', borderColor: !precos[it.produtoId] ? 'var(--accent-orange)' : undefined }}
+                            />
+                            {lerValor(precos[it.produtoId] ?? '') > 0 && it.custoUnitario > 0 && (
+                              <div className="text-muted" style={{ fontSize: '0.7rem' }}>margem {Math.round((lerValor(precos[it.produtoId]) / it.custoUnitario - 1) * 100)}%</div>
+                            )}
+                          </td>
                           <td style={{ fontSize: '0.8rem' }}>
                             {it.preenchidos.join(', ') || '—'}
                             {it.avisos.map((a, j) => <div key={j} style={{ color: 'var(--accent-orange)' }}>{a}</div>)}
@@ -118,8 +147,12 @@ export default function EntradaClient({ suppliers, products }: { suppliers: Supp
                     </tbody>
                   </table>
                 </div>
+                <div className="flex gap-4" style={{ alignItems: 'center', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-primary" onClick={salvarPrecos}>Salvar preços de venda</button>
+                  {avisoPrecos && <span style={{ color: avisoPrecos.cor, fontSize: '0.85rem', fontWeight: 600 }}>{avisoPrecos.texto}</span>}
+                </div>
                 <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                  Produto novo entra com preço de venda = custo + 50%. Ajuste em <Link href="/produtos" className="text-primary">Produtos</Link>.
+                  Produto novo fica sem preço de venda até você digitar aqui (ou depois em <Link href="/produtos" className="text-primary">Produtos</Link>).
                 </p>
               </div>
             )}

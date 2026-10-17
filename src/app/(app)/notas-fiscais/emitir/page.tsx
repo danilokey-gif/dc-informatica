@@ -25,7 +25,7 @@ export default async function EmitirNotaPage() {
     }),
     prisma.sale.findMany({
       // invoiceNumber preenchido = nota registrada à mão (emitida em outro emissor).
-      where: { createdAt: { gte: desde }, invoiceNumber: null, nfeEmissoes: { none: { status: 'AUTORIZADA' } } },
+      where: { createdAt: { gte: desde }, invoiceNumber: null, status: { not: 'CANCELADA' }, nfeEmissoes: { none: { status: 'AUTORIZADA' } } },
       select: { id: true, total: true, createdAt: true, customer: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 10,

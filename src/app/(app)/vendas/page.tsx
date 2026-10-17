@@ -41,7 +41,10 @@ export default async function VendasPage() {
                 <td>{new Date(venda.createdAt).toLocaleDateString('pt-BR')}</td>
                 <td>{venda.customer?.name || 'Cliente não identificado'}</td>
                 <td>{venda.items.reduce((acc, item) => acc + item.quantity, 0)}</td>
-                <td>{venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                <td>
+                  {venda.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {venda.status === 'CANCELADA' && <div style={{ color: 'var(--accent-red)', fontSize: '0.72rem', fontWeight: 600 }}>CANCELADA (duplicada)</div>}
+                </td>
                 <td>{venda.paymentMethod}</td>
                  <td>
                   {(() => {

@@ -23,13 +23,14 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
   const ano = anoParam && /^\d{4}$/.test(anoParam) ? parseInt(anoParam, 10) : anoAtual
 
   const [vendasAgg, osAgg, saleItems, osPorStatus, nfseEmissoes, nfeEmissoes, financeTransactions] = await Promise.all([
-    prisma.sale.aggregate({ _sum: { total: true }, _count: true }),
+    prisma.sale.aggregate({ _sum: { total: true }, _count: true, where: { status: { not: 'CANCELADA' } } }),
     prisma.serviceOrder.aggregate({
       _sum: { price: true },
       _count: true,
       where: { status: { in: ['COMPLETED', 'DELIVERED'] } }
     }),
     prisma.saleItem.findMany({
+      where: { sale: { status: { not: 'CANCELADA' } } },
       include: { product: { select: { name: true, costPrice: true } } }
     }),
     prisma.serviceOrder.groupBy({

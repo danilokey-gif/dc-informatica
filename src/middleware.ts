@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifySession } from '@/lib/session'
 
-const PUBLIC_PATHS = ['/manifest.json', '/sw.js']
+const PUBLIC_PATHS = ['/manifest.json', '/sw.js', '/privacidade']
 
 // Rotas com dados sensíveis (financeiro, fiscal, configurações da empresa, gestão de usuários):
 // visíveis só para ADMIN. Um técnico logado não deve ver nem acessar diretamente por URL.

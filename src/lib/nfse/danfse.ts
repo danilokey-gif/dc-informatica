@@ -459,7 +459,7 @@ function linha(doc: PDFKit.PDFDocument, texto: string, x: number, y: number, lar
 
 /** Campo com título (6 pt negrito, iniciais maiúsculas) e conteúdo (7 pt) — itens 2.4.2 e 2.4.4. */
 function campo(doc: PDFKit.PDFDocument, x: number, y: number, largura: number, rotulo: string, valor: string | null, opcoes: { sombreado?: boolean; altura?: number; destaque?: boolean } = {}) {
-  if (opcoes.sombreado) doc.rect(x * CM, y * CM, largura * CM, (opcoes.altura ?? 0.63) * CM).fill(CINZA_FUNDO)
+  if (opcoes.sombreado) sombra(doc, x, y, largura, opcoes.altura ?? 0.63)
   // Títulos em destaque vêm escritos como no Anexo I ("EMITENTE DA NFS-e", "NÚMERO DA NFS-E"...).
   if (opcoes.destaque) linha(doc, rotulo, x + 0.08, y + 0.05, largura - 0.16, 'Helvetica-Bold', 7)
   else linha(doc, rotulo, x + 0.08, y + 0.07, largura - 0.16, 'Helvetica-Bold', 6)
@@ -467,8 +467,15 @@ function campo(doc: PDFKit.PDFDocument, x: number, y: number, largura: number, r
 }
 
 /** Título do bloco: 7 pt negrito em caixa alta, com fundo cinza (itens 2.2.3 e 2.4.1). */
-function tituloBloco(doc: PDFKit.PDFDocument, y: number, titulo: string, altura = 0.63) {
-  doc.rect(X1 * CM, y * CM, COL * CM, altura * CM).fill(CINZA_FUNDO)
+/** Fundo cinza de um campo/título, até encostar na próxima linha divisória (sem faixa branca). */
+function sombra(doc: PDFKit.PDFDocument, x: number, y: number, largura: number, altura: number) {
+  doc.rect(x * CM, y * CM, largura * CM, altura * CM).fill(CINZA_FUNDO)
+}
+
+function tituloBloco(doc: PDFKit.PDFDocument, y: number, titulo: string, altura = 0.64) {
+  sombra(doc, X1, y, COL, altura)
+  // O título fica sobre a linha divisória do bloco: redesenha a linha, que o cinza cobriria pela metade.
+  divisoria(doc, y)
   linha(doc, titulo.toUpperCase(), X1 + 0.08, y + 0.12, COL - 0.16, 'Helvetica-Bold', 7)
 }
 
@@ -534,7 +541,7 @@ export async function gerarDanfsePdf(xmlNfse: string, opcoes: { cancelada?: bool
   campo(doc, X1, 2.96, COL, 'NÚMERO DA DPS', d.numeroDps, { destaque: true })
   campo(doc, X2, 2.96, COL, 'SÉRIE DA DPS', d.serieDps, { destaque: true })
   campo(doc, X3, 2.96, COL, 'DATA E HORA DA EMISSÃO DA DPS', d.dhEmiDps, { destaque: true })
-  campo(doc, X1, 3.65, COL, 'EMITENTE DA NFS-e', d.emitente, { destaque: true, sombreado: true, altura: 0.67 })
+  campo(doc, X1, 3.65, COL, 'EMITENTE DA NFS-e', d.emitente, { destaque: true, sombreado: true, altura: 4.34 - 3.65 })
   campo(doc, X2, 3.65, COL, 'SITUAÇÃO DA NFS-e', d.situacao, { destaque: true })
   campo(doc, X3, 3.65, COL, 'FINALIDADE', d.finalidade, { destaque: true })
 
@@ -664,14 +671,14 @@ export async function gerarDanfsePdf(xmlNfse: string, opcoes: { cancelada?: bool
   // ── valor total da NFS-e
   const tt = d.totais
   divisoria(doc, y)
-  tituloBloco(doc, y, 'Valor Total da NFS-e', 0.67)
+  tituloBloco(doc, y, 'Valor Total da NFS-e', 0.69)
   campo(doc, X2, y, COL, 'VALOR DA OPERAÇÃO / SERVIÇO', tt.valorServico, { destaque: true })
   campo(doc, X3, y, COL, 'Desconto Incondicionado', tt.descontoIncondicionado)
   campo(doc, X4, y, COL, 'Desconto Condicionado', tt.descontoCondicionado)
   campo(doc, X1, y + 0.69, COL, 'Total das Retenções (ISSQN / Federais)', tt.totalRetencoes)
   campo(doc, X2, y + 0.69, COL, 'VALOR LÍQUIDO DA NFS-e', tt.valorLiquido, { destaque: true })
   campo(doc, X3, y + 0.69, COL, 'Total do IBS/CBS', tt.totalIbsCbs)
-  campo(doc, X4, y + 0.69, COL, 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', tt.valorLiquidoComIbsCbs, { destaque: true, sombreado: true, altura: 0.67 })
+  campo(doc, X4, y + 0.69, COL, 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', tt.valorLiquidoComIbsCbs, { destaque: true, sombreado: true, altura: alturaTotais - 0.69 })
   y += alturaTotais
 
   // ── informações complementares: ocupam o resto da página até o canhoto

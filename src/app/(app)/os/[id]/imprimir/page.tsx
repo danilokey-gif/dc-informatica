@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import BotaoVoltar from "@/components/BotaoVoltar"
 import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { getCurrentUser } from "@/lib/auth"
 import { notFound } from "next/navigation"
@@ -99,6 +100,10 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
           .grid-info { grid-template-columns: 1fr; }
         }
       `}} />
+
+      <div className="no-print" style={{ marginBottom: '1rem' }}>
+        <BotaoVoltar padrao="/os" />
+      </div>
 
       {/* Header */}
       <div className="doc-header print-area">

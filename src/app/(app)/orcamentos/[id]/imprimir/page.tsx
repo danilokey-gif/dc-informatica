@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import BotaoVoltar from "@/components/BotaoVoltar"
 import { getCompanySettings } from "@/lib/settings"
 import { getCurrentUser } from "@/lib/auth"
 import { notFound } from 'next/navigation'
@@ -6,7 +7,6 @@ import PrintButton from './PrintButton'
 import DownloadPdfButton from '@/components/DownloadPdfButton'
 import WhatsAppButton from '../../../os/[id]/imprimir/WhatsAppButton'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 
 export default async function ImprimirOrcamentoPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params
@@ -58,10 +58,7 @@ export default async function ImprimirOrcamentoPage({ params }: { params: Promis
     <div className="folha-clara" style={{ maxWidth: '210mm', margin: '0 auto', background: '#fff', color: '#111827', minHeight: '100vh', padding: '20px' }}>
       {user ? (
         <div className="print-hide" style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <Link href="/orcamentos" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ArrowLeft size={18} />
-            Voltar
-          </Link>
+          <BotaoVoltar padrao="/orcamentos" />
           <PrintButton />
           <DownloadPdfButton filename={`Orcamento-${numeroOrcamento}`} />
           <WhatsAppButton link={linkWhatsApp} temTelefone={!!telefoneCliente} />

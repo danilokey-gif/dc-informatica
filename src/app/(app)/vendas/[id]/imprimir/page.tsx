@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import BotaoVoltar from "@/components/BotaoVoltar"
 import { getCompanySettings, getNfeConfig } from "@/lib/settings"
 import { getCurrentUser } from "@/lib/auth"
 import { notFound } from "next/navigation"
@@ -95,6 +96,10 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
           .doc-header-right { text-align: center; margin-top: 1rem; }
         }
       `}} />
+
+      <div className="no-print" style={{ marginBottom: '1rem' }}>
+        <BotaoVoltar padrao="/vendas" />
+      </div>
 
       {/* Header */}
       <div className="doc-header print-area">

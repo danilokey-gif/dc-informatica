@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import BotaoVoltar from "@/components/BotaoVoltar"
 import Link from "next/link"
 import BotaoImprimirPdf from "@/components/BotaoImprimirPdf"
 import { notFound } from "next/navigation"
@@ -46,7 +47,7 @@ export default async function VerDanfsePage({ searchParams }: { searchParams: Pr
         <div className="flex gap-4" style={{ alignItems: 'center' }}>
           <a href={`${urlPdf}&download=1`} className="btn btn-primary">⬇️ Baixar PDF</a>
           <BotaoImprimirPdf iframeId="pdf-danfse" url={urlPdf} />
-          <Link href={voltar} className="text-muted">Voltar</Link>
+          <BotaoVoltar padrao={voltar} />
         </div>
       </div>
       <iframe

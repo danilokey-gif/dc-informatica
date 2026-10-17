@@ -55,7 +55,7 @@ export default async function ImprimirOrcamentoPage({ params }: { params: Promis
     : `https://wa.me/?text=${encodeURIComponent(mensagemWhatsApp)}`
 
   return (
-    <div style={{ maxWidth: '210mm', margin: '0 auto', background: '#fff', color: '#111827', minHeight: '100vh', padding: '20px' }}>
+    <div className="folha-clara" style={{ maxWidth: '210mm', margin: '0 auto', background: '#fff', color: '#111827', minHeight: '100vh', padding: '20px' }}>
       {user ? (
         <div className="print-hide" style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <Link href="/orcamentos" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

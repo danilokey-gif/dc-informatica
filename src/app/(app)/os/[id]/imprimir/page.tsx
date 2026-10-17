@@ -78,7 +78,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <div style={{ backgroundColor: 'white', color: 'black', padding: '1rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
+    <div className="folha-clara" style={{ backgroundColor: 'white', color: 'black', padding: '1rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {

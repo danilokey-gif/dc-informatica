@@ -36,14 +36,15 @@ export default async function GoogleDriveConfig({ clientId, temSegredo, conectad
           : <strong style={{ color: 'var(--accent-orange)' }}>não conectado</strong>}
       </p>
 
-      <form action={salvarCredenciaisGoogle}>
+      <form action={salvarCredenciaisGoogle} autoComplete="off">
         <div className="input-group">
           <label className="input-label" htmlFor="gdriveClientId">Client ID (Google Cloud)</label>
-          <input id="gdriveClientId" name="gdriveClientId" className="input-field" defaultValue={clientId || ''} placeholder="123456-abc.apps.googleusercontent.com" required />
+          <input id="gdriveClientId" name="gdriveClientId" className="input-field" defaultValue={clientId || ''} placeholder="123456-abc.apps.googleusercontent.com" required
+            autoComplete="off" data-lpignore="true" data-1p-ignore spellCheck={false} pattern=".+\.apps\.googleusercontent\.com" title="O Client ID termina em .apps.googleusercontent.com" />
         </div>
         <div className="input-group">
           <label className="input-label" htmlFor="gdriveClientSecret">Client Secret</label>
-          <input id="gdriveClientSecret" name="gdriveClientSecret" type="password" className="input-field" autoComplete="off"
+          <input id="gdriveClientSecret" name="gdriveClientSecret" type="password" className="input-field" autoComplete="new-password" data-lpignore="true" data-1p-ignore
             placeholder={temSegredo ? '•••••••• (já salvo — deixe em branco para manter)' : 'GOCSPX-...'} required={!temSegredo} />
         </div>
         <div className="input-group">

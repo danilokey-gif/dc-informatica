@@ -159,7 +159,7 @@ export default async function NotasFornecedoresPage({ searchParams }: { searchPa
                       <td style={{ padding: '0.5rem' }}>
                         <div className="flex gap-4">
                           {n.completa && (
-                            <Link href={`/notas-fiscais/ver-danfe?id=${n.id}&origem=recebida`} target="_blank" className="text-primary" style={{ textDecoration: 'underline' }}>
+                            <Link href={`/notas-fiscais/ver-danfe?id=${n.id}&origem=recebida`} className="text-primary" style={{ textDecoration: 'underline' }}>
                               Ver DANFE
                             </Link>
                           )}

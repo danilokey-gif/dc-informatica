@@ -235,7 +235,7 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
             )}
              {nfeAutorizada && (
               <>
-                <a href={`/vendas/${venda.id}/danfe`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                <a href={`/vendas/${venda.id}/danfe`} className="btn btn-outline">
                   🖨️ Ver / Imprimir DANFE
                 </a>
                 <form action={enviarNfeEmailAction}>

@@ -262,7 +262,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
             )}
             {nfseAutorizada && (
               <>
-                <a href={`/os/${os.id}/danfse`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                <a href={`/os/${os.id}/danfse`} className="btn btn-outline">
                   🖨️ Ver / Imprimir DANFSe
                 </a>
                 <form action={enviarNfseEmailAction}>

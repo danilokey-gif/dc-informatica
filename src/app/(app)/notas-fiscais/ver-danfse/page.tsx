@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
+import BotaoImprimirPdf from "@/components/BotaoImprimirPdf"
 import { notFound } from "next/navigation"
 
 export const dynamic = 'force-dynamic'
@@ -44,11 +45,12 @@ export default async function VerDanfsePage({ searchParams }: { searchParams: Pr
         </div>
         <div className="flex gap-4" style={{ alignItems: 'center' }}>
           <a href={`${urlPdf}&download=1`} className="btn btn-primary">⬇️ Baixar PDF</a>
-          <a href={urlPdf} target="_blank" rel="noopener noreferrer" className="btn btn-outline">Abrir para imprimir</a>
+          <BotaoImprimirPdf iframeId="pdf-danfse" url={urlPdf} />
           <Link href={voltar} className="text-muted">Voltar</Link>
         </div>
       </div>
       <iframe
+        id="pdf-danfse"
         src={urlPdf}
         title={`DANFSe da NFS-e ${numero}`}
         style={{ width: '100%', height: 'calc(100vh - 180px)', minHeight: '600px', border: '1px solid var(--border)', borderRadius: '0.5rem', background: '#fff' }}

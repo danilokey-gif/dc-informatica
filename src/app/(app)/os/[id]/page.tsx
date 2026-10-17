@@ -32,7 +32,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
       <div className="flex justify-between items-center mb-4">
         <h2>Detalhes da Ordem de Serviço #{os.id.slice(-6).toUpperCase()}</h2>
         <div className="flex gap-4">
-          <Link href={`/os/${os.id}/imprimir`} target="_blank" className="btn btn-outline" style={{ borderColor: '#6b7280', color: '#374151' }}>
+          <Link href={`/os/${os.id}/imprimir`} className="btn btn-outline" style={{ borderColor: '#6b7280', color: '#374151' }}>
             🖨️ Imprimir
           </Link>
           {os.customer.phone && (

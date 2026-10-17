@@ -12,14 +12,22 @@ export default function DownloadPdfButton({ filename }: { filename: string }) {
       // Importa dinamicamente para não quebrar SSR no Next.js
       const html2pdf = (await import('html2pdf.js')).default
 
-      const element = document.querySelector('.print-area') as HTMLElement
+      // A folha inteira (OS, venda, orçamento). Antes era só o primeiro ".print-area" — na OS e na
+      // venda esse é o cabeçalho, e o PDF saía com o cabeçalho e o resto em branco.
+      const element = (document.querySelector('.folha-clara') || document.querySelector('.print-area')) as HTMLElement | null
       if (!element) return
 
       const opt: any = {
         margin: 10,
         filename: `${filename}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          // Mesmo que a impressão: sem botões, formulários e quadros de nota fiscal/financeiro.
+          ignoreElements: (el: Element) => el.classList?.contains('no-print') || el.classList?.contains('print-hide'),
+        },
+        pagebreak: { mode: ['css', 'avoid-all'] },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       }
 

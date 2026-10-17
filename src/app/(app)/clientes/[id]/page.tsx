@@ -3,6 +3,7 @@ import { updateCustomer } from "../actions"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import CustomerForm from "@/components/CustomerForm"
+import HistoricoCliente from "./HistoricoCliente"
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -18,7 +19,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
   const updateAction = updateCustomer.bind(null, id)
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ maxWidth: '980px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
         <h2>Editar Cliente</h2>
         <Link href="/clientes" className="text-muted">Voltar</Link>
@@ -45,6 +46,8 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
           }}
         />
       </div>
+
+      <HistoricoCliente clienteId={cliente.id} />
     </div>
   )
 }

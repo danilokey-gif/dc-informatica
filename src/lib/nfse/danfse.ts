@@ -437,6 +437,9 @@ const COL = 5.09, COL2 = 10.19, LARG = 20.40
 const CINZA_FUNDO = '#F2F2F2' // 5% de densidade (item 2.2.3)
 const CINZA_MARCA = '#A6A6A6' // K35 (item 2.5.1)
 const LIMITE_INFERIOR = 29.40 // borda da página a 0,20 cm do fim da folha A4 (29,70 cm)
+/** Canhoto de recebimento no rodapé (opcional no leiaute; o emissor nacional imprime). */
+const ALTURA_CANHOTO = 0.85
+const FIM_CONTEUDO = LIMITE_INFERIOR - ALTURA_CANHOTO - 0.15
 
 function carregarLogo(): Buffer | null {
   try {
@@ -575,7 +578,7 @@ export async function gerarDanfsePdf(xmlNfse: string, opcoes: { cancelada?: bool
   const alturaTotais = 1.37
   const alturaTituloInfo = 0.41
   const inicioDescricao = y + 1.05
-  const espacoLivre = LIMITE_INFERIOR - inicioDescricao - alturaIssqn - alturaFederal - alturaIbs - alturaTotais - alturaTituloInfo
+  const espacoLivre = FIM_CONTEUDO - inicioDescricao - alturaIssqn - alturaFederal - alturaIbs - alturaTotais - alturaTituloInfo
 
   doc.font('Helvetica').fontSize(7)
   const larguraTexto = (LARG - 0.16) * CM
@@ -671,12 +674,21 @@ export async function gerarDanfsePdf(xmlNfse: string, opcoes: { cancelada?: bool
   campo(doc, X4, y + 0.69, COL, 'VALOR LÍQUIDO DA NFS-e + IBS/CBS', tt.valorLiquidoComIbsCbs, { destaque: true, sombreado: true, altura: 0.67 })
   y += alturaTotais
 
-  // ── informações complementares: ocupam o resto da página (o canhoto, opcional, não é usado)
+  // ── informações complementares: ocupam o resto da página até o canhoto
   divisoria(doc, y)
   tituloBloco(doc, y, 'Informações Complementares', 0.39)
   doc.font('Helvetica').fontSize(7).fillColor('#000000').text(d.informacoesComplementares, (X1 + 0.08) * CM, (y + 0.46) * CM, {
-    width: larguraTexto, height: (LIMITE_INFERIOR - y - 0.50) * CM, ellipsis: true,
+    width: larguraTexto, height: (FIM_CONTEUDO - y - 0.50) * CM, ellipsis: true,
   })
+
+  // ── canhoto de recebimento (como no DANFSe do emissor nacional)
+  const yc = LIMITE_INFERIOR - ALTURA_CANHOTO - 0.05
+  doc.rect(X1 * CM, yc * CM, LARG * CM, ALTURA_CANHOTO * CM).lineWidth(0.5).strokeColor('#000000').stroke()
+  for (const x of [X2, X3]) doc.moveTo(x * CM, yc * CM).lineTo(x * CM, (yc + ALTURA_CANHOTO) * CM).stroke()
+  linha(doc, 'DATA CIENTIFICAÇÃO:', X1 + 0.08, yc + 0.08, COL - 0.16, 'Helvetica-Bold', 6)
+  linha(doc, 'IDENTIFICAÇÃO E ASSINATURA', X2 + 0.08, yc + 0.08, COL - 0.16, 'Helvetica-Bold', 6)
+  linha(doc, 'Nº NFS-e / CHAVE NFS-e', X3 + 0.08, yc + 0.08, COL2 - 0.16, 'Helvetica-Bold', 6)
+  linha(doc, `${d.numeroNfse ?? TRACO} / ${d.chaveAcesso ?? TRACO}`, X3 + 0.08, yc + 0.34, COL2 - 0.16, 'Helvetica', 7)
 
   // ── marca d'água de cancelamento (item 2.5.1): diagonal, Arial ≥ 50 pt, cinza K35
   if (opcoes.cancelada) {

@@ -84,9 +84,36 @@ export async function updateOS(id: string, formData: FormData) {
   redirect('/os')
 }
 
-export async function deleteOS(id: string) {
-  await prisma.serviceOrder.delete({
-    where: { id }
+/**
+ * Exclui a OS quando nada importante depende dela. Notas de teste ou rejeitadas continuam
+ * guardadas, só desligadas da OS (preserva a numeração da DPS).
+ */
+export async function deleteOS(id: string): Promise<{ ok?: boolean; erro?: string }> {
+  const os = await prisma.serviceOrder.findUnique({
+    where: { id },
+    include: {
+      nfseEmissoes: { select: { status: true, ambiente: true, numeroDps: true } },
+      _count: { select: { transactions: true } },
+      anexos: { where: { excluidoEm: null }, select: { id: true } },
+    },
   })
+  if (!os) return { ok: true }
+  const numero = os.id.slice(-6).toUpperCase()
+  const notaValida = os.nfseEmissoes.find(n => n.ambiente === 'producao' && (n.status === 'AUTORIZADA' || n.status === 'CANCELADA'))
+  if (notaValida) {
+    return { erro: `Não dá para excluir a OS ${numero}: ela tem a NFS-e nº ${notaValida.numeroDps} (${notaValida.status === 'AUTORIZADA' ? 'autorizada' : 'cancelada'}), que precisa continuar ligada à OS.` }
+  }
+  if (os._count.transactions) {
+    return { erro: `Não dá para excluir a OS ${numero}: ela tem ${os._count.transactions} lançamento(s) no Financeiro. Exclua os lançamentos primeiro.` }
+  }
+  if (os.anexos.length) {
+    return { erro: `Não dá para excluir a OS ${numero}: ela tem ${os.anexos.length} foto(s)/vídeo(s). Apague os arquivos primeiro.` }
+  }
+  await prisma.$transaction([
+    prisma.nfseEmissao.updateMany({ where: { serviceOrderId: id }, data: { serviceOrderId: null } }),
+    prisma.osAnexo.deleteMany({ where: { serviceOrderId: id, excluidoEm: { not: null } } }),
+    prisma.serviceOrder.delete({ where: { id } }),
+  ])
   revalidatePath('/os')
+  return { ok: true }
 }

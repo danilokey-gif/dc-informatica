@@ -23,7 +23,7 @@ function enviarParaDrive(url: string, arquivo: File, aoProgredir: (p: number) =>
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', url)
     xhr.setRequestHeader('Content-Type', arquivo.type)
-    xhr.upload.onprogress = e => { if (e.lengthComputable) aoProgredir(Math.round((e.loaded / e.total) * 100)) }
+    xhr.upload.onprogress = e => aoProgredir(Math.min(99, Math.round((e.loaded / (e.lengthComputable ? e.total : arquivo.size)) * 100)))
     xhr.onload = () => {
       if (xhr.status === 200 || xhr.status === 201) {
         try { resolve(JSON.parse(xhr.responseText).id) } catch { reject(new Error('Resposta inesperada do Google Drive.')) }
@@ -98,8 +98,21 @@ export default function EnviarAnexos({ serviceOrderId, driveConectado }: { servi
       {envios.length > 0 && (
         <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0', fontSize: '0.82rem' }}>
           {envios.map((e, i) => (
-            <li key={i} style={{ padding: '0.25rem 0', color: e.situacao === 'erro' ? 'var(--accent-red)' : e.situacao === 'ok' ? 'var(--accent-green)' : undefined }}>
-              {e.nome} — {rotulo[e.situacao]}{e.situacao === 'enviando' ? ` ${e.progresso}%` : ''}{e.erro ? `: ${e.erro}` : ''}
+            <li key={i} style={{ padding: '0.35rem 0', color: e.situacao === 'erro' ? 'var(--accent-red)' : e.situacao === 'ok' ? 'var(--accent-green)' : undefined }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.nome}</span>
+                <span style={{ flexShrink: 0 }}>{rotulo[e.situacao]}{e.situacao === 'enviando' ? ` ${e.progresso}%` : ''}</span>
+              </div>
+              {e.situacao !== 'erro' && (
+                <div style={{ height: 6, background: 'var(--border)', borderRadius: 999, overflow: 'hidden', marginTop: 4 }}>
+                  <div style={{
+                    height: '100%', borderRadius: 999, transition: 'width 0.3s',
+                    width: `${e.situacao === 'ok' || e.situacao === 'conferindo' ? 100 : e.situacao === 'calculando' ? 3 : Math.max(3, e.progresso)}%`,
+                    background: e.situacao === 'ok' ? 'var(--accent-green)' : 'var(--primary)',
+                  }} />
+                </div>
+              )}
+              {e.erro && <div>{e.erro}</div>}
             </li>
           ))}
         </ul>

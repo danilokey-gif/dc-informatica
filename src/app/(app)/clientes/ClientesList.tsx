@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { deleteCustomer } from './actions'
+import BotaoExcluir from '@/components/BotaoExcluir'
 
 interface Customer {
   id: string
@@ -101,20 +102,7 @@ export default function ClientesList({ clientes }: ClientesListProps) {
                       <Link href={`/clientes/${cliente.id}`} className="text-primary" style={{ fontWeight: 500 }}>
                         Editar
                       </Link>
-                      <form action={deleteAction} style={{ display: 'inline' }}>
-                        <button
-                          type="submit"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            fontWeight: 500
-                          }}
-                        >
-                          Excluir
-                        </button>
-                      </form>
+                      <BotaoExcluir action={deleteAction} confirmar={`Excluir o cliente "${cliente.name}"?`} />
                     </div>
                   </td>
                 </tr>

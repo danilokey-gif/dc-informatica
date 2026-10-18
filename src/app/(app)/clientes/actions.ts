@@ -66,9 +66,25 @@ export async function updateCustomer(id: string, formData: FormData) {
   redirect('/clientes')
 }
 
-export async function deleteCustomer(id: string) {
-  await prisma.customer.delete({
-    where: { id }
-  })
+/**
+ * Exclui o cliente só se ele não tiver histórico. Com OS, vendas, orçamentos, lançamentos ou
+ * cobrança mensal, o banco não deixa apagar (e não deve: notas e financeiro dependem disso).
+ */
+export async function deleteCustomer(id: string): Promise<{ ok?: boolean; erro?: string }> {
+  const c = await prisma.customer.findUnique({ where: { id }, include: { _count: true } })
+  if (!c) return { ok: true }
+  const n = c._count
+  const historico = [
+    n.serviceOrders && `${n.serviceOrders} OS`,
+    n.sales && `${n.sales} venda(s)`,
+    n.quotes && `${n.quotes} orçamento(s)`,
+    n.transactions && `${n.transactions} lançamento(s) no Financeiro`,
+    n.cobrancasMensais && 'cobrança mensal',
+  ].filter(Boolean)
+  if (historico.length) {
+    return { erro: `Não dá para excluir "${c.name}": o cliente tem ${historico.join(', ')}. O histórico é necessário para as notas fiscais e o Financeiro.` }
+  }
+  await prisma.customer.delete({ where: { id } })
   revalidatePath('/clientes')
+  return { ok: true }
 }

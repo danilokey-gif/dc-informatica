@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { deleteOS } from "./actions"
+import BotaoExcluir from "@/components/BotaoExcluir"
 
 export const dynamic = 'force-dynamic'
 
@@ -106,11 +107,7 @@ export default async function OSPage() {
                   <td>
                     <div className="flex gap-4">
                       <Link href={`/os/${os.id}`} className="text-primary" style={{ fontWeight: 500 }}>Abrir</Link>
-                      <form action={deleteAction}>
-                        <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 500 }}>
-                          Excluir
-                        </button>
-                      </form>
+                      <BotaoExcluir action={deleteAction} confirmar={`Excluir a OS ${os.id.slice(-6).toUpperCase()} de ${os.customer.name}?`} />
                     </div>
                   </td>
                 </tr>

@@ -154,3 +154,8 @@ export async function moverArquivo(token: string, nome: string, deId: string, pa
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: novoNome }),
   })
 }
+
+/** Manda o arquivo para a lixeira do Drive (o Google mantém por 30 dias, dá para restaurar). */
+export async function moverParaLixeira(token: string, id: string) {
+  await api(token, `/files/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) })
+}

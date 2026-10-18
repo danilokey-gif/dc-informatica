@@ -1,5 +1,6 @@
 import type { OsAnexo } from "@prisma/client"
 import EnviarAnexos from "./imprimir/EnviarAnexos"
+import GaleriaAnexos from "./GaleriaAnexos"
 
 /**
  * Quadro "Fotos e vídeos do equipamento" (tela da OS e folha de impressão). A lista com data,
@@ -13,19 +14,9 @@ export default function FotosOS({ serviceOrderId, anexos, driveConectado }: { se
         📷 Fotos e vídeos do equipamento {anexos.length > 0 && `(${anexos.length})`}
       </h3>
       {anexos.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
-          {anexos.map(a => (
-            <a key={a.id} href={`https://drive.google.com/file/d/${a.driveFileId}/view`} target="_blank" rel="noopener noreferrer"
-              style={{ border: '1px solid var(--border)', borderRadius: '0.4rem', overflow: 'hidden', display: 'block', textDecoration: 'none', color: 'inherit' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/os/anexo/${a.id}/miniatura`} alt={a.nome} loading="lazy" style={{ width: '100%', height: '110px', objectFit: 'cover', background: 'var(--surface-hover)', display: 'block' }} />
-              <div style={{ padding: '0.35rem 0.45rem', fontSize: '0.7rem', lineHeight: 1.3 }}>
-                <div>{a.mimeType.startsWith('video/') ? '🎬' : '📷'} {dataHora(a.createdAt)}</div>
-                {a.descricao && <div className="text-muted">{a.descricao}</div>}
-              </div>
-            </a>
-          ))}
-        </div>
+        <GaleriaAnexos anexos={anexos.map(a => ({
+          id: a.id, driveFileId: a.driveFileId, nome: a.nome, video: a.mimeType.startsWith('video/'), quando: dataHora(a.createdAt), descricao: a.descricao,
+        }))} />
       )}
       {anexos.length > 0 && (
         <details style={{ fontSize: '0.72rem', marginBottom: '0.75rem' }} className="text-muted" open>

@@ -402,5 +402,8 @@ model OsAnexo {
   sha256         String
   descricao      String?
   enviadoPor     String?
+  /// Apagado pelo usuário: some da OS e o arquivo vai para a lixeira do Drive (recuperável por 30 dias).
+  excluidoEm     DateTime?
+  excluidoPor    String?
   createdAt      DateTime     @default(now())
 }

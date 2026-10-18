@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { updateOS } from "../actions"
+import { updateOS, deleteOS } from "../actions"
+import BotaoExcluir from "@/components/BotaoExcluir"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import SearchableSelect from "@/components/SearchableSelect"
@@ -11,7 +12,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
   
   const os = await prisma.serviceOrder.findUnique({
     where: { id },
-    include: { customer: true, anexos: { orderBy: { createdAt: 'asc' } } }
+    include: { customer: true, anexos: { where: { excluidoEm: null }, orderBy: { createdAt: 'asc' } } }
   })
 
   if (!os) {
@@ -43,6 +44,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
               💬 Enviar WhatsApp
             </a>
           )}
+          <BotaoExcluir action={deleteOS.bind(null, os.id)} confirmar={`Excluir a OS ${os.id.slice(-6).toUpperCase()} de ${os.customer.name}?`} depois="/os" estilo="botao" />
           <Link href="/os" className="text-muted" style={{ display: 'flex', alignItems: 'center' }}>Voltar</Link>
         </div>
       </div>

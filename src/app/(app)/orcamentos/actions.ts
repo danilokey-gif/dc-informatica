@@ -41,3 +41,10 @@ export async function createQuote(formData: FormData) {
   revalidatePath('/orcamentos')
   redirect('/orcamentos')
 }
+
+/** Exclui o orçamento (os itens vão junto). */
+export async function excluirOrcamento(id: string): Promise<{ ok?: boolean; erro?: string }> {
+  await prisma.quote.deleteMany({ where: { id } })
+  revalidatePath('/orcamentos')
+  return { ok: true }
+}

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { updateCustomer } from "../actions"
+import { updateCustomer, deleteCustomer } from "../actions"
+import BotaoExcluir from "@/components/BotaoExcluir"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import CustomerForm from "@/components/CustomerForm"
@@ -22,7 +23,10 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
     <div className="animate-fade-in" style={{ maxWidth: '980px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
         <h2>Editar Cliente</h2>
-        <Link href="/clientes" className="text-muted">Voltar</Link>
+        <div className="flex gap-4" style={{ alignItems: 'center' }}>
+          <BotaoExcluir action={deleteCustomer.bind(null, cliente.id)} confirmar={`Excluir o cliente "${cliente.name}"?`} depois="/clientes" estilo="botao" />
+          <Link href="/clientes" className="text-muted">Voltar</Link>
+        </div>
       </div>
 
       <div className="card">

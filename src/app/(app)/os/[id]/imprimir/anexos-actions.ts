@@ -4,7 +4,7 @@ import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
-import { dadosDoArquivo, iniciarUploadResumivel, pastaPorCaminho, tokenDoUsuario } from "@/lib/google-drive-usuario"
+import { dadosDoArquivo, iniciarUploadResumivel, moverParaLixeira, pastaPorCaminho, tokenDoUsuario } from "@/lib/google-drive-usuario"
 
 const TIPOS_ACEITOS = /^(image|video)\//
 const TAMANHO_MAXIMO = 2_000_000_000 // 2 GB por arquivo
@@ -82,5 +82,31 @@ export async function confirmarAnexo(serviceOrderId: string, dados: { driveFileI
   } catch (e: any) {
     console.error('[Anexos OS] confirmar:', e)
     return { erro: e.message || 'Não consegui registrar o arquivo.' }
+  }
+}
+
+/**
+ * Apaga uma foto/vídeo da OS: some da tela e o arquivo vai para a lixeira do Google Drive
+ * (recuperável por 30 dias). O registro fica no banco com quem apagou e quando.
+ */
+export async function excluirAnexo(anexoId: string): Promise<{ ok?: boolean; erro?: string }> {
+  try {
+    const usuario = await getCurrentUser()
+    if (!usuario) return { erro: 'Sessão expirada. Entre no sistema de novo.' }
+    const anexo = await prisma.osAnexo.findUnique({ where: { id: anexoId } })
+    if (!anexo || anexo.excluidoEm) return { ok: true }
+    try {
+      await moverParaLixeira(await tokenDoUsuario(), anexo.driveFileId)
+    } catch (e: any) {
+      // Já apagado direto no Drive: segue e só tira da OS.
+      if (!String(e.message).includes('404')) throw e
+    }
+    await prisma.osAnexo.update({ where: { id: anexoId }, data: { excluidoEm: new Date(), excluidoPor: usuario.name } })
+    revalidatePath(`/os/${anexo.serviceOrderId}`)
+    revalidatePath(`/os/${anexo.serviceOrderId}/imprimir`)
+    return { ok: true }
+  } catch (e: any) {
+    console.error('[Anexos OS] excluir:', e)
+    return { erro: e.message || 'Não consegui apagar o arquivo.' }
   }
 }

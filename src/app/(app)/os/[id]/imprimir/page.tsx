@@ -19,7 +19,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   const [os, settings, nfseConfig, user] = await Promise.all([
     prisma.serviceOrder.findUnique({
       where: { id },
-      include: { customer: true, technician: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } }, transactions: true, anexos: { orderBy: { createdAt: 'asc' } } }
+      include: { customer: true, technician: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } }, transactions: true, anexos: { where: { excluidoEm: null }, orderBy: { createdAt: 'asc' } } }
     }),
     getCompanySettings(),
     getNfseConfig(),

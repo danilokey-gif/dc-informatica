@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import BotaoExcluir from "@/components/BotaoExcluir"
+import { excluirOrcamento } from "./actions"
 import { prisma } from '@/lib/prisma'
 import { FileText } from 'lucide-react'
 
@@ -57,6 +59,7 @@ export default async function OrcamentosPage() {
                       <Link href={`/orcamentos/${quote.id}/imprimir`} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem' }} title="Imprimir">
                         <FileText size={18} />
                       </Link>
+                      <BotaoExcluir action={excluirOrcamento.bind(null, quote.id)} confirmar={`Excluir o orçamento de ${quote.customer?.name || 'cliente não identificado'} (${quote.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})?`} />
                     </div>
                   </td>
                 </tr>

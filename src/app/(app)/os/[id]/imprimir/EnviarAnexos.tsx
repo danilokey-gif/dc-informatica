@@ -3,35 +3,13 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { iniciarEnvioAnexo, confirmarAnexo } from './anexos-actions'
+import { enviarParaDrive, sha256 } from '@/lib/upload-drive'
 
 interface Envio {
   nome: string
   progresso: number
   situacao: 'calculando' | 'enviando' | 'conferindo' | 'ok' | 'erro'
   erro?: string
-}
-
-/** SHA-256 do arquivo, calculado aqui no navegador antes do envio (prova de que não foi alterado). */
-async function sha256(arquivo: File): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', await arquivo.arrayBuffer())
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-/** Envia direto para o Google Drive (sessão resumível), mostrando o progresso. Devolve o id do arquivo. */
-function enviarParaDrive(url: string, arquivo: File, aoProgredir: (p: number) => void): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open('PUT', url)
-    xhr.setRequestHeader('Content-Type', arquivo.type)
-    xhr.upload.onprogress = e => aoProgredir(Math.min(99, Math.round((e.loaded / (e.lengthComputable ? e.total : arquivo.size)) * 100)))
-    xhr.onload = () => {
-      if (xhr.status === 200 || xhr.status === 201) {
-        try { resolve(JSON.parse(xhr.responseText).id) } catch { reject(new Error('Resposta inesperada do Google Drive.')) }
-      } else reject(new Error(`Google Drive recusou o arquivo (${xhr.status}).`))
-    }
-    xhr.onerror = () => reject(new Error('A conexão caiu durante o envio. Tente de novo.'))
-    xhr.send(arquivo)
-  })
 }
 
 export default function EnviarAnexos({ serviceOrderId, driveConectado }: { serviceOrderId: string; driveConectado: boolean }) {
@@ -57,8 +35,8 @@ export default function EnviarAnexos({ serviceOrderId, driveConectado }: { servi
 
     for (const [i, arquivo] of lista.entries()) {
       try {
-        const hash = await sha256(arquivo)
-        atualizar(i, { situacao: 'enviando' })
+        const hash = await sha256(arquivo, p => atualizar(i, { progresso: p }))
+        atualizar(i, { situacao: 'enviando', progresso: 0 })
         const inicio = await iniciarEnvioAnexo(serviceOrderId, { nome: arquivo.name, mimeType: arquivo.type, tamanho: arquivo.size })
         if (!inicio.url) throw new Error(inicio.erro || 'Não consegui iniciar o envio.')
         const driveFileId = await enviarParaDrive(inicio.url, arquivo, p => atualizar(i, { progresso: p }))
@@ -101,14 +79,14 @@ export default function EnviarAnexos({ serviceOrderId, driveConectado }: { servi
             <li key={i} style={{ padding: '0.35rem 0', color: e.situacao === 'erro' ? 'var(--accent-red)' : e.situacao === 'ok' ? 'var(--accent-green)' : undefined }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.nome}</span>
-                <span style={{ flexShrink: 0 }}>{rotulo[e.situacao]}{e.situacao === 'enviando' ? ` ${e.progresso}%` : ''}</span>
+                <span style={{ flexShrink: 0 }}>{rotulo[e.situacao]}{e.situacao === 'enviando' || e.situacao === 'calculando' ? ` ${e.progresso}%` : ''}</span>
               </div>
               {e.situacao !== 'erro' && (
                 <div style={{ height: 6, background: 'var(--border)', borderRadius: 999, overflow: 'hidden', marginTop: 4 }}>
                   <div style={{
                     height: '100%', borderRadius: 999, transition: 'width 0.3s',
-                    width: `${e.situacao === 'ok' || e.situacao === 'conferindo' ? 100 : e.situacao === 'calculando' ? 3 : Math.max(3, e.progresso)}%`,
-                    background: e.situacao === 'ok' ? 'var(--accent-green)' : 'var(--primary)',
+                    width: `${e.situacao === 'ok' || e.situacao === 'conferindo' ? 100 : Math.max(3, e.progresso)}%`,
+                    background: e.situacao === 'ok' ? 'var(--accent-green)' : e.situacao === 'calculando' ? 'var(--text-muted)' : 'var(--primary)',
                   }} />
                 </div>
               )}

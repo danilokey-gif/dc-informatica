@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import CampoValor from "@/components/CampoValor"
 import { updateTransaction, registrarPagamento, marcarComoPendente } from "../../actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
 import { formatarDataUTC } from "@/lib/dates"
@@ -67,7 +68,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
 
           <div className="input-group">
             <label className="input-label" htmlFor="amount">Valor (R$) *</label>
-            <input type="number" step="0.01" min="0" id="amount" name="amount" className="input-field" required defaultValue={transacao.amount} />
+            <CampoValor id="amount" name="amount" required defaultValue={transacao.amount} />
           </div>
 
           <div className="input-group">

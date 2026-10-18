@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import CampoValor from "@/components/CampoValor"
 import { createTransaction } from "../../actions"
 import Link from "next/link"
 import SearchableSelect from "@/components/SearchableSelect"
@@ -38,7 +39,7 @@ export default async function NovoLancamentoPage() {
 
           <div className="input-group">
             <label className="input-label" htmlFor="amount">Valor (R$) *</label>
-            <input type="number" step="0.01" min="0" id="amount" name="amount" className="input-field" required />
+            <CampoValor id="amount" name="amount" required />
           </div>
 
           <div className="input-group">

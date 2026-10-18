@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import CampoValor from "@/components/CampoValor"
 import { updateProduct, excluirProduto } from "../actions"
 import BotaoExcluir from "@/components/BotaoExcluir"
 import Link from "next/link"
@@ -52,12 +53,12 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
 
           <div className="input-group">
             <label className="input-label" htmlFor="costPrice">Preço de Custo (R$)</label>
-            <input type="number" step="0.01" min="0" id="costPrice" name="costPrice" className="input-field" defaultValue={produto.costPrice} />
+            <CampoValor id="costPrice" name="costPrice" defaultValue={produto.costPrice} />
           </div>
 
           <div className="input-group">
             <label className="input-label" htmlFor="salePrice">Preço de Venda (R$)</label>
-            <input type="number" step="0.01" min="0" id="salePrice" name="salePrice" className="input-field" defaultValue={produto.salePrice} />
+            <CampoValor id="salePrice" name="salePrice" defaultValue={produto.salePrice} />
           </div>
 
           <div className="input-group">

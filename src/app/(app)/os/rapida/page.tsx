@@ -1,4 +1,5 @@
 import { createOSRapida } from "../actions"
+import CampoValor from "@/components/CampoValor"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import SearchableSelect from "@/components/SearchableSelect"
@@ -44,7 +45,7 @@ export default async function NotaServicoAvulsaPage() {
 
           <div className="input-group">
             <label className="input-label" htmlFor="price">Valor do Serviço (R$) *</label>
-            <input type="number" id="price" name="price" step="0.01" min="0" className="input-field" required />
+            <CampoValor id="price" name="price" required />
           </div>
 
           <div style={{ marginTop: '2rem' }}>

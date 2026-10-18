@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import CampoValor from "@/components/CampoValor"
 import Link from "next/link"
 import SearchableSelect from "@/components/SearchableSelect"
 import { hojeEmBrasilia } from "@/lib/cobranca-mensal"
@@ -143,7 +144,7 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0 1rem' }}>
             <div className="input-group">
               <label className="input-label" htmlFor="valor">Valor (R$) *</label>
-              <input id="valor" name="valor" type="number" step="0.01" min="0.01" className="input-field" required defaultValue={emEdicao?.valor ?? 120} />
+              <CampoValor id="valor" name="valor" required min={0.01} defaultValue={emEdicao?.valor ?? 120} />
             </div>
             <div className="input-group">
               <label className="input-label" htmlFor="diaDoMes">Dia do mês (1 a 28) *</label>

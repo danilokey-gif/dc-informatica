@@ -1,4 +1,5 @@
 import { createProduct } from "../actions"
+import CampoValor from "@/components/CampoValor"
 import Link from "next/link"
 import FiscalFieldsHelper from "@/components/FiscalFieldsHelper"
 
@@ -34,12 +35,12 @@ export default function NovoProdutoPage() {
 
           <div className="input-group">
             <label className="input-label" htmlFor="costPrice">Preço de Custo (R$)</label>
-            <input type="number" step="0.01" min="0" id="costPrice" name="costPrice" className="input-field" defaultValue="0" />
+            <CampoValor id="costPrice" name="costPrice" defaultValue={0} />
           </div>
 
           <div className="input-group">
             <label className="input-label" htmlFor="salePrice">Preço de Venda (R$)</label>
-            <input type="number" step="0.01" min="0" id="salePrice" name="salePrice" className="input-field" defaultValue="0" />
+            <CampoValor id="salePrice" name="salePrice" defaultValue={0} />
           </div>
 
           <div className="input-group">

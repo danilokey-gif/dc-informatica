@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import CampoValor from "@/components/CampoValor"
 import SearchableSelect from '@/components/SearchableSelect'
 
 interface Props {
@@ -64,7 +65,7 @@ export default function OSEditForm({ updateAction, os, clientes, tecnicos }: Pro
       <div style={{ display: 'grid', gridTemplateColumns: status === 'DELIVERED' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '1rem' }}>
         <div className="input-group">
           <label className="input-label" htmlFor="price">Valor (R$)</label>
-          <input type="number" step="0.01" id="price" name="price" className="input-field" defaultValue={os.price || ''} />
+          <CampoValor id="price" name="price" defaultValue={os.price} />
         </div>
 
         <div className="input-group">

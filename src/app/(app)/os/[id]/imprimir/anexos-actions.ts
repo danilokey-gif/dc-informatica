@@ -17,13 +17,19 @@ function pastaDaOs(os: { id: string; customer: { name: string } }) {
  * Primeiro passo do envio: cria a pasta da OS no Drive e abre a sessão de upload. O navegador
  * manda o arquivo direto para o Google com o endereço devolvido aqui.
  */
-export async function iniciarEnvioAnexo(serviceOrderId: string, arquivo: { nome: string; mimeType: string; tamanho: number }): Promise<{ url?: string; erro?: string }> {
+export async function iniciarEnvioAnexo(serviceOrderId: string, arquivo: { nome: string; mimeType: string; tamanho: number; sha256?: string }): Promise<{ url?: string; erro?: string }> {
   try {
     const usuario = await getCurrentUser()
     if (!usuario) return { erro: 'Sessão expirada. Entre no sistema de novo.' }
     if (!TIPOS_ACEITOS.test(arquivo.mimeType)) return { erro: `"${arquivo.nome}" não é foto nem vídeo.` }
     if (arquivo.tamanho <= 0 || arquivo.tamanho > TAMANHO_MAXIMO) return { erro: `"${arquivo.nome}" passa de 2 GB.` }
 
+    if (arquivo.sha256) {
+      const igual = await prisma.osAnexo.findFirst({ where: { serviceOrderId, sha256: arquivo.sha256.toLowerCase(), excluidoEm: null } })
+      if (igual) {
+        return { erro: `"${arquivo.nome}" já está nesta OS (enviado em ${igual.createdAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}).` }
+      }
+    }
     const os = await prisma.serviceOrder.findUniqueOrThrow({ where: { id: serviceOrderId }, include: { customer: { select: { name: true } } } })
     const token = await tokenDoUsuario()
     const pastaId = await pastaPorCaminho(token, pastaDaOs(os))

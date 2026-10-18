@@ -37,7 +37,7 @@ export default function EnviarAnexos({ serviceOrderId, driveConectado }: { servi
       try {
         const hash = await sha256(arquivo, p => atualizar(i, { progresso: p }))
         atualizar(i, { situacao: 'enviando', progresso: 0 })
-        const inicio = await iniciarEnvioAnexo(serviceOrderId, { nome: arquivo.name, mimeType: arquivo.type, tamanho: arquivo.size })
+        const inicio = await iniciarEnvioAnexo(serviceOrderId, { nome: arquivo.name, mimeType: arquivo.type, tamanho: arquivo.size, sha256: hash })
         if (!inicio.url) throw new Error(inicio.erro || 'Não consegui iniciar o envio.')
         const driveFileId = await enviarParaDrive(inicio.url, arquivo, p => atualizar(i, { progresso: p }))
         atualizar(i, { situacao: 'conferindo', progresso: 100 })

@@ -15,6 +15,7 @@ export async function createSale(formData: FormData) {
   const paymentMethod = formData.get('paymentMethod') as string
   const parcelas = parseInt(formData.get('parcelas') as string) || 1
   const jaPago = formData.get('jaPago') === '1'
+  const semNotaFiscal = formData.get('notaFiscal') === 'sem'
   const itemsJson = formData.get('itemsJson') as string
   const items: CartItem[] = JSON.parse(itemsJson || '[]')
 
@@ -53,6 +54,7 @@ export async function createSale(formData: FormData) {
         customerId: customerId || undefined,
         paymentMethod: parcelas > 1 ? `${paymentMethod} (${parcelas}x)` : paymentMethod,
         total,
+        semNotaFiscal,
         items: { create: saleItemsData }
       }
     })

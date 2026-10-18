@@ -1,6 +1,7 @@
 import CampoCnpjFornecedor from "@/components/CampoCnpjFornecedor"
 import { prisma } from "@/lib/prisma"
-import { updateSupplier } from "../actions"
+import { updateSupplier, deleteSupplier } from "../actions"
+import BotaoExcluir from "@/components/BotaoExcluir"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
@@ -21,7 +22,10 @@ export default async function EditarFornecedorPage({ params }: { params: Promise
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
         <h2>Editar Fornecedor</h2>
-        <Link href="/fornecedores" className="text-muted">Voltar</Link>
+        <div className="flex gap-4" style={{ alignItems: 'center' }}>
+          <BotaoExcluir action={deleteSupplier.bind(null, fornecedor.id)} confirmar={`Excluir o fornecedor "${fornecedor.name}"?`} depois="/fornecedores" estilo="botao" />
+          <Link href="/fornecedores" className="text-muted">Voltar</Link>
+        </div>
       </div>
 
       <div className="card">

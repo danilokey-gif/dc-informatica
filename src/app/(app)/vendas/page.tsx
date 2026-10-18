@@ -49,6 +49,9 @@ export default async function VendasPage() {
                  <td>
                   {(() => {
                     const ultimaNfe = venda.nfeEmissoes?.[0]
+                    if (venda.semNotaFiscal && ultimaNfe?.status !== 'AUTORIZADA') {
+                      return <span className="badge badge-neutral" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Sem nota</span>
+                    }
                     if (ultimaNfe) {
                       if (ultimaNfe.status === 'AUTORIZADA') {
                         return <span className="badge badge-success" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>NF-e nº {ultimaNfe.numero}</span>

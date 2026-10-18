@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { deleteSupplier } from "./actions"
+import BotaoExcluir from "@/components/BotaoExcluir"
 
 export const dynamic = 'force-dynamic'
 
@@ -42,11 +43,7 @@ export default async function FornecedoresPage() {
                   <td>
                     <div className="flex gap-4">
                       <Link href={`/fornecedores/${fornecedor.id}`} className="text-primary" style={{ fontWeight: 500 }}>Editar</Link>
-                      <form action={deleteAction}>
-                        <button type="submit" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 500 }}>
-                          Excluir
-                        </button>
-                      </form>
+                      <BotaoExcluir action={deleteAction} confirmar={`Excluir o fornecedor "${fornecedor.name}"?`} />
                     </div>
                   </td>
                 </tr>

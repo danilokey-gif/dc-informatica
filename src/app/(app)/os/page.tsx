@@ -86,6 +86,9 @@ export default async function OSPage() {
                   <td>
                     {(() => {
                       const ultimaNfse = os.nfseEmissoes?.[0]
+                    if (os.semNotaFiscal && ultimaNfse?.status !== 'AUTORIZADA') {
+                      return <span className="badge badge-neutral" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Sem nota</span>
+                    }
                       if (ultimaNfse) {
                         if (ultimaNfse.status === 'AUTORIZADA') {
                           return <span className="badge badge-success" style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>NFS-e nº {ultimaNfse.numeroDps}</span>

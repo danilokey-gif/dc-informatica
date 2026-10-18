@@ -13,8 +13,8 @@ export default async function Dashboard() {
     prisma.serviceOrder.count({ where: { status: { in: ['BUDGET', 'IN_PROGRESS'] } } }),
     prisma.serviceOrder.count({ where: { status: 'BUDGET' } }),
     prisma.product.findMany({ select: { stockQty: true, minStockAlert: true } }),
-    prisma.serviceOrder.count({ where: { status: { in: ['COMPLETED', 'DELIVERED'] }, price: { gt: 0 }, updatedAt: { gte: desde }, nfseEmissoes: { none: { status: 'AUTORIZADA' } } } }),
-    prisma.sale.count({ where: { createdAt: { gte: desde }, invoiceNumber: null, status: { not: 'CANCELADA' }, nfeEmissoes: { none: { status: 'AUTORIZADA' } } } }),
+    prisma.serviceOrder.count({ where: { status: { in: ['COMPLETED', 'DELIVERED'] }, semNotaFiscal: false, price: { gt: 0 }, updatedAt: { gte: desde }, nfseEmissoes: { none: { status: 'AUTORIZADA' } } } }),
+    prisma.sale.count({ where: { createdAt: { gte: desde }, invoiceNumber: null, status: { not: 'CANCELADA' }, semNotaFiscal: false, nfeEmissoes: { none: { status: 'AUTORIZADA' } } } }),
   ])
   const lowStockCount = products.filter(p => p.stockQty <= p.minStockAlert).length
   const notasPendentes = osSemNota + vendasSemNota

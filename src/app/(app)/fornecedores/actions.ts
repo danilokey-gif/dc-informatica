@@ -33,9 +33,14 @@ export async function updateSupplier(id: string, formData: FormData) {
   redirect('/fornecedores')
 }
 
-export async function deleteSupplier(id: string) {
-  await prisma.supplier.delete({
-    where: { id }
-  })
+/** Exclui o fornecedor só se não houver lançamento no Financeiro ligado a ele. */
+export async function deleteSupplier(id: string): Promise<{ ok?: boolean; erro?: string }> {
+  const f = await prisma.supplier.findUnique({ where: { id }, include: { _count: { select: { transactions: true } } } })
+  if (!f) return { ok: true }
+  if (f._count.transactions) {
+    return { erro: `Não dá para excluir "${f.name}": há ${f._count.transactions} lançamento(s) no Financeiro ligados a este fornecedor.` }
+  }
+  await prisma.supplier.delete({ where: { id } })
   revalidatePath('/fornecedores')
+  return { ok: true }
 }

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { finalizarOsSemNota, desfazerOsSemNota } from "../../../sem-nota-actions"
 import FotosOS from "../FotosOS"
 import BotaoVoltar from "@/components/BotaoVoltar"
 import { getCompanySettings, getNfseConfig } from "@/lib/settings"
@@ -241,6 +242,39 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
             <h3 style={{ margin: 0, fontSize: '1.125rem' }}>🧾 Nota Fiscal de Serviço (NFS-e)</h3>
             {ultimaEmissao && <StatusBadge status={ultimaEmissao.status} />}
           </div>
+
+          {os.semNotaFiscal && !nfseAutorizada && (
+            <div style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--surface-hover)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <span>✅ <strong>Serviço finalizado sem nota fiscal.</strong> Não aparece em &quot;Notas a emitir&quot;.</span>
+              <form action={desfazerOsSemNota.bind(null, os.id)}>
+                <button type="submit" className="btn btn-outline" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}>Vou emitir nota</button>
+              </form>
+            </div>
+          )}
+
+          {!os.semNotaFiscal && !nfseAutorizada && (
+            <form action={finalizarOsSemNota.bind(null, os.id)} style={{ marginBottom: '1rem', padding: '0.75rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <p style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>Não vai emitir nota? Finalize o serviço sem nota fiscal:</p>
+              <div className="flex gap-4" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                {!jaTemContaReceber && (os.price ?? 0) > 0 && (
+                  <>
+                    <select name="paymentMethod" className="input-field" required defaultValue="" style={{ width: 'auto', padding: '0.4rem 0.6rem' }}>
+                      <option value="" disabled>Forma de pagamento…</option>
+                      <option value="Dinheiro">Dinheiro</option><option value="PIX">PIX</option><option value="Cartão de Débito">Cartão de Débito</option><option value="Cartão de Crédito">Cartão de Crédito</option><option value="Boleto">Boleto</option><option value="Promissória">Promissória</option>
+                    </select>
+                    <select name="parcelas" className="input-field" defaultValue="1" style={{ width: 'auto', padding: '0.4rem 0.6rem' }}>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n}x</option>)}
+                    </select>
+                    <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.85rem' }}>
+                      <input type="checkbox" name="jaPago" value="1" defaultChecked /> Recebido
+                    </label>
+                  </>
+                )}
+                <button type="submit" className="btn btn-primary" style={{ padding: '0.45rem 1rem' }}>Finalizar sem nota fiscal</button>
+              </div>
+              {jaTemContaReceber && <p className="text-muted" style={{ fontSize: '0.75rem', margin: '0.4rem 0 0' }}>O pagamento desta OS já está lançado no Financeiro.</p>}
+            </form>
+          )}
 
           {!nfseConfigurada && (
             <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>

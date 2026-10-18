@@ -254,6 +254,18 @@ export default function VendaForm({ produtos, clientes }: { produtos: Produto[];
           </div>
         </div>
 
+        <div className="input-group" style={{ marginTop: '0.5rem' }}>
+          <span className="input-label">Nota fiscal</span>
+          <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input type="radio" name="notaFiscal" value="emitir" defaultChecked /> Emitir nota fiscal depois
+            </label>
+            <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', cursor: 'pointer' }}>
+              <input type="radio" name="notaFiscal" value="sem" /> Venda sem nota fiscal
+            </label>
+          </div>
+        </div>
+
         <input type="hidden" name="itemsJson" value={JSON.stringify(cart.map(item => ({ productId: item.productId, quantity: item.quantity })))} />
 
         <div style={{ marginTop: '2rem' }}>

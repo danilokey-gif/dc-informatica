@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { updateProduct } from "../actions"
+import { updateProduct, excluirProduto } from "../actions"
+import BotaoExcluir from "@/components/BotaoExcluir"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import FiscalFieldsHelper from "@/components/FiscalFieldsHelper"
@@ -21,7 +22,10 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
         <h2>Editar Produto</h2>
-        <Link href="/produtos" className="text-muted">Voltar</Link>
+        <div className="flex gap-4" style={{ alignItems: 'center' }}>
+          <BotaoExcluir action={excluirProduto.bind(null, produto.id)} confirmar={`Excluir o produto "${produto.name}"?`} depois="/produtos" estilo="botao" />
+          <Link href="/produtos" className="text-muted">Voltar</Link>
+        </div>
       </div>
 
       <div className="card">

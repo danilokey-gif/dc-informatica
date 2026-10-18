@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { marcarVendaSemNota } from "../../../sem-nota-actions"
 import BotaoVoltar from "@/components/BotaoVoltar"
 import { getCompanySettings, getNfeConfig } from "@/lib/settings"
 import { getCurrentUser } from "@/lib/auth"
@@ -205,6 +206,19 @@ export default async function ImprimirVendaPage({ params }: { params: Promise<{ 
             <h3 style={{ margin: 0, fontSize: '1.125rem' }}>📦 Nota Fiscal de Produtos (NF-e)</h3>
             {ultimaEmissaoNfe && <StatusBadge status={ultimaEmissaoNfe.status} />}
           </div>
+
+          {!nfeAutorizada && (
+            <div style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: venda.semNotaFiscal ? 'var(--surface-hover)' : undefined, border: venda.semNotaFiscal ? undefined : '1px dashed var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              {venda.semNotaFiscal
+                ? <span>✅ <strong>Venda finalizada sem nota fiscal.</strong> Não aparece em &quot;Notas a emitir&quot;.</span>
+                : <span style={{ fontSize: '0.9rem' }}>Não vai emitir nota para esta venda?</span>}
+              <form action={marcarVendaSemNota.bind(null, venda.id, !venda.semNotaFiscal)}>
+                <button type="submit" className={venda.semNotaFiscal ? 'btn btn-outline' : 'btn btn-primary'} style={{ padding: '0.35rem 0.9rem', fontSize: '0.85rem' }}>
+                  {venda.semNotaFiscal ? 'Vou emitir nota' : 'Finalizar sem nota fiscal'}
+                </button>
+              </form>
+            </div>
+          )}
 
           {!nfeConfigurada && (
             <p style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '1rem' }}>

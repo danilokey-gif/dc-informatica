@@ -50,6 +50,8 @@ model ServiceOrder {
   technicalReport String?
   price           Float?
   status          String               @default("BUDGET")
+  /// Finalizada sem nota fiscal por escolha do usuário: não aparece em "Notas a emitir".
+  semNotaFiscal   Boolean              @default(false)
   technician      User?                @relation(fields: [technicianId], references: [id])
   technicianId    String?
   nfseEmissoes    NfseEmissao[]
@@ -89,6 +91,8 @@ model Sale {
   invoiceNumber String?
   invoiceType   String?
   status        String               @default("COMPLETED")
+  /// Finalizada sem nota fiscal por escolha do usuário: não aparece em "Notas a emitir".
+  semNotaFiscal Boolean              @default(false)
   transactions  FinanceTransaction[]
   nfeEmissoes   NfeEmissao[]
   createdAt     DateTime             @default(now())

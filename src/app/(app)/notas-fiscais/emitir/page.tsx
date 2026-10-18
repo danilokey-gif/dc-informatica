@@ -18,14 +18,14 @@ export default async function EmitirNotaPage() {
   const desde = new Date(Date.now() - JANELA_DIAS * 864e5)
   const [osSemNota, vendasSemNota] = await Promise.all([
     prisma.serviceOrder.findMany({
-      where: { status: { in: ['COMPLETED', 'DELIVERED'] }, price: { gt: 0 }, updatedAt: { gte: desde }, nfseEmissoes: { none: { status: 'AUTORIZADA' } } },
+      where: { status: { in: ['COMPLETED', 'DELIVERED'] }, semNotaFiscal: false, price: { gt: 0 }, updatedAt: { gte: desde }, nfseEmissoes: { none: { status: 'AUTORIZADA' } } },
       select: { id: true, price: true, device: true, issue: true, updatedAt: true, customer: { select: { name: true } } },
       orderBy: { updatedAt: 'desc' },
       take: 10,
     }),
     prisma.sale.findMany({
       // invoiceNumber preenchido = nota registrada à mão (emitida em outro emissor).
-      where: { createdAt: { gte: desde }, invoiceNumber: null, status: { not: 'CANCELADA' }, nfeEmissoes: { none: { status: 'AUTORIZADA' } } },
+      where: { createdAt: { gte: desde }, invoiceNumber: null, status: { not: 'CANCELADA' }, semNotaFiscal: false, nfeEmissoes: { none: { status: 'AUTORIZADA' } } },
       select: { id: true, total: true, createdAt: true, customer: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 10,

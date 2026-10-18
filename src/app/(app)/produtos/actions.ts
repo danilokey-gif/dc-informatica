@@ -61,6 +61,10 @@ export async function deleteProduct(id: string) {
     if (saleItemsCount > 0) {
       return { error: `Este produto não pode ser excluído pois está vinculado a ${saleItemsCount} venda(s).` }
     }
+    const quoteItemsCount = await prisma.quoteItem.count({ where: { productId: id } })
+    if (quoteItemsCount > 0) {
+      return { error: `Este produto não pode ser excluído pois está em ${quoteItemsCount} orçamento(s).` }
+    }
 
     await prisma.product.delete({
       where: { id }
@@ -75,4 +79,10 @@ export async function deleteProduct(id: string) {
     }
     return { error: 'Erro ao excluir produto. Tente novamente.' }
   }
+}
+
+/** Mesma exclusão, no formato do botão de excluir das telas de edição. */
+export async function excluirProduto(id: string): Promise<{ ok?: boolean; erro?: string }> {
+  const r = await deleteProduct(id)
+  return r?.error ? { erro: r.error } : { ok: true }
 }

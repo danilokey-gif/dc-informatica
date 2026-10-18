@@ -4,22 +4,24 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import SearchableSelect from "@/components/SearchableSelect"
 import OSEditForm from "./OSEditForm"
+import FotosOS from "./FotosOS"
 
 export default async function EditarOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   
   const os = await prisma.serviceOrder.findUnique({
     where: { id },
-    include: { customer: true }
+    include: { customer: true, anexos: { orderBy: { createdAt: 'asc' } } }
   })
 
   if (!os) {
     notFound()
   }
 
-  const [clientes, tecnicos] = await Promise.all([
+  const [clientes, tecnicos, empresa] = await Promise.all([
     prisma.customer.findMany({ orderBy: { name: 'asc' } }),
     prisma.user.findMany({ orderBy: { name: 'asc' } }),
+    prisma.companySettings.findUnique({ where: { id: 'main' }, select: { gdriveRefreshToken: true, gdriveClientId: true } }),
   ])
   const updateAction = updateOS.bind(null, id)
 
@@ -32,6 +34,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
       <div className="flex justify-between items-center mb-4">
         <h2>Detalhes da Ordem de Serviço #{os.id.slice(-6).toUpperCase()}</h2>
         <div className="flex gap-4">
+          <a href="#fotos" className="btn btn-outline">📷 Fotos{os.anexos.length > 0 ? ` (${os.anexos.length})` : ''}</a>
           <Link href={`/os/${os.id}/imprimir`} className="btn btn-outline" style={{ borderColor: '#6b7280', color: '#374151' }}>
             🖨️ Imprimir
           </Link>
@@ -52,6 +55,8 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
           tecnicos={tecnicos.map(t => ({ value: t.id, label: t.name }))}
         />
       </div>
+
+      <FotosOS serviceOrderId={os.id} anexos={os.anexos} driveConectado={!!(empresa?.gdriveRefreshToken && empresa.gdriveClientId)} />
     </div>
   )
 }

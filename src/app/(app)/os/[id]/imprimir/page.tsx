@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import EnviarAnexos from "./EnviarAnexos"
+import FotosOS from "../FotosOS"
 import BotaoVoltar from "@/components/BotaoVoltar"
 import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { getCurrentUser } from "@/lib/auth"
@@ -163,43 +163,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Fotos e vídeos do equipamento: a lista sai na impressão (registro de prova); o envio não. */}
-      {(os.anexos.length > 0 || user) && (
-        <div className="print-area" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
-          <h3 style={{ marginTop: 0, marginBottom: '0.75rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
-            Fotos e vídeos do equipamento {os.anexos.length > 0 && `(${os.anexos.length})`}
-          </h3>
-          {os.anexos.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
-              {os.anexos.map(a => (
-                <a key={a.id} href={`https://drive.google.com/file/d/${a.driveFileId}/view`} target="_blank" rel="noopener noreferrer" style={{ border: '1px solid #e5e7eb', borderRadius: '0.4rem', overflow: 'hidden', display: 'block', textDecoration: 'none', color: '#111827' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/os/anexo/${a.id}/miniatura`} alt={a.nome} loading="lazy" style={{ width: '100%', height: '110px', objectFit: 'cover', background: '#f3f4f6', display: 'block' }} />
-                  <div style={{ padding: '0.35rem 0.45rem', fontSize: '0.7rem', lineHeight: 1.3 }}>
-                    <div>{a.mimeType.startsWith('video/') ? '🎬' : '📷'} {a.createdAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}</div>
-                    {a.descricao && <div style={{ color: '#4b5563' }}>{a.descricao}</div>}
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-          {os.anexos.length > 0 && (
-            <details style={{ fontSize: '0.72rem', color: '#4b5563', marginBottom: '0.75rem' }} open>
-              <summary style={{ cursor: 'pointer' }}>Registro dos arquivos (data, quem enviou e código SHA-256 de integridade)</summary>
-              <ul style={{ margin: '0.4rem 0 0', paddingLeft: '1rem', wordBreak: 'break-all' }}>
-                {os.anexos.map(a => (
-                  <li key={a.id}>
-                    {a.nome} — {(a.tamanho / 1_048_576).toFixed(1)} MB — {a.createdAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
-                    {a.enviadoPor && ` — por ${a.enviadoPor}`} — SHA-256 {a.sha256}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-          <div className="no-print">
-            <EnviarAnexos serviceOrderId={os.id} driveConectado={!!(settings.gdriveRefreshToken && settings.gdriveClientId)} />
-          </div>
-        </div>
-      )}
+      <FotosOS serviceOrderId={os.id} anexos={os.anexos} driveConectado={!!(settings.gdriveRefreshToken && settings.gdriveClientId)} />
 
       {/* Informações Fiscais (aparece na impressão) */}
       {ultimaEmissao?.status === 'AUTORIZADA' && (

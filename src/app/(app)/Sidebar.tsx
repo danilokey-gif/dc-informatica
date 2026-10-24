@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 type Icon = (props: React.SVGProps<SVGSVGElement>) => React.ReactElement
-type NavItem = { href: string; label: string; adminOnly: boolean; icon: Icon; inclui?: string[] }
+export type NavItem = { href: string; label: string; adminOnly: boolean; icon: Icon; inclui?: string[] }
 
 const IconDashboard: Icon = (props) => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
@@ -106,7 +106,7 @@ const IconConfiguracoes: Icon = (props) => (
   </svg>
 )
 
-const topItems: NavItem[] = [
+export const topItems: NavItem[] = [
   { href: '/', label: 'Início', adminOnly: false, icon: IconDashboard },
 ]
 
@@ -115,7 +115,7 @@ const topItems: NavItem[] = [
  * `inclui` lista as telas que não têm item próprio mas devem acender o item (ex.: a nota avulsa
  * em /os/rapida é parte de "Emitir Nota", não de "Ordens de Serviço").
  */
-const sections: { label: string; items: NavItem[] }[] = [
+export const sections: { label: string; items: NavItem[] }[] = [
   {
     label: 'Atendimento',
     items: [
@@ -167,7 +167,7 @@ const combina = (pathname: string, prefixo: string) =>
   prefixo === '/' ? pathname === '/' : pathname === prefixo || pathname.startsWith(`${prefixo}/`)
 
 /** O item ativo é o de endereço mais longo que combina com a página aberta (um só por vez). */
-function itemAtivo(pathname: string): string | null {
+export function itemAtivo(pathname: string): string | null {
   let melhor: { href: string; tamanho: number } | null = null
   for (const item of todosItens) {
     for (const prefixo of [item.href, ...(item.inclui ?? [])]) {

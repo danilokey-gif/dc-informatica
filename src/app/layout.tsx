@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./aparencia.css";
 import ServiceWorkerRegister from "./ServiceWorkerRegister";
+import { cookies } from "next/headers";
+import { COOKIE_TEMA, lerTema } from "@/lib/aparencia";
 
 export const metadata: Metadata = {
   title: "Dc Informática - Assistência Técnica",
@@ -24,13 +27,15 @@ export const viewport: Viewport = {
   themeColor: "#0d1117",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Cores escolhidas no botão "Aparência" (cada computador guarda a sua).
+  const tema = lerTema((await cookies()).get(COOKIE_TEMA)?.value)
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" data-tema={tema}>
       <body>
         <ServiceWorkerRegister />
         {children}

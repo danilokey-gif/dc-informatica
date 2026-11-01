@@ -53,11 +53,15 @@ export interface DpsInput {
 
 export type LeiauteDps = 'atual' | 'nt009'
 
+/** NBS usada quando a configuração não tem outra: manutenção e reparação de computadores e periféricos.
+ * Com IBS/CBS na DPS, a NBS é obrigatória (regra E0322). */
+export const NBS_PADRAO = '120012000'
+
 /** Dados da Reforma Tributária (IBS/CBS) usados no leiaute 'nt009'. */
 export interface DpsRtc {
   /** Indicador da operação (Anexo VII). Item 14.01: 050101 = no estabelecimento do prestador; 050102 = fora dele. */
   cIndOp: string
-  /** NBS (9 dígitos, sem pontos), opcional. Ex.: 120012000 = manutenção de computadores e periféricos. */
+  /** NBS (9 dígitos, sem pontos). Obrigatória com IBS/CBS (E0322); sem ela vai a NBS_PADRAO. */
   cNbs?: string | null
   /** CST do IBS/CBS. 000 = tributação integral (Anexo VIII para o item 14.01). */
   cst?: string
@@ -186,7 +190,7 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
           `<locPrest><cLocPrestacao>${input.codigoMunicipio}</cLocPrestacao></locPrest>` +
           `<cServ>` +
             `<cTribNac>${input.servico.codigoTributacaoNacional}</cTribNac>` +
-            (nt009 && rtc?.cNbs ? `<cNBS>${soNumeros(rtc.cNbs)}</cNBS>` : '') +
+            (nt009 && rtc ? `<cNBS>${soNumeros(rtc.cNbs || NBS_PADRAO)}</cNBS>` : '') +
             `<xDescServ>${esc(input.servico.descricao)}</xDescServ>` +
           `</cServ>` +
         `</serv>` +

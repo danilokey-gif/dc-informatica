@@ -251,9 +251,8 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
               </select>
             </div>
             <div className="input-group" style={{ marginBottom: 0 }}>
-              <label className="input-label" htmlFor="cNbs">NBS do serviço (opcional)</label>
-              <select id="cNbs" name="cNbs" className="input-field" defaultValue={nfseConfig.cNbs ?? ''}>
-                <option value="">Não informar</option>
+              <label className="input-label" htmlFor="cNbs">NBS do serviço (obrigatória com IBS/CBS)</label>
+              <select id="cNbs" name="cNbs" className="input-field" defaultValue={nfseConfig.cNbs ?? '120012000'}>
                 <option value="120012000">1.2001.20.00 — Manutenção e reparação de computadores e periféricos</option>
                 <option value="120017000">1.2001.70.00 — Manutenção de equipamentos de telecomunicações</option>
                 <option value="120018100">1.2001.81.00 — Manutenção de aparelhos eletroeletrônicos domésticos</option>

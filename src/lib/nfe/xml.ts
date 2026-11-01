@@ -23,6 +23,21 @@ export interface NfeDestinatario {
   documento?: string
   nome: string
   endereco?: NfeEndereco
+  /** Inscrição estadual do destinatário contribuinte (ex.: fornecedor na devolução de compra). */
+  inscricaoEstadual?: string | null
+}
+
+/**
+ * Nota de devolução (finNFe = 4), referenciando a NF-e original.
+ * - 'compra': o MEI devolve ao fornecedor mercadoria que comprou (saída, CFOP 5.202/6.202).
+ * - 'venda': o cliente devolveu ao MEI mercadoria que ele vendeu (entrada, CFOP 1.202/2.202).
+ * MEI (CRT 4) só pode usar CFOP 1.202, 1.553, 2.202, 2.553, 5.202 e 6.202 na devolução (regra I08-141).
+ */
+export interface NfeDevolucao {
+  tipo: 'compra' | 'venda'
+  chaveReferenciada: string
+  /** Texto que vai nas informações complementares (motivo, nº da nota original). */
+  observacao?: string
 }
 
 export interface NfeItem {
@@ -45,6 +60,13 @@ export interface NfeInput {
   destinatario?: NfeDestinatario
   itens: NfeItem[]
   formaPagamento: 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro'
+  devolucao?: NfeDevolucao
+}
+
+/** CFOP da devolução para MEI, conforme o tipo e se o destinatário está em outro estado. */
+export function cfopDevolucao(tipo: NfeDevolucao['tipo'], outroEstado: boolean): string {
+  if (tipo === 'compra') return outroEstado ? '6202' : '5202'
+  return outroEstado ? '2202' : '1202'
 }
 
 function esc(value: string) {
@@ -141,6 +163,7 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
   })
   const id = `NFe${chaveAcesso}`
 
+  const destOutroEstado = !!input.destinatario?.endereco && input.destinatario.endereco.uf !== input.emitente.endereco.uf
   const vProdTotal = input.itens.reduce((acc, item) => acc + item.quantidade * item.valorUnitario, 0)
 
   const detXml = input.itens.map((item, index) => {
@@ -164,7 +187,10 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
           `<indTot>1</indTot>` +
         `</prod>` +
         `<imposto>` +
-          `<ICMS><ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102></ICMS>` +
+          (input.devolucao
+            // Devolução do Simples/MEI: CSOSN 900 (outros), sem destaque de ICMS.
+            ? `<ICMS><ICMSSN900><orig>0</orig><CSOSN>900</CSOSN></ICMSSN900></ICMS>`
+            : `<ICMS><ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102></ICMS>`) +
           `<PIS><PISOutr><CST>49</CST><vBC>0.00</vBC><pPIS>0.00</pPIS><vPIS>0.00</vPIS></PISOutr></PIS>` +
           `<COFINS><COFINSOutr><CST>49</CST><vBC>0.00</vBC><pCOFINS>0.00</pCOFINS><vCOFINS>0.00</vCOFINS></COFINSOutr></COFINS>` +
         `</imposto>` +
@@ -199,12 +225,16 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
         tagDoc +
         `<xNome>${esc(nomeDest!)}</xNome>` +
         enderDestXml +
-        `<indIEDest>9</indIEDest>` +
+        (input.destinatario?.inscricaoEstadual && soNumeros(input.destinatario.inscricaoEstadual)
+          ? `<indIEDest>1</indIEDest><IE>${soNumeros(input.destinatario.inscricaoEstadual)}</IE>`
+          : `<indIEDest>9</indIEDest>`) +
       `</dest>`
     )
   })() : ''
 
-  const tPag = TP_PAGAMENTO[input.formaPagamento]
+  const dev = input.devolucao
+  // Devolução não tem pagamento: tPag 90 (sem pagamento) com valor zero.
+  const tPag = dev ? '90' : TP_PAGAMENTO[input.formaPagamento]
   // tPag 99 (outros) exige a descrição em xPag (NT 2020.006); o PIX também sai como 99 + "PIX".
   const xPag = input.formaPagamento === 'pix' ? '<xPag>PIX</xPag>' : tPag === '99' ? '<xPag>Outros</xPag>' : ''
 
@@ -216,24 +246,28 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
         `<ide>` +
           `<cUF>${cUF}</cUF>` +
           `<cNF>${cNF}</cNF>` +
-          `<natOp>Venda de mercadoria</natOp>` +
+          `<natOp>${dev ? 'Devolucao de mercadoria' : 'Venda de mercadoria'}</natOp>` +
           `<mod>55</mod>` +
           `<serie>${input.serie}</serie>` +
           `<nNF>${input.numero}</nNF>` +
           `<dhEmi>${formatarDataHora(dataEmissao)}</dhEmi>` +
-          `<tpNF>1</tpNF>` +
-          `<idDest>1</idDest>` +
+          // Devolução de venda é nota de ENTRADA (a mercadoria volta para a loja).
+          `<tpNF>${dev?.tipo === 'venda' ? '0' : '1'}</tpNF>` +
+          `<idDest>${dev && destOutroEstado ? '2' : '1'}</idDest>` +
           `<cMunFG>${input.emitente.endereco.codigoMunicipio}</cMunFG>` +
           `<tpImp>1</tpImp>` +
           `<tpEmis>1</tpEmis>` +
           `<cDV>${chaveAcesso.slice(-1)}</cDV>` +
           `<tpAmb>${tpAmb}</tpAmb>` +
-          `<finNFe>1</finNFe>` +
-          `<indFinal>1</indFinal>` +
-          `<indPres>1</indPres>` +
-          `<indIntermed>0</indIntermed>` +
+          `<finNFe>${dev ? '4' : '1'}</finNFe>` +
+          // Devolução ao fornecedor (contribuinte) não é a consumidor final; indPres 0 = não se aplica.
+          `<indFinal>${dev?.tipo === 'compra' ? '0' : '1'}</indFinal>` +
+          `<indPres>${dev ? '0' : '1'}</indPres>` +
+          // Com indPres 0 (devolução) o indicador de intermediador não se aplica e vai omitido.
+          (dev ? '' : `<indIntermed>0</indIntermed>`) +
           `<procEmi>0</procEmi>` +
           `<verProc>1.0.0</verProc>` +
+          (dev ? `<NFref><refNFe>${soNumeros(dev.chaveReferenciada)}</refNFe></NFref>` : '') +
         `</ide>` +
         `<emit>` +
           `<CNPJ>${soNumeros(input.emitente.cnpj)}</CNPJ>` +
@@ -278,12 +312,18 @@ export function montarXmlNfe(input: NfeInput): { xml: string; chaveAcesso: strin
           `</ICMSTot>` +
         `</total>` +
         `<transp><modFrete>9</modFrete></transp>` +
-        `<pag><detPag><tPag>${tPag}</tPag>${xPag}<vPag>${formatarDecimal(vProdTotal)}</vPag></detPag></pag>` +
+        `<pag><detPag><tPag>${tPag}</tPag>${dev ? '' : xPag}<vPag>${dev ? '0.00' : formatarDecimal(vProdTotal)}</vPag></detPag></pag>` +
         // Optante do Simples Nacional/MEI (CRT 1, 2 ou 4): a frase é obrigatória no documento fiscal
         // (LC 123/2006). infAdic vem logo depois de pag na ordem do schema.
-        (['1', '2', '4'].includes(input.emitente.crt)
-          ? `<infAdic><infCpl>DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.</infCpl></infAdic>`
-          : '') +
+        (() => {
+          const textos = [
+            dev?.observacao ? esc(dev.observacao) : '',
+            ['1', '2', '4'].includes(input.emitente.crt)
+              ? 'DOCUMENTO EMITIDO POR ME OU EPP OPTANTE PELO SIMPLES NACIONAL. NAO GERA DIREITO A CREDITO FISCAL DE ICMS, ISS E IPI.'
+              : '',
+          ].filter(Boolean)
+          return textos.length ? `<infAdic><infCpl>${textos.join(' ').slice(0, 5000)}</infCpl></infAdic>` : ''
+        })() +
       `</infNFe>` +
     `</NFe>`
 

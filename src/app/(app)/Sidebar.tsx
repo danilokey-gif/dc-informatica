@@ -132,6 +132,8 @@ export const sections: { label: string; items: NavItem[] }[] = [
       { href: '/notas-fiscais', label: 'Notas Emitidas', adminOnly: true, icon: IconNotasFiscais },
       // NF-e que fornecedores emitiram contra o CNPJ da empresa (compras), buscadas na Sefaz.
       { href: '/notas-fiscais/fornecedores', label: 'Notas de Compra', adminOnly: true, icon: IconNotasCompra },
+      // NF-e de devolução (ao fornecedor ou do cliente), referenciando a nota original.
+      { href: '/notas-fiscais/devolucao', label: 'Nota de Devolução', adminOnly: true, icon: IconEntrada },
     ],
   },
   {

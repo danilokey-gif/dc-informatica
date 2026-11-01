@@ -241,6 +241,10 @@ model NfeEmissao {
    */
   xmlEventoCancelamento String?
   origem                String    @default("SISTEMA") // SISTEMA | IMPORTADA_GOVERNO
+  /// VENDA | DEVOLUCAO_COMPRA (MEI devolve ao fornecedor) | DEVOLUCAO_VENDA (cliente devolveu ao MEI)
+  finalidade            String    @default("VENDA")
+  /// Chave da NF-e original referenciada pela nota de devolução.
+  chaveReferenciada     String?
   destinatarioNome      String?
   destinatarioDocumento String?
   valorTotal            Float?

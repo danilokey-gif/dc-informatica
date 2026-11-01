@@ -8,7 +8,7 @@ import { NfseClient } from "@/lib/nfse/client"
 import { montarXmlDps, assinarDps } from "@/lib/nfse/dps"
 
 /** Série só para estes testes, separada da série das notas reais. */
-const SERIE_TESTE = '99999'
+const SERIE_TESTE = '8999' // o esquema novo reserva as séries 90000 a 99999
 
 /**
  * Envia uma NFS-e de teste no leiaute da Reforma Tributária (NT 009/2026) para a HOMOLOGAÇÃO

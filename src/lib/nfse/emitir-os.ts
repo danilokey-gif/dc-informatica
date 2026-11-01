@@ -3,7 +3,7 @@ import { getCompanySettings, getNfseConfig } from "@/lib/settings"
 import { decryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
 import { NfseClient } from "@/lib/nfse/client"
-import { montarXmlDps, assinarDps, type DpsTomador } from "@/lib/nfse/dps"
+import { montarXmlDps, assinarDps, type DpsTomador, type LeiauteDps } from "@/lib/nfse/dps"
 import tabelasIbge from "@/lib/nfse/tabelas-ibge.json"
 import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import { salvarNotaNoDrive } from "@/lib/drive"
@@ -67,6 +67,18 @@ export function montarTomador(c: ClienteNfse, opcoes: { semEndereco: boolean; se
 const ERROS_ENDERECO = /\[E0238\]|\[E0240\]/
 const ERROS_EMAIL = /\[E0247\]/
 
+/**
+ * Recusa por leiaute: a Sefin rejeita o esquema quando o finNFSe está (ou falta) no lugar errado.
+ * Acontece no dia em que a produção passar para o leiaute da Reforma Tributária (NT 009/2026),
+ * e o sistema troca de leiaute sozinho. A recusa é antes de qualquer nota existir.
+ */
+const ERRO_LEIAUTE = /finNFSe/i
+
+/** Leiaute da DPS: homologação já está no da Reforma Tributária; produção segue a configuração. */
+export function leiauteDaDps(ambiente: 'producao' | 'homologacao', configurado: string): LeiauteDps {
+  return ambiente === 'homologacao' || configurado === 'nt009' ? 'nt009' : 'atual'
+}
+
 export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNfse): Promise<ResultadoEmissaoNfse> {
   let emissaoId: string | null = null
   try {
@@ -99,6 +111,7 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     const ambiente = nfseConfig.ambiente === 'producao' ? 'producao' : 'homologacao'
     const descricaoServico = [os.device, os.issue].filter(Boolean).join(' - ').slice(0, 2000)
 
+    let leiaute = leiauteDaDps(ambiente, nfseConfig.leiauteDps)
     const montarDps = (opcoes: { semEndereco: boolean; semEmail: boolean }) => {
       const { xml, id } = montarXmlDps({
         ambiente,
@@ -118,6 +131,8 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
         },
         aliquotaIss: nfseConfig.aliquotaIss!,
         regimeTributario: nfseConfig.regimeTributario as 'MEI' | 'SIMPLES' | 'NORMAL',
+        leiaute,
+        rtc: { cIndOp: nfseConfig.cIndOp, cNbs: nfseConfig.cNbs },
       })
       return assinarDps(xml, id, certMaterial)
     }
@@ -142,6 +157,7 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     // dado (no máximo duas vezes) em vez de deixar a nota sem sair. A recusa acontece antes de
     // qualquer nota existir, então reenviar a mesma DPS não gera nota em dobro.
     let aviso: string | null = null
+    let trocouLeiaute = false
     let resposta: Awaited<ReturnType<NfseClient['emitirNfse']>>
     for (let tentativa = 0; ; tentativa++) {
       try {
@@ -149,6 +165,14 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
         break
       } catch (erro) {
         const msg = erro instanceof Error ? erro.message : String(erro)
+        if (ambiente === 'producao' && !trocouLeiaute && ERRO_LEIAUTE.test(msg)) {
+          // A produção mudou de leiaute: monta de novo no outro e guarda a escolha para as próximas.
+          trocouLeiaute = true
+          leiaute = leiaute === 'atual' ? 'nt009' : 'atual'
+          xmlAssinado = montarDps(opcoesTomador)
+          await prisma.nfseEmissao.update({ where: { id: emissao.id }, data: { xmlDps: xmlAssinado } })
+          continue
+        }
         const podeTirarEndereco = !opcoesTomador.semEndereco && ERROS_ENDERECO.test(msg)
         const podeTirarEmail = !opcoesTomador.semEmail && ERROS_EMAIL.test(msg)
         if (tentativa >= 2 || (!podeTirarEndereco && !podeTirarEmail)) throw erro
@@ -159,6 +183,10 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
         xmlAssinado = montarDps(opcoesTomador)
         await prisma.nfseEmissao.update({ where: { id: emissao.id }, data: { xmlDps: xmlAssinado } })
       }
+    }
+
+    if (trocouLeiaute) {
+      await prisma.nfseConfig.update({ where: { id: 'main' }, data: { leiauteDps: leiaute } })
     }
 
     const dataEmissao = resposta.xmlNfse?.match(/<dhProc>([^<]+)<\/dhProc>/)?.[1]

@@ -1,5 +1,6 @@
 import CampoCep from "@/components/CampoCep"
 import GoogleDriveConfig from "./GoogleDriveConfig"
+import TesteLeiauteNfse from "./TesteLeiauteNfse"
 import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
 import { updateSettings, updateNfseConfig, updateNfeConfig } from "./actions"
 import { decryptSecret } from "@/lib/crypto"
@@ -229,6 +230,37 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
             <input type="text" id="serieDps" name="serieDps" className="input-field" defaultValue={nfseConfig.serieDps} />
           </div>
 
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1rem' }}>
+            <p style={{ fontWeight: 600, margin: '0 0 0.25rem' }}>Reforma Tributária (IBS/CBS) — NT 009/2026</p>
+            <p className="text-muted" style={{ fontSize: '0.8rem', margin: '0 0 0.75rem' }}>
+              Para MEI, o quadro de IBS/CBS passa a ser exigido na nota de serviço em 01/01/2027. O sistema troca de leiaute
+              sozinho no dia em que a Sefin passar a exigir o novo (a nota é montada de novo e sai normalmente).
+            </p>
+            <div className="input-group">
+              <label className="input-label" htmlFor="leiauteDps">Leiaute usado em produção</label>
+              <select id="leiauteDps" name="leiauteDps" className="input-field" defaultValue={nfseConfig.leiauteDps}>
+                <option value="atual">Atual, sem IBS/CBS (o que a produção aceita hoje)</option>
+                <option value="nt009">Reforma Tributária, com IBS/CBS (NT 009)</option>
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label" htmlFor="cIndOp">Onde o serviço é feito (indicador da operação)</label>
+              <select id="cIndOp" name="cIndOp" className="input-field" defaultValue={nfseConfig.cIndOp}>
+                <option value="050101">050101 — Na loja (estabelecimento do prestador)</option>
+                <option value="050102">050102 — Fora da loja (no local do cliente)</option>
+              </select>
+            </div>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label" htmlFor="cNbs">NBS do serviço (opcional)</label>
+              <select id="cNbs" name="cNbs" className="input-field" defaultValue={nfseConfig.cNbs ?? ''}>
+                <option value="">Não informar</option>
+                <option value="120012000">1.2001.20.00 — Manutenção e reparação de computadores e periféricos</option>
+                <option value="120017000">1.2001.70.00 — Manutenção de equipamentos de telecomunicações</option>
+                <option value="120018100">1.2001.81.00 — Manutenção de aparelhos eletroeletrônicos domésticos</option>
+              </select>
+            </div>
+          </div>
+
           {nfseConfig.certificadoNome && (
             <div className="input-group">
               <label className="flex items-center gap-4" style={{ fontSize: '0.875rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -254,6 +286,8 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
             </button>
           </div>
         </form>
+
+        <TesteLeiauteNfse />
       </div>
 
       <div id="nfe" className="card" style={{ borderLeft: '4px solid var(--primary)', scrollMarginTop: '1rem' }}>

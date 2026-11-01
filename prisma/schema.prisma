@@ -157,6 +157,13 @@ model NfseConfig {
   serieDps            String   @default("1")
   proximoNumeroDps    Int      @default(1)
   ultimoNsu           String?  @default("000000000000000")
+  /// Leiaute da DPS em produção: "atual" (sem IBS/CBS) ou "nt009" (Reforma Tributária, NT 009/2026).
+  /// Troca sozinho quando a Sefin passa a recusar o outro leiaute. Homologação usa sempre "nt009".
+  leiauteDps          String   @default("atual")
+  /// Indicador da operação do IBS/CBS (Anexo VII): 050101 = serviço no estabelecimento; 050102 = fora dele.
+  cIndOp              String   @default("050101")
+  /// NBS do serviço (9 dígitos, opcional). 120012000 = manutenção de computadores e periféricos.
+  cNbs                String?
   updatedAt           DateTime @updatedAt
 }
 

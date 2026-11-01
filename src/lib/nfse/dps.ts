@@ -42,6 +42,27 @@ export interface DpsInput {
   servico: DpsServico
   aliquotaIss: number // percentual, ex: 5 para 5%
   regimeTributario: 'MEI' | 'SIMPLES' | 'NORMAL'
+  /**
+   * Leiaute da DPS. 'atual' = o que está em produção desde 09/02/2026 (sem IBS/CBS).
+   * 'nt009' = Reforma Tributária (NT 009/2026, esquemas de produção restrita de 20/10/2026):
+   * finNFSe na raiz do infDPS e grupo IBSCBS com cIndOp, indDest, CST e cClassTrib.
+   */
+  leiaute?: LeiauteDps
+  rtc?: DpsRtc
+}
+
+export type LeiauteDps = 'atual' | 'nt009'
+
+/** Dados da Reforma Tributária (IBS/CBS) usados no leiaute 'nt009'. */
+export interface DpsRtc {
+  /** Indicador da operação (Anexo VII). Item 14.01: 050101 = no estabelecimento do prestador; 050102 = fora dele. */
+  cIndOp: string
+  /** NBS (9 dígitos, sem pontos), opcional. Ex.: 120012000 = manutenção de computadores e periféricos. */
+  cNbs?: string | null
+  /** CST do IBS/CBS. 000 = tributação integral (Anexo VIII para o item 14.01). */
+  cst?: string
+  /** Classificação tributária do IBS/CBS. 000001 = situações tributadas integralmente. */
+  cClassTrib?: string
 }
 
 /** Mapeia o regime tributário do prestador para os códigos exigidos pelo grupo regTrib da DPS. */
@@ -124,6 +145,21 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
     return `<toma>${tagDocTomador}<xNome>${esc(t.nome)}</xNome>${endXml}${foneXml}${emailXml}</toma>`
   })() : ''
 
+  const nt009 = input.leiaute === 'nt009'
+  const rtc = input.rtc
+  // Grupo IBSCBS. Ordem do esquema: indFinal, cIndOp, tpOper, gRefNFSe, tpEnteGov, indDest, dest,
+  // imovel, bensMoveis, valores. Destinatário = o próprio tomador (indDest 0).
+  const ibscbsXml = nt009 && rtc
+    ? `<IBSCBS>` +
+        `<cIndOp>${soNumeros(rtc.cIndOp)}</cIndOp>` +
+        `<indDest>0</indDest>` +
+        `<valores><trib>` +
+          `<CST>${rtc.cst ?? '000'}</CST>` +
+          `<cClassTrib>${rtc.cClassTrib ?? '000001'}</cClassTrib>` +
+        `</trib></valores>` +
+      `</IBSCBS>`
+    : ''
+
   const xml =
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">` +
@@ -135,6 +171,8 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
         `<nDPS>${input.numero}</nDPS>` +
         `<dCompet>${formatarData(input.dataCompetencia)}</dCompet>` +
         `<tpEmit>1</tpEmit>` +
+        // NT 009: finalidade da emissão passou para a raiz do infDPS (0 = NFS-e regular).
+        (nt009 ? `<finNFSe>0</finNFSe>` : '') +
         `<cLocEmi>${input.codigoMunicipio}</cLocEmi>` +
         `<prest>` +
           tagDocPrestador +
@@ -148,6 +186,7 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
           `<locPrest><cLocPrestacao>${input.codigoMunicipio}</cLocPrestacao></locPrest>` +
           `<cServ>` +
             `<cTribNac>${input.servico.codigoTributacaoNacional}</cTribNac>` +
+            (nt009 && rtc?.cNbs ? `<cNBS>${soNumeros(rtc.cNbs)}</cNBS>` : '') +
             `<xDescServ>${esc(input.servico.descricao)}</xDescServ>` +
           `</cServ>` +
         `</serv>` +
@@ -163,6 +202,7 @@ export function montarXmlDps(input: DpsInput): { xml: string; id: string } {
             `<totTrib><indTotTrib>0</indTotTrib></totTrib>` +
           `</trib>` +
         `</valores>` +
+        ibscbsXml +
       `</infDPS>` +
     `</DPS>`
 

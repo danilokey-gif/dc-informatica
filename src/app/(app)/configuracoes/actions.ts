@@ -72,6 +72,9 @@ export async function updateNfseConfig(formData: FormData) {
   const aliquotaIssRaw = formData.get('aliquotaIss') as string
   const aliquotaIss = aliquotaIssRaw ? parseFloat(aliquotaIssRaw) : null
   const serieDps = (formData.get('serieDps') as string) || '1'
+  const leiauteDps = formData.get('leiauteDps') === 'nt009' ? 'nt009' : 'atual'
+  const cIndOp = formData.get('cIndOp') === '050102' ? '050102' : '050101'
+  const cNbs = ((formData.get('cNbs') as string) || '').replace(/[^0-9]/g, '') || null
   const removeCertificado = formData.get('removeCertificado') === '1'
   const certFile = formData.get('certificado') as File | null
   const certSenha = formData.get('certificadoSenha') as string
@@ -86,10 +89,13 @@ export async function updateNfseConfig(formData: FormData) {
     cnae: string | null
     aliquotaIss: number | null
     serieDps: string
+    leiauteDps: string
+    cIndOp: string
+    cNbs: string | null
     certificado?: string | null
     certificadoSenha?: string | null
     certificadoNome?: string | null
-  } = { ambiente, regimeTributario, codigoMunicipio, nomeMunicipio, codigoServico, descricaoCodServico, cnae, aliquotaIss, serieDps }
+  } = { ambiente, regimeTributario, codigoMunicipio, nomeMunicipio, codigoServico, descricaoCodServico, cnae, aliquotaIss, serieDps, leiauteDps, cIndOp, cNbs }
 
   if (removeCertificado) {
     data.certificado = null

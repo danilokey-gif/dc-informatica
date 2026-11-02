@@ -202,20 +202,20 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
           }
         })
 
-        // Alimenta o financeiro automaticamente ao importar nota do governo
+        // Lança a nota no financeiro como receita A RECEBER: o recebimento de fato entra pelo extrato do
+        // banco ou pela baixa manual. Lançar já como paga contava o mesmo dinheiro duas vezes.
         if (valorTotal && valorTotal > 0) {
           const dataRef = dataEmissao || new Date()
           const descricao = tomadorNome
-            ? `NFS-e DPS ${nfseNovaEmissao.numeroDps} — ${tomadorNome}`
-            : `NFS-e DPS ${nfseNovaEmissao.numeroDps} (importada do governo)`
+            ? `NFS-e ${numeroNfse ?? nfseNovaEmissao.numeroDps} — ${tomadorNome}`
+            : `NFS-e ${numeroNfse ?? nfseNovaEmissao.numeroDps} (importada do governo)`
           await prisma.financeTransaction.create({
             data: {
               type: 'RECEITA',
               description: descricao,
               amount: valorTotal,
               dueDate: dataRef,
-              paidDate: dataRef,
-              status: 'PAGO',
+              status: 'PENDENTE',
               paymentMethod: 'NFS-e',
               notes: `Chave de acesso: ${chaveAcesso}`,
             }

@@ -110,6 +110,11 @@ async function importarUmXml(arquivo: string, xml: string, cnpjEmpresa: string):
         xmlNfe: xml,
         xmlProtocolo: protNFe,
         origem: 'IMPORTADA_XML',
+        // Nota de devolução (finNFe 4) não é venda: saída = devolução ao fornecedor; entrada = do cliente.
+        finalidade: xml.match(/<finNFe>(\d)<\/finNFe>/)?.[1] === '4'
+          ? (xml.match(/<tpNF>(\d)<\/tpNF>/)?.[1] === '0' ? 'DEVOLUCAO_VENDA' : 'DEVOLUCAO_COMPRA')
+          : 'VENDA',
+        chaveReferenciada: xml.match(/<refNFe>(\d{44})<\/refNFe>/)?.[1] ?? null,
         destinatarioNome: d.destinatarioNome,
         destinatarioDocumento: d.destinatarioDocumento,
         valorTotal: d.valorTotal,

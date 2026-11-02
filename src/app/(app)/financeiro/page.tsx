@@ -72,6 +72,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
           </div>
         </div>
         <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+          <Link href="/financeiro/investimentos" className="btn btn-outline">💰 Investimentos e sócio</Link>
           <Link href="/financeiro/categorias" className="btn btn-outline">Categorias</Link>
           <Link href="/financeiro/contas" className="btn btn-outline">Ver Todas as Contas</Link>
           <Link href="/financeiro/importar" className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

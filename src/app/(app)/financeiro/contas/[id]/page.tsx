@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { rotuloTipo } from "@/lib/financeiro-tipos"
 import CampoValor from "@/components/CampoValor"
 import { updateTransaction, registrarPagamento, marcarComoPendente } from "../../actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
@@ -58,7 +59,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
         <form action={updateAction}>
           <div className="input-group">
             <label className="input-label">Tipo</label>
-            <input type="text" className="input-field" disabled value={transacao.type === 'RECEITA' ? 'Receita' : 'Despesa'} />
+            <input type="text" className="input-field" disabled value={rotuloTipo(transacao.type)} />
           </div>
 
           <div className="input-group">

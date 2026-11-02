@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { classificarExtrato } from "@/lib/financeiro-tipos"
 
 export interface ImportTransactionPayload {
   description: string
@@ -30,7 +31,9 @@ export async function salvarTransacoesImportadas(transacoes: ImportTransactionPa
     const chave = (d: Date, valor: number, descricao: string, tipo: string) => `${dia(d)}|${Math.abs(valor).toFixed(2)}|${descricao.trim()}|${tipo}`
     const jaTem = new Set(existentes.map(e => chave(e.dueDate, e.amount, e.description, e.type)))
     const idsBanco = new Set(existentes.flatMap(e => (e.notes || '').match(/\[Importado via OFX\] (\S+)/)?.[1] ?? []))
-    const novas = transacoes.filter(t => {
+    // Aplicação/resgate de investimento e Pix do/para o sócio não são receita nem despesa.
+    const classificadas = transacoes.map(t => ({ ...t, type: classificarExtrato(t.description, t.type === 'RECEITA' ? 1 : -1) }))
+    const novas = classificadas.filter(t => {
       const k = chave(new Date(t.date), t.amount, t.description, t.type)
       if (jaTem.has(k) || (t.notes && idsBanco.has(t.notes))) return false
       jaTem.add(k)

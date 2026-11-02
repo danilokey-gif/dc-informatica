@@ -104,8 +104,9 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
   const despesasMes = Array(12).fill(0)
   for (const t of financeTransactions) {
     if (t.dueDate.getFullYear() === ano) {
+      // Aplicação, resgate, aporte e retirada do sócio não são receita nem despesa.
       if (t.type === 'RECEITA') receitasMes[t.dueDate.getMonth()] += t.amount
-      else despesasMes[t.dueDate.getMonth()] += t.amount
+      else if (t.type === 'DESPESA') despesasMes[t.dueDate.getMonth()] += t.amount
     }
   }
   const totalReceitasAno = receitasMes.reduce((a, b) => a + b, 0)

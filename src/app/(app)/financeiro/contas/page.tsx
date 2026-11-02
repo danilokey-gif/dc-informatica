@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { rotuloTipo, corTipo } from "@/lib/financeiro-tipos"
 import Link from "next/link"
 import { registrarPagamento, marcarComoPendente, deleteTransaction } from "../actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
@@ -43,6 +44,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         <Link href="/financeiro/contas" className={`btn ${!tipo && !status ? 'btn-primary' : 'btn-outline'}`}>Todas</Link>
         <Link href="/financeiro/contas?tipo=RECEITA" className={`btn ${tipo === 'RECEITA' ? 'btn-primary' : 'btn-outline'}`}>Receitas</Link>
         <Link href="/financeiro/contas?tipo=DESPESA" className={`btn ${tipo === 'DESPESA' ? 'btn-primary' : 'btn-outline'}`}>Despesas</Link>
+        <Link href="/financeiro/investimentos" className="btn btn-outline">Investimentos e sócio</Link>
         <Link href="/financeiro/contas?status=PENDENTE" className={`btn ${status === 'PENDENTE' ? 'btn-primary' : 'btn-outline'}`}>Pendentes</Link>
         <Link href="/financeiro/contas?status=PAGO" className={`btn ${status === 'PAGO' ? 'btn-primary' : 'btn-outline'}`}>Pagas</Link>
       </div>
@@ -75,7 +77,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
                     <Link href={`/financeiro/contas/${t.id}`} className="text-primary">{t.description}</Link>
                     <div className="text-muted" style={{ fontSize: '0.75rem' }}>{t.customer?.name || t.supplier?.name || ''}</div>
                   </td>
-                  <td style={{ color: t.type === 'RECEITA' ? '#16a34a' : '#dc2626' }}>{t.type === 'RECEITA' ? 'Receita' : 'Despesa'}</td>
+                  <td style={{ color: corTipo(t.type) }}>{rotuloTipo(t.type)}</td>
                   <td>{t.category?.name || '-'}</td>
                   <td>{formatarDataUTC(t.dueDate)}{atrasada && <span style={{ color: '#dc2626', fontWeight: 600, marginLeft: '0.5rem', fontSize: '0.75rem' }}>ATRASADA</span>}</td>
                   <td>{formatarMoeda(t.amount)}</td>

@@ -280,7 +280,9 @@ model FinanceCategory {
 
 model FinanceTransaction {
   id             String           @id @default(cuid())
-  type           String // RECEITA | DESPESA
+  /// RECEITA | DESPESA (resultado da empresa). Movimentos que não são resultado:
+  /// APLICACAO / RESGATE (conta <-> investimento) e APORTE / RETIRADA (sócio <-> empresa).
+  type           String
   description    String
   amount         Float
   dueDate        DateTime
@@ -423,4 +425,14 @@ model OsAnexo {
   excluidoEm     DateTime?
   excluidoPor    String?
   createdAt      DateTime     @default(now())
+}
+
+/// Saldo do investimento (ex.: RDB do Nubank) informado pelo usuário a partir do app do banco.
+/// O rendimento é a diferença entre esse saldo e o líquido aplicado (aplicações − resgates).
+model SaldoInvestimento {
+  id        String   @id @default(cuid())
+  data      DateTime
+  valor     Float
+  descricao String?
+  createdAt DateTime @default(now())
 }

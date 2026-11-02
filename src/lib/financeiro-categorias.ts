@@ -5,6 +5,7 @@
 export const CATEGORIAS_PADRAO: { nome: string; tipo: 'RECEITA' | 'DESPESA' }[] = [
   { nome: 'Serviços', tipo: 'RECEITA' },
   { nome: 'Vendas de produtos', tipo: 'RECEITA' },
+  { nome: 'Serviços sem nota', tipo: 'RECEITA' },
   { nome: 'Recebimentos diversos', tipo: 'RECEITA' },
   { nome: 'Compras de mercadorias e peças', tipo: 'DESPESA' },
   { nome: 'Impostos e taxas', tipo: 'DESPESA' },
@@ -24,7 +25,10 @@ export function categoriaSugerida(l: { type: string; description: string; notes?
   if (l.type === 'RECEITA') {
     if (l.saleId || /\bNF-E \d|VENDA #/.test(d)) return 'Vendas de produtos'
     if (l.serviceOrderId || /NFS-E|\bOS #|\bOS -/.test(d) || l.paymentMethod === 'NFS-e') return 'Serviços'
-    return 'Recebimentos diversos'
+    // Recebimento sem nota/venda/OS ligada: em geral é serviço feito sem nota; reembolsos e
+    // créditos do próprio banco ficam em "Recebimentos diversos".
+    if (/REEMBOLSO|ESTORNO|DEVOLUCAO|LAUNCH PAD|CASHBACK|RENDIMENTO/.test(d)) return 'Recebimentos diversos'
+    return 'Serviços sem nota'
   }
   if (l.type !== 'DESPESA') return null
   if (/\bDAS\b|SIMPLES NACIONAL|RECEITA FEDERAL|MINISTERIO DA FAZ|PREFEITURA|\bDARF\b/.test(d)) return 'Impostos e taxas'

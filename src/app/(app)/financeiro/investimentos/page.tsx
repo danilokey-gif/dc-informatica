@@ -92,15 +92,24 @@ export default async function InvestimentosPage() {
           </form>
           {saldos.length > 0 && (
             <table className="table" style={{ marginTop: '1rem' }}>
+              <thead><tr><th>Data</th><th>Observação</th><th style={{ textAlign: 'right' }}>Saldo</th><th style={{ textAlign: 'right' }}>Rendeu no período</th><th></th></tr></thead>
               <tbody>
-                {saldos.map(s => (
+                {saldos.map((s, i) => {
+                  // Rendimento líquido entre este saldo e o anterior: diferença menos o que foi aplicado/resgatado no meio.
+                  const anterior = saldos[i + 1]
+                  const fluxo = anterior ? movimentos.filter(m => m.dueDate > anterior.data && m.dueDate <= s.data)
+                    .reduce((t, m) => t + (m.type === 'APLICACAO' ? m.amount : m.type === 'RESGATE' ? -m.amount : 0), 0) : 0
+                  const rendeu = anterior ? s.valor - anterior.valor - fluxo : null
+                  return (
                   <tr key={s.id}>
                     <td>{dataBr(s.data)}</td><td>{s.descricao}</td><td style={{ textAlign: 'right' }}>{moeda(s.valor)}</td>
+                    <td style={{ textAlign: 'right', color: rendeu != null && rendeu >= 0 ? 'var(--accent-green)' : undefined }}>{rendeu != null ? moeda(rendeu) : '—'}</td>
                     <td style={{ width: 40 }}>
                       <form action={excluirSaldoInvestimento.bind(null, s.id)}><button className="btn btn-outline" style={{ padding: '0.15rem 0.5rem' }} title="Excluir">×</button></form>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           )}

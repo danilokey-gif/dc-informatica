@@ -73,6 +73,28 @@ function limitesPeriodo(inicio?: string, fim?: string) {
   }
 }
 
+/**
+ * Evento de NFS-e vindo do ADN. Cancelamento (inclusive por substituição): a nota passa a CANCELADA
+ * e a receita que ela gerou no Financeiro é cancelada (não apagada).
+ */
+async function aplicarEventoNfse(chaveAcesso: string, tipoEvento: string, xml: string) {
+  const cancelamento = /CANCELAMENTO/i.test(tipoEvento) || /<e101101[ >]|<e105102[ >]/.test(xml)
+  if (!cancelamento || !chaveAcesso) return
+  const nota = await prisma.nfseEmissao.findUnique({ where: { chaveAcesso } })
+  if (!nota || nota.status === 'CANCELADA') return
+  const quando = xml.match(/<dhEvento>([^<]+)<\/dhEvento>/)?.[1] || xml.match(/<dhProc>([^<]+)<\/dhProc>/)?.[1]
+  const dataTexto = quando ? new Date(quando).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : ''
+  const substituicao = /SUBSTITUICAO/i.test(tipoEvento) || /<e105102[ >]/.test(xml)
+  await prisma.nfseEmissao.update({
+    where: { id: nota.id },
+    data: { status: 'CANCELADA', motivoCancelamento: `${substituicao ? 'Cancelada por substituição' : 'Cancelada'} no emissor nacional${dataTexto ? ` em ${dataTexto}` : ''}` },
+  })
+  await prisma.financeTransaction.updateMany({
+    where: { type: 'RECEITA', notes: { contains: chaveAcesso }, status: { not: 'CANCELADO' } },
+    data: { status: 'CANCELADO' },
+  })
+}
+
 export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Promise<ResultadoSincronizacao> {
   try {
     const nfseConfig = await getNfseConfig()
@@ -129,8 +151,17 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
       }
       naoEncontradosSeguidos = 0
 
+      // O ADN devolve um lote de documentos a partir do NSU pedido: o próximo pedido começa
+      // depois do maior NSU recebido, em vez de repetir os mesmos documentos um NSU por vez.
+      const maiorNsu = resposta.LoteDFe.reduce((m, d) => (BigInt(d.NSU || 0) > m ? BigInt(d.NSU || 0) : m), nsuAtual)
+
       for (const doc of resposta.LoteDFe) {
-        if (doc.TipoDocumento !== 'NFSE') continue // ignora eventos/outros tipos por enquanto
+        if (doc.TipoDocumento === 'EVENTO') {
+          const xmlEvento = gunzipSync(Buffer.from(doc.ArquivoXml, 'base64')).toString('utf-8')
+          await aplicarEventoNfse(doc.ChaveAcesso, doc.TipoEvento || '', xmlEvento)
+          continue
+        }
+        if (doc.TipoDocumento !== 'NFSE') continue
 
         const xml = gunzipSync(Buffer.from(doc.ArquivoXml, 'base64')).toString('utf-8')
         const dataEmissao = extrairDataEmissao(xml)
@@ -146,7 +177,9 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
 
         const numeroDps = parseInt(xml.match(/<nDPS>(\d+)<\/nDPS>/)?.[1] || '0', 10)
         const serieDps = xml.match(/<serie>([^<]+)<\/serie>/)?.[1] || '0'
-        const valorTotal = parseFloat(xml.match(/<vLiq>([^<]+)<\/vLiq>/)?.[1] || xml.match(/<vServ>([^<]+)<\/vServ>/)?.[1] || '0') || null
+        // Valor do serviço (vServ), o mesmo usado nos totais; vLiq só se não houver vServ.
+        const valorTotal = parseFloat(xml.match(/<vServ>([^<]+)<\/vServ>/)?.[1] || xml.match(/<vLiq>([^<]+)<\/vLiq>/)?.[1] || '0') || null
+        const numeroNfse = parseInt(xml.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || '', 10) || null
         const tomadorNome = xml.match(/<toma>[\s\S]*?<xNome>([^<]+)<\/xNome>/)?.[1] || null
         const tomadorDocumento = xml.match(/<toma>[\s\S]*?<(?:CNPJ|CPF)>(\d+)<\/(?:CNPJ|CPF)>/)?.[1] || null
 
@@ -155,6 +188,7 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
             ambiente,
             numeroDps,
             serieDps,
+            numeroNfse,
             status: 'AUTORIZADA',
             chaveAcesso,
             xmlNfse: xml,
@@ -188,10 +222,11 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
         novos++
       }
 
+      const nsuLido = maiorNsu > nsuAtual ? maiorNsu : nsuAtual
       if (!modoPeriodo) {
-        await prisma.nfseConfig.update({ where: { id: 'main' }, data: { ultimoNsu: nsuStr } })
+        await prisma.nfseConfig.update({ where: { id: 'main' }, data: { ultimoNsu: nsuLido.toString().padStart(15, '0') } })
       }
-      nsuAtual++
+      nsuAtual = nsuLido + BigInt(1)
     }
 
     const nsuFinal = (nsuAtual - BigInt(1)).toString().padStart(15, '0')

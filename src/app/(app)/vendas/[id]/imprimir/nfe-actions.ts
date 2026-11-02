@@ -130,6 +130,10 @@ export async function emitirNfeVenda(saleId: string) {
         status: 'PROCESSANDO',
         chaveAcesso,
         xmlNfe: xmlAssinado,
+        // Valor e destinatário gravados já na emissão: a lista e os totais do período leem daqui.
+        valorTotal: Math.round(venda.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100,
+        destinatarioNome: cliente.name,
+        destinatarioDocumento: cliente.document.replace(/[^0-9]/g, ''),
       }
     })
     emissaoId = emissao.id

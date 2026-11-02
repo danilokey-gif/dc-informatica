@@ -148,6 +148,10 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
         serieDps: nfseConfig.serieDps,
         status: 'PROCESSANDO',
         xmlDps: xmlAssinado,
+        // Valor e cliente gravados já na emissão: a lista e os totais do período leem daqui.
+        valorTotal: os.price,
+        tomadorNome: os.customer.name,
+        tomadorDocumento: os.customer.document?.replace(/[^0-9]/g, '') || null,
       }
     })
     emissaoId = emissao.id
@@ -200,6 +204,7 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
           status: 'AUTORIZADA',
           chaveAcesso: resposta.chaveAcesso,
           xmlNfse: resposta.xmlNfse || null,
+          numeroNfse: parseInt(resposta.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || '', 10) || null,
           // A nota é válida; o aviso fica visível na lista de notas para o cadastro ser corrigido.
           motivoErro: aviso,
           // Grava a data real de emissao aqui tambem (nao so nas notas importadas do governo),

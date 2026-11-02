@@ -21,6 +21,8 @@ export interface DocumentoLoteDFe {
   NSU: number
   ChaveAcesso: string
   TipoDocumento: string
+  /** Nos eventos (TipoDocumento EVENTO): ex. CANCELAMENTO, CANCELAMENTO_POR_SUBSTITUICAO. */
+  TipoEvento?: string
   ArquivoXml: string
 }
 

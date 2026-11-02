@@ -503,3 +503,31 @@ h3 { font-size: 1.5rem; }
 .acao-rapida-icone { font-size: 1.6rem; line-height: 1; }
 .acao-rapida-titulo { display: block; font-weight: 600; font-size: 1rem; }
 .acao-rapida-texto { display: block; font-size: 0.8rem; color: var(--text-muted); }
+
+/* Abas da tela "Notas Emitidas" */
+.abas-notas {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+.aba-nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.aba-nota:hover { color: var(--text-main); }
+.aba-nota.ativa { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.aba-nota-qtd {
+  font-size: 0.72rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--surface-hover);
+  color: var(--text-muted);
+}

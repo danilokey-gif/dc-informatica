@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   // O pdfkit calcula o caminho das fontes padrão (.afm) com base em __dirname. Empacotado pelo
   // Next isso quebra (o arquivo final fica numa pasta diferente da original do pacote). Mantendo
   // o pdfkit fora do bundle, ele roda direto do node_modules e o caminho relativo funciona.
-  serverExternalPackages: ['pdfkit'],
+  serverExternalPackages: ['pdfkit', 'unpdf'],
   experimental: {
     serverActions: {
       // A importação de XMLs de NF-e manda os arquivos por Server Action, cujo limite padrão é 1 MB.

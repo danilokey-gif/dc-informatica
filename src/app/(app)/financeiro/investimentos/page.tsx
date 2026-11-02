@@ -4,6 +4,7 @@ import BotaoVoltar from "@/components/BotaoVoltar"
 import CampoValor from "@/components/CampoValor"
 import { rotuloTipo, corTipo } from "@/lib/financeiro-tipos"
 import { salvarSaldoInvestimento, excluirSaldoInvestimento } from "./actions"
+import ImportarCaixinha from "./ImportarCaixinha"
 
 export const dynamic = 'force-dynamic'
 
@@ -69,9 +70,11 @@ export default async function InvestimentosPage() {
         </div>
       </div>
 
+      <div style={{ marginBottom: '1rem' }}><ImportarCaixinha /></div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <div className="card">
-          <h3 style={{ fontSize: '1.05rem' }}>Atualizar saldo do investimento</h3>
+          <h3 style={{ fontSize: '1.05rem' }}>Saldo do investimento (ou lance à mão)</h3>
           <p className="text-muted" style={{ fontSize: '0.8rem' }}>
             No app do Nubank PJ, veja o valor guardado/investido (RDB) com os rendimentos e lance aqui. O sistema calcula quanto rendeu.
           </p>

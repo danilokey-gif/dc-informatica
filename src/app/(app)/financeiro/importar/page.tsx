@@ -95,7 +95,11 @@ export default function ImportarExtratoPage() {
       if (res.error) {
         setError(res.error)
       } else {
-        alert(`${res.count} transações importadas.${res.repetidas ? ` ${res.repetidas} já estavam no financeiro e foram puladas.` : ''}`)
+        alert(`Extrato importado:
+• ${res.count} lançamento(s) novo(s)
+• ${res.baixas ?? 0} conta(s) a receber/pagar baixada(s)
+• ${res.confirmadas ?? 0} já lançado(s) e confirmado(s) pelo banco
+• ${res.repetidas ?? 0} repetido(s), pulado(s)`)
         router.push('/financeiro')
       }
     } catch (err: any) {

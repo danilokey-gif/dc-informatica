@@ -14,6 +14,8 @@ export const CATEGORIAS_PADRAO: { nome: string; tipo: 'RECEITA' | 'DESPESA' }[] 
   { nome: 'Alimentação', tipo: 'DESPESA' },
   { nome: 'Educação e cursos', tipo: 'DESPESA' },
   { nome: 'Tarifas bancárias', tipo: 'DESPESA' },
+  { nome: 'Contabilidade', tipo: 'DESPESA' },
+  { nome: 'Manutenção e reforma da loja', tipo: 'DESPESA' },
   { nome: 'Outras despesas', tipo: 'DESPESA' },
 ]
 
@@ -32,6 +34,8 @@ export function categoriaSugerida(l: { type: string; description: string; notes?
   }
   if (l.type !== 'DESPESA') return null
   if (/\bDAS\b|SIMPLES NACIONAL|RECEITA FEDERAL|MINISTERIO DA FAZ|PREFEITURA|\bDARF\b/.test(d)) return 'Impostos e taxas'
+  if (/CONTADOR|CONTABIL|PAULO EDUARDO PIRES/.test(d)) return 'Contabilidade'
+  if (/LETRA FACIL|FACHADA|REFORMA|PINTURA|MATERIAL DE CONSTRUCAO/.test(d)) return 'Manutenção e reforma da loja'
   if (/VEICULO|LAGOINHA|POSTO |COMBUSTIV|AUTO PECAS|ESTACIONAMENTO/.test(d)) return 'Veículo'
   if (/COMPRA NF-E|MAGALU|MERCADO PAGO|MARKETPLACE|AMAZON|EBANX|SHOPEE|ALIEXPRESS|KABUM|PICHAU|TERABYTE|MERCADOLIVRE|MERCADO LIVRE|AIBR|INFORMATICA/.test(d)) return 'Compras de mercadorias e peças'
   if (/FATURA|CARTAO|DIGIO|NU PAGAMENTOS S\/A/.test(d)) return 'Cartão de crédito'

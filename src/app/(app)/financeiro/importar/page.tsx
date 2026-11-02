@@ -95,7 +95,7 @@ export default function ImportarExtratoPage() {
       if (res.error) {
         setError(res.error)
       } else {
-        alert(`${res.count} transações importadas com sucesso!`)
+        alert(`${res.count} transações importadas.${res.repetidas ? ` ${res.repetidas} já estavam no financeiro e foram puladas.` : ''}`)
         router.push('/financeiro')
       }
     } catch (err: any) {

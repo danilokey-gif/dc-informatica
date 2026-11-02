@@ -3,6 +3,7 @@ import Link from "next/link"
 import { inicioDoDiaUTC, formatarDataUTC } from "@/lib/dates"
 import { registrarPagamento } from "./actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
+import { SELECT_NOTA, origemReceita, type Origem } from "@/lib/financeiro-nota"
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
   const proximo = { mes: mes === 12 ? 1 : mes + 1, ano: mes === 12 ? ano + 1 : ano }
   const em30 = new Date(hoje.getTime() + 30 * 86400000)
 
-  const [pagosMes, pagos12, abertos, ultimoSaldo, recentes] = await Promise.all([
+  const [pagosMes, pagos12, abertos, ultimoSaldo, recentes, receitasAno] = await Promise.all([
     prisma.financeTransaction.findMany({
       where: { status: 'PAGO', type: { in: ['RECEITA', 'DESPESA'] }, paidDate: { gte: ini, lt: fim } },
       select: { type: true, amount: true, category: { select: { name: true } } },
@@ -47,7 +48,20 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
       take: 10,
       include: { category: { select: { name: true } }, customer: { select: { name: true } } },
     }),
+    prisma.financeTransaction.findMany({
+      where: { type: 'RECEITA', status: 'PAGO', paidDate: { gte: inicioMes(ano, 1), lt: inicioMes(ano + 1, 1) } },
+      select: { amount: true, paidDate: true, ...SELECT_NOTA },
+    }),
   ])
+
+  // Faturamento com nota × sem nota (mês escolhido e ano todo).
+  const porOrigem = (ls: typeof receitasAno) => {
+    const t: Record<Origem, number> = { COM_NOTA: 0, SEM_NOTA: 0, OUTROS: 0 }
+    for (const r of ls) t[origemReceita(r)] += r.amount
+    return t
+  }
+  const origemAno = porOrigem(receitasAno)
+  const origemMes = porOrigem(receitasAno.filter(r => r.paidDate && r.paidDate >= ini && r.paidDate < fim))
 
   const soma = (ls: { amount: number }[]) => ls.reduce((s, l) => s + l.amount, 0)
   const recebido = soma(pagosMes.filter(l => l.type === 'RECEITA'))
@@ -150,6 +164,37 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
         <Kpi titulo="A receber (em aberto)" valor={soma(aReceber)} detalhe={`${aReceber.length} conta(s)`} href="/financeiro/contas?aberto=RECEITA" />
         <Kpi titulo="A pagar (em aberto)" valor={soma(aPagar)} detalhe={`${aPagar.length} conta(s)`} href="/financeiro/contas?aberto=DESPESA" />
         <Kpi titulo="Investimentos" valor={ultimoSaldo?.valor ?? 0} detalhe={ultimoSaldo ? `Saldo em ${formatarDataUTC(ultimoSaldo.data)}` : 'Informe o saldo'} href="/financeiro/investimentos" />
+      </div>
+
+      <div className="card" style={{ marginBottom: '1.25rem' }}>
+        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>Faturamento com nota × sem nota</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+          {([[`${nomeMes} de ${ano}`, origemMes], [`Ano de ${ano} (até agora)`, origemAno]] as const).map(([rotulo, o]) => {
+            const total = o.COM_NOTA + o.SEM_NOTA + o.OUTROS
+            const pct = (v: number) => (total ? Math.round((v / total) * 100) : 0)
+            return (
+              <div key={rotulo}>
+                <div className="stat-label" style={{ textTransform: 'none' }}>{rotulo}</div>
+                <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', background: 'var(--surface-hover)', margin: '0.4rem 0 0.6rem' }}>
+                  <div style={{ width: `${pct(o.COM_NOTA)}%`, background: 'var(--primary)' }} title="Com nota" />
+                  <div style={{ width: `${pct(o.SEM_NOTA)}%`, background: 'var(--accent-orange)' }} title="Sem nota" />
+                  <div style={{ width: `${pct(o.OUTROS)}%`, background: 'var(--text-muted)' }} title="Outros" />
+                </div>
+                <table style={{ width: '100%', fontSize: '0.9rem' }}>
+                  <tbody>
+                    <tr><td><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: 'var(--primary)', marginRight: 6 }} />Com nota</td><td style={{ textAlign: 'right' }}>{pct(o.COM_NOTA)}%</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{moeda(o.COM_NOTA)}</td></tr>
+                    <tr><td><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: 'var(--accent-orange)', marginRight: 6 }} />Sem nota</td><td style={{ textAlign: 'right' }}>{pct(o.SEM_NOTA)}%</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{moeda(o.SEM_NOTA)}</td></tr>
+                    {o.OUTROS > 0 && <tr className="text-muted"><td><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: 'var(--text-muted)', marginRight: 6 }} />Outros (reembolsos)</td><td style={{ textAlign: 'right' }}>{pct(o.OUTROS)}%</td><td style={{ textAlign: 'right' }}>{moeda(o.OUTROS)}</td></tr>}
+                    <tr style={{ borderTop: '1px solid var(--border)' }}><td style={{ paddingTop: 4 }}><strong>Total recebido</strong></td><td /><td style={{ textAlign: 'right', paddingTop: 4 }}><strong>{moeda(total)}</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
+        </div>
+        <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.75rem', marginBottom: 0 }}>
+          Com nota = recebimento ligado a uma NF-e ou NFS-e autorizada (venda, OS ou nota anotada no lançamento). Pela data em que o dinheiro entrou.
+        </p>
       </div>
 
       <div className="card" style={{ marginBottom: '1.25rem' }}>

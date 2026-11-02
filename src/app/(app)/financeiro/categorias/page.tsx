@@ -10,8 +10,8 @@ export default async function CategoriasPage() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: '700px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
-        <h2>Categorias Financeiras</h2>
-        <Link href="/financeiro" className="text-muted">Voltar</Link>
+        <h3>Categorias Financeiras</h3>
+
       </div>
 
       <div className="card mb-4">

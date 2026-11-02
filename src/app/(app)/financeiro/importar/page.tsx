@@ -116,7 +116,7 @@ export default function ImportarExtratoPage() {
     <div className="animate-fade-in max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2>Importar Extrato OFX</h2>
+          <h3>Importar Extrato OFX</h3>
           <p className="text-muted">Importe seu extrato bancário para conciliar entradas e saídas no financeiro.</p>
         </div>
         <Link href="/financeiro" className="btn btn-outline">Cancelar</Link>

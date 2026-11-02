@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
-import BotaoVoltar from "@/components/BotaoVoltar"
 import CampoValor from "@/components/CampoValor"
 import { rotuloTipo, corTipo } from "@/lib/financeiro-tipos"
 import { salvarSaldoInvestimento, excluirSaldoInvestimento } from "./actions"
@@ -39,8 +38,7 @@ export default async function InvestimentosPage() {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center gap-4 mb-4" style={{ flexWrap: 'wrap' }}>
-        <BotaoVoltar padrao="/financeiro" />
-        <h2 style={{ margin: 0 }}>Investimentos e sócio</h2>
+        <h3 style={{ margin: 0 }}>Investimentos e sócio</h3>
       </div>
       <p className="text-muted mb-4" style={{ maxWidth: 820 }}>
         Aplicações e resgates (ex.: RDB do Nubank), dinheiro que você coloca na empresa (aporte) e o que tira para você (retirada).

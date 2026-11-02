@@ -39,8 +39,8 @@ export default async function CobrancasMensaisPage({ searchParams }: { searchPar
   return (
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-4" style={{ flexWrap: 'wrap', gap: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Cobranças Mensais</h2>
-        <Link href="/financeiro" className="text-muted">Voltar ao Financeiro</Link>
+        <h3 style={{ margin: 0 }}>Cobranças Mensais</h3>
+
       </div>
 
       <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>

@@ -31,7 +31,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
   return (
     <div className="animate-fade-in" style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
-        <h2>Editar Lançamento</h2>
+        <h3>Editar Lançamento</h3>
         <Link href="/financeiro/contas" className="text-muted">Voltar</Link>
       </div>
 

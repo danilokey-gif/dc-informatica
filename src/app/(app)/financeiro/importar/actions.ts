@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { classificarExtrato } from "@/lib/financeiro-tipos"
 import { pagadorConfere } from "@/lib/conciliacao"
+import { categoriaSugerida } from "@/lib/financeiro-categorias"
 
 export interface ImportTransactionPayload {
   description: string
@@ -62,6 +63,7 @@ export async function salvarTransacoesImportadas(transacoes: ImportTransactionPa
     const chave = (d: Date, valor: number, descricao: string, tipo: string) => `${dia(d)}|${Math.abs(valor).toFixed(2)}|${descricao.trim()}|${tipo}`
     const jaTem = new Set(candidatos.filter(c => c.paymentMethod === 'Transferência/Bancário').map(c => chave(c.dueDate, c.amount, c.description, c.type)))
     const usados = new Set<string>()
+    const categorias = new Map((await prisma.financeCategory.findMany({ select: { id: true, name: true } })).map(c => [c.name, c.id]))
 
     let repetidas = 0, baixas = 0, confirmadas = 0
     const novas: ReturnType<typeof montar>[] = []
@@ -69,7 +71,10 @@ export async function salvarTransacoesImportadas(transacoes: ImportTransactionPa
       return {
         description: t.description, amount: Math.abs(t.amount), type: t.type,
         dueDate: new Date(t.date), paidDate: new Date(t.date), status: 'PAGO',
-        paymentMethod: 'Transferência/Bancário', categoryId: t.categoryId || null, notes: marcaOfx(t.notes),
+        paymentMethod: 'Transferência/Bancário',
+        // Sem categoria escolhida na tela: usa a sugerida pela descrição (impostos, compras, cartão...).
+        categoryId: t.categoryId || categorias.get(categoriaSugerida({ type: t.type, description: t.description }) ?? '') || null,
+        notes: marcaOfx(t.notes),
       }
     }
 

@@ -135,7 +135,9 @@ export async function sincronizarNfseGoverno(opcoes?: OpcoesSincronizacao): Prom
     for (let tentativa = 0; tentativa < MAX_TENTATIVAS_NFSE && Date.now() - inicioExecucao < TEMPO_LIMITE_MS; tentativa++) {
       tentativasUsadas++
       const nsuStr = nsuAtual.toString().padStart(15, '0')
-      const resposta = await client.consultarDFePorNsu(nsuStr)
+      // O ADN devolve os documentos DEPOIS do NSU informado (até 50 por vez). Por isso o pedido vai
+      // com o último NSU já lido (nsuAtual - 1): pedir nsuAtual pularia o documento de número nsuAtual.
+      const resposta = await client.consultarDFePorNsu((nsuAtual - BigInt(1)).toString().padStart(15, '0'))
 
       if (!resposta) {
         naoEncontradosSeguidos++

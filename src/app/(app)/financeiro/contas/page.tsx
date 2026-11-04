@@ -18,7 +18,15 @@ const STATUS: Record<string, { texto: string; classe: string }> = {
   CANCELADO: { texto: 'Cancelado', classe: 'badge badge-neutral' },
 }
 
-type Filtros = { tipo?: string; status?: string; aberto?: string; mes?: string; ano?: string; q?: string; cat?: string }
+type Filtros = { tipo?: string; status?: string; aberto?: string; mes?: string; ano?: string; q?: string; cat?: string; ordem?: string }
+
+const ORDENS: Record<string, string> = {
+  data_asc: 'Data (mais antiga primeiro)',
+  data_desc: 'Data (mais recente primeiro)',
+  valor_desc: 'Valor (maior primeiro)',
+  valor_asc: 'Valor (menor primeiro)',
+  cliente: 'Cliente / fornecedor (A-Z)',
+}
 
 /**
  * Lançamentos do Financeiro com filtros. "A receber"/"A pagar" (aberto=RECEITA|DESPESA) mostram
@@ -44,7 +52,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
   if (f.q) where.AND = [{ OR: [{ description: { contains: f.q, mode: 'insensitive' } }, { customer: { name: { contains: f.q, mode: 'insensitive' } } }, { notes: { contains: f.q, mode: 'insensitive' } }] }]
   if (f.cat) where.categoryId = f.cat === 'sem' ? null : f.cat
 
-  const [transacoes, categorias] = await Promise.all([
+  const [transacoesBrutas, categorias] = await Promise.all([
     prisma.financeTransaction.findMany({
       where,
       orderBy: emAberto ? { dueDate: 'asc' } : [{ paidDate: 'desc' }, { dueDate: 'desc' }],
@@ -53,6 +61,19 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
     }),
     prisma.financeCategory.findMany({ orderBy: { name: 'asc' } }),
   ])
+
+  // Ordenação escolhida na tela. Padrão: contas em aberto e pendentes pela data mais próxima primeiro;
+  // lista do mês, da mais recente para a mais antiga. A data é a do pagamento (pagos) ou do vencimento.
+  const padrao = emAberto || f.status === 'PENDENTE' ? 'data_asc' : 'data_desc'
+  const ordem = f.ordem && ORDENS[f.ordem] ? f.ordem : padrao
+  const dataDe = (t: (typeof transacoesBrutas)[number]) => (t.status === 'PAGO' && t.paidDate ? t.paidDate : t.dueDate).getTime()
+  const quem = (t: (typeof transacoesBrutas)[number]) => (t.customer?.name || t.supplier?.name || t.description).toLocaleLowerCase('pt-BR')
+  const transacoes = [...transacoesBrutas].sort((a, b) =>
+    ordem === 'data_asc' ? dataDe(a) - dataDe(b)
+    : ordem === 'data_desc' ? dataDe(b) - dataDe(a)
+    : ordem === 'valor_desc' ? b.amount - a.amount
+    : ordem === 'valor_asc' ? a.amount - b.amount
+    : quem(a).localeCompare(quem(b), 'pt-BR'))
 
   const entradas = transacoes.filter(t => t.type === 'RECEITA' && t.status !== 'CANCELADO').reduce((s, t) => s + t.amount, 0)
   const saidas = transacoes.filter(t => t.type === 'DESPESA' && t.status !== 'CANCELADO').reduce((s, t) => s + t.amount, 0)
@@ -125,6 +146,12 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
             <label className="input-label" htmlFor="q">Buscar</label>
             <input id="q" name="q" className="input-field" defaultValue={f.q || ''} placeholder="Descrição, cliente, nº da nota…" style={{ padding: '0.45rem 0.6rem' }} />
           </div>
+          <div className="input-group" style={{ marginBottom: 0 }}>
+            <label className="input-label" htmlFor="ordem">Ordenar por</label>
+            <select id="ordem" name="ordem" className="input-field" defaultValue={ordem} style={{ padding: '0.45rem 0.6rem' }}>
+              {Object.entries(ORDENS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
           <button type="submit" className="btn btn-primary">Filtrar</button>
           <Link href={emAberto ? `/financeiro/contas?aberto=${f.aberto}` : '/financeiro/contas'} className="text-muted" style={{ fontSize: '0.85rem' }}>Limpar</Link>
         </div>
@@ -143,10 +170,10 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
         <table className="table">
           <thead>
             <tr>
-              <th>{emAberto ? 'Vencimento' : 'Data'}</th>
-              <th>Descrição</th>
+              <th><Link href={link({ ordem: ordem === 'data_asc' ? 'data_desc' : 'data_asc' })} style={{ color: 'inherit' }} title="Ordenar por data">{emAberto ? 'Vencimento' : 'Data'} {ordem === 'data_asc' ? '▲' : ordem === 'data_desc' ? '▼' : '↕'}</Link></th>
+              <th><Link href={link({ ordem: 'cliente' })} style={{ color: 'inherit' }} title="Ordenar por cliente/fornecedor">Descrição {ordem === 'cliente' ? '▲' : '↕'}</Link></th>
               <th>Categoria</th>
-              <th style={{ textAlign: 'right' }}>Valor</th>
+              <th style={{ textAlign: 'right' }}><Link href={link({ ordem: ordem === 'valor_desc' ? 'valor_asc' : 'valor_desc' })} style={{ color: 'inherit' }} title="Ordenar por valor">Valor {ordem === 'valor_desc' ? '▼' : ordem === 'valor_asc' ? '▲' : '↕'}</Link></th>
               <th>Situação</th>
               <th></th>
             </tr>

@@ -27,14 +27,17 @@ export default function ClientesList({ clientes }: ClientesListProps) {
       return
     }
 
-    const term = searchTerm.toLowerCase().replace(/\D/g, '')
-    
+    // Sem acento e sem maiúsculas; cada palavra digitada precisa aparecer no nome, em qualquer ordem
+    // ("rosa mistica" acha "MDM Paróquia Nossa Senhora Rosa Mística").
+    const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    const palavras = semAcento(searchTerm).split(/\s+/).filter(Boolean)
+    // Só busca por documento quando foram digitados números (senão o filtro vazio achava todo mundo).
+    const digitos = searchTerm.replace(/\D/g, '')
+
     const filtered = clientes.filter(cliente => {
-      const nameMatch = cliente.name.toLowerCase().includes(searchTerm.toLowerCase())
-      const documentMatch = cliente.document 
-        ? cliente.document.replace(/\D/g, '').includes(term) 
-        : false
-      
+      const nome = semAcento(cliente.name)
+      const nameMatch = palavras.every(p => nome.includes(p))
+      const documentMatch = digitos.length >= 3 && !!cliente.document && cliente.document.replace(/\D/g, '').includes(digitos)
       return nameMatch || documentMatch
     })
 

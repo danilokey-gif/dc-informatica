@@ -23,14 +23,23 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '980px', margin: '0 auto' }}>
       <div className="flex justify-between items-center mb-4">
-        <h2>Editar Cliente</h2>
+        <div>
+          <h2 style={{ marginBottom: '0.25rem' }}>{cliente.name}</h2>
+          <div className="flex gap-4" style={{ fontSize: '0.85rem', flexWrap: 'wrap' }}>
+            {cliente.document && <span className="text-muted">{cliente.document}</span>}
+            <a href="#notas" className="text-primary">Notas fiscais</a>
+            <a href="#historico" className="text-primary">Histórico</a>
+            <a href="#cadastro" className="text-primary">Dados cadastrais</a>
+          </div>
+        </div>
         <div className="flex gap-4" style={{ alignItems: 'center' }}>
           <BotaoExcluir action={deleteCustomer.bind(null, cliente.id)} confirmar={`Excluir o cliente "${cliente.name}"?`} depois="/clientes" estilo="botao" />
           <Link href="/clientes" className="text-muted">Voltar</Link>
         </div>
       </div>
 
-      <div className="card">
+      <div id="cadastro" className="card" style={{ scrollMarginTop: '1rem' }}>
+        <h3 style={{ marginTop: 0 }}>Dados cadastrais</h3>
         <CustomerForm 
           action={updateAction} 
           submitLabel="Atualizar Cliente"
@@ -52,8 +61,8 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
         />
       </div>
 
-      <NotasCliente clienteId={cliente.id} documento={cliente.document} />
-      <HistoricoCliente clienteId={cliente.id} />
+      <div id="notas" style={{ scrollMarginTop: '1rem' }}><NotasCliente clienteId={cliente.id} documento={cliente.document} /></div>
+      <div id="historico" style={{ scrollMarginTop: '1rem' }}><HistoricoCliente clienteId={cliente.id} /></div>
     </div>
   )
 }

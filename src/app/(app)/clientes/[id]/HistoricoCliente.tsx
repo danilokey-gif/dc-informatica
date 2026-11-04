@@ -39,7 +39,7 @@ export default async function HistoricoCliente({ clienteId }: { clienteId: strin
   const [ordens, vendas, orcamentos, emAberto] = await Promise.all([
     prisma.serviceOrder.findMany({
       where: { customerId: clienteId },
-      include: { nfseEmissoes: { where: { status: 'AUTORIZADA' }, select: { numeroDps: true }, take: 1 }, technician: { select: { name: true } } },
+      include: { nfseEmissoes: { where: { status: 'AUTORIZADA' }, select: { numeroNfse: true, numeroDps: true }, take: 1 }, technician: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.sale.findMany({
@@ -68,7 +68,7 @@ export default async function HistoricoCliente({ clienteId }: { clienteId: strin
       detalhe: [o.issue, o.technicalReport && `Laudo: ${o.technicalReport}`, o.technician?.name && `Técnico: ${o.technician.name}`].filter(Boolean).join(' · '),
       valor: o.price,
       status: STATUS_OS[o.status] ?? { nome: o.status, cor: '#6b7280' },
-      nota: o.nfseEmissoes[0] ? `NFS-e nº ${o.nfseEmissoes[0].numeroDps}` : null,
+      nota: o.nfseEmissoes[0] ? `NFS-e nº ${o.nfseEmissoes[0].numeroNfse ?? o.nfseEmissoes[0].numeroDps}` : null,
     })),
     ...vendas.map(v => ({
       data: v.createdAt,

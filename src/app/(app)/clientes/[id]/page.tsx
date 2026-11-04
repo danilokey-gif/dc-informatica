@@ -5,6 +5,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import CustomerForm from "@/components/CustomerForm"
 import HistoricoCliente from "./HistoricoCliente"
+import NotasCliente from "./NotasCliente"
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -51,6 +52,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
         />
       </div>
 
+      <NotasCliente clienteId={cliente.id} documento={cliente.document} />
       <HistoricoCliente clienteId={cliente.id} />
     </div>
   )

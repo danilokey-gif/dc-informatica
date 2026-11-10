@@ -61,7 +61,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
         />
       </div>
 
-      <div id="notas" style={{ scrollMarginTop: '1rem' }}><NotasCliente clienteId={cliente.id} documento={cliente.document} /></div>
+      <div id="notas" style={{ scrollMarginTop: '1rem' }}><NotasCliente clienteId={cliente.id} documento={cliente.document} telefone={cliente.phone} /></div>
       <div id="historico" style={{ scrollMarginTop: '1rem' }}><HistoricoCliente clienteId={cliente.id} /></div>
     </div>
   )

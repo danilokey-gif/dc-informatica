@@ -9,7 +9,8 @@ const PUBLIC_PATHS = ['/manifest.json', '/sw.js', '/privacidade']
 const ADMIN_ONLY_PREFIXES = ['/financeiro', '/fornecedores', '/relatorios', '/configuracoes', '/usuarios', '/notas-fiscais']
 
 export async function middleware(request: NextRequest) {
-  if (PUBLIC_PATHS.includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/icons/')) {
+  // /nota/<link assinado>: PDF da nota que o cliente recebe pelo WhatsApp (a própria rota confere a assinatura).
+  if (PUBLIC_PATHS.includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith('/icons/') || request.nextUrl.pathname.startsWith('/nota/')) {
     return NextResponse.next()
   }
 

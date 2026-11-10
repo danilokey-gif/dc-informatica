@@ -3,6 +3,8 @@ import BotaoVoltar from "@/components/BotaoVoltar"
 import Link from "next/link"
 import BotaoImprimirPdf from "@/components/BotaoImprimirPdf"
 import { notFound } from "next/navigation"
+import BotaoWhatsAppNota from "@/components/BotaoWhatsAppNota"
+import { envioDaNota } from "@/lib/nota-whatsapp"
 import { INICIO_DANFE_RTC } from "@/lib/nfe/danfe"
 
 export const dynamic = 'force-dynamic'
@@ -33,6 +35,7 @@ export default async function VerDanfePage({ searchParams }: { searchParams: Pro
   }
 
   const urlPdf = `/notas-fiscais/danfe-pdf?id=${id}${recebida ? '&origem=recebida' : ''}`
+  const whatsapp = recebida ? null : await envioDaNota('nfe', id)
   const modelo = new Date() >= INICIO_DANFE_RTC
     ? 'Modelo da Reforma Tributária (NT 2026.010).'
     : 'Modelo atual. O modelo da Reforma Tributária (NT 2026.010) entra sozinho em 01/12/2026.'
@@ -44,9 +47,10 @@ export default async function VerDanfePage({ searchParams }: { searchParams: Pro
           <h2 style={{ margin: 0 }}>DANFE — NF-e nº {nota.numero}</h2>
           <p className="text-muted" style={{ fontSize: '0.8rem', margin: '0.25rem 0 0' }}>{modelo}</p>
         </div>
-        <div className="flex gap-4" style={{ alignItems: 'center' }}>
+        <div className="flex gap-4" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
           <a href={`${urlPdf}&download=1`} className="btn btn-primary">⬇️ Baixar PDF</a>
           <BotaoImprimirPdf iframeId="pdf-danfe" url={urlPdf} />
+          {whatsapp && <BotaoWhatsAppNota {...whatsapp} />}
           <BotaoVoltar padrao={nota.voltar} />
         </div>
       </div>

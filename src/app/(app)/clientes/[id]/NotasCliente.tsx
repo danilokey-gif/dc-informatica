@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import StatusBadge from "@/components/StatusBadge"
+import BotaoWhatsAppNota from "@/components/BotaoWhatsAppNota"
+import { montarEnvioWhatsApp, origemDoSite, telefoneWhatsApp } from "@/lib/nota-whatsapp"
 
 const BRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const data = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
@@ -24,7 +26,7 @@ interface Nota {
  * Notas fiscais (NFS-e e NF-e, produção) emitidas para o cliente: pelo CPF/CNPJ da nota ou pela
  * OS/venda dele. Mostra quanto foi faturado por ano e se cada nota já foi paga.
  */
-export default async function NotasCliente({ clienteId, documento }: { clienteId: string; documento: string | null }) {
+export default async function NotasCliente({ clienteId, documento, telefone }: { clienteId: string; documento: string | null; telefone?: string | null }) {
   const doc = (documento || '').replace(/\D/g, '')
   const porDoc = doc.length >= 11
 
@@ -88,6 +90,16 @@ export default async function NotasCliente({ clienteId, documento }: { clienteId
   ].sort((a, b) => b.data.getTime() - a.data.getTime())
 
   const validas = notas.filter(n => n.status === 'AUTORIZADA' && !n.devolucao)
+
+  // Envio da nota por WhatsApp para o telefone do cadastro.
+  const [origem, empresa] = await Promise.all([origemDoSite(), prisma.companySettings.findUnique({ where: { id: 'main' }, select: { name: true, nomeFantasia: true } })])
+  const whatsapp = (n: Nota) => {
+    if (n.status !== 'AUTORIZADA') return null
+    const tipo = n.tipo === 'NFS-e' ? 'nfse' as const : 'nfe' as const
+    const numero = n.numero.split('/')[0]
+    const envio = montarEnvioWhatsApp({ tipo, id: n.id, numero, valor: n.valor || null, empresa: empresa?.nomeFantasia || empresa?.name || 'nossa empresa', origem, telefone: telefoneWhatsApp(telefone) })
+    return { ...envio, urlPdf: `/notas-fiscais/${tipo === 'nfse' ? 'danfse' : 'danfe'}-pdf?id=${n.id}`, nomeArquivo: `${n.tipo}-${numero}.pdf` }
+  }
   const anos = [...new Set(validas.map(n => anoBr(n.data)))].sort((a, b) => b - a)
 
   return (
@@ -142,6 +154,7 @@ export default async function NotasCliente({ clienteId, documento }: { clienteId
                     <Link href={n.linkPdf} className="text-primary">{n.tipo === 'NFS-e' ? 'DANFSe' : 'DANFE'}</Link>
                     {' · '}
                     <Link href={n.linkXml} className="text-muted">XML</Link>
+                    {(w => w && <>{' · '}<BotaoWhatsAppNota {...w} compacto /></>)(whatsapp(n))}
                   </td>
                 </tr>
               ))}

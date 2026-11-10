@@ -3,6 +3,8 @@ import BotaoVoltar from "@/components/BotaoVoltar"
 import Link from "next/link"
 import BotaoImprimirPdf from "@/components/BotaoImprimirPdf"
 import { notFound } from "next/navigation"
+import BotaoWhatsAppNota from "@/components/BotaoWhatsAppNota"
+import { envioDaNota } from "@/lib/nota-whatsapp"
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +35,7 @@ export default async function VerDanfsePage({ searchParams }: { searchParams: Pr
 
   const numero = emissao.xmlNfse.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || String(emissao.numeroDps)
   const urlPdf = `/notas-fiscais/danfse-pdf?id=${emissao.id}`
+  const whatsapp = await envioDaNota('nfse', emissao.id)
 
   return (
     <div className="animate-fade-in">
@@ -44,9 +47,10 @@ export default async function VerDanfsePage({ searchParams }: { searchParams: Pr
             {emissao.status === 'CANCELADA' && ' Nota cancelada.'}
           </p>
         </div>
-        <div className="flex gap-4" style={{ alignItems: 'center' }}>
+        <div className="flex gap-4" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
           <a href={`${urlPdf}&download=1`} className="btn btn-primary">⬇️ Baixar PDF</a>
           <BotaoImprimirPdf iframeId="pdf-danfse" url={urlPdf} />
+          {whatsapp && <BotaoWhatsAppNota {...whatsapp} />}
           <BotaoVoltar padrao={voltar} />
         </div>
       </div>

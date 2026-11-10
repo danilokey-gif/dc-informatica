@@ -6,6 +6,8 @@ import SincronizarButton from "./SincronizarButton"
 import SincronizarPeriodoButton from "./SincronizarPeriodoButton"
 import { sincronizarNfseGoverno } from "./sync-actions"
 import { notasDoAno, resumoDoAno, MESES, type Aba, type LinhaNota } from "./notas-do-ano"
+import BotaoWhatsAppNota from "@/components/BotaoWhatsAppNota"
+import { montarEnvioWhatsApp, origemDoSite, telefonesPorDocumento } from "@/lib/nota-whatsapp"
 
 export const dynamic = 'force-dynamic'
 // Dá mais tempo de execução (onde o plano da Vercel permitir) pras Server Actions de
@@ -204,7 +206,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
           {linhasDaAba.length === 0 ? (
             <p className="text-muted">Nenhuma nota {mes ? 'neste mês' : 'neste ano'}.</p>
           ) : (
-            <TabelaNotas linhas={linhasDaAba} mostrarAmbiente={aba === 'testes'} />
+            <TabelaNotas linhas={linhasDaAba} mostrarAmbiente={aba === 'testes'} telefones={await telefonesPorDocumento()} origem={await origemDoSite()} empresa={empresa.nomeFantasia || empresa.name} />
           )}
         </div>
       )}
@@ -241,7 +243,14 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
   )
 }
 
-function TabelaNotas({ linhas, mostrarAmbiente }: { linhas: LinhaNota[]; mostrarAmbiente: boolean }) {
+function TabelaNotas({ linhas, mostrarAmbiente, telefones, origem, empresa }: { linhas: LinhaNota[]; mostrarAmbiente: boolean; telefones: Map<string, string>; origem: string; empresa: string }) {
+  // Envio por WhatsApp: só notas de verdade (produção, autorizadas), com o telefone do cadastro do cliente.
+  const whatsapp = (l: LinhaNota) => {
+    if (l.grupo === 'teste' || l.status !== 'AUTORIZADA' || !l.linkPdf) return null
+    const tipo = l.tipoNota === 'NFS-e' ? 'nfse' as const : 'nfe' as const
+    const envio = montarEnvioWhatsApp({ tipo, id: l.id, numero: l.numero, valor: l.valor || null, empresa, origem, telefone: telefones.get((l.documento || '').replace(/\D/g, '')) || null })
+    return { ...envio, urlPdf: `/notas-fiscais/${tipo === 'nfse' ? 'danfse' : 'danfe'}-pdf?id=${l.id}`, nomeArquivo: `${l.tipoNota}-${l.numero}.pdf` }
+  }
   return (
     <div className="table-container">
       <table className="table">
@@ -269,6 +278,7 @@ function TabelaNotas({ linhas, mostrarAmbiente }: { linhas: LinhaNota[]; mostrar
                 <div className="flex" style={{ gap: '0.75rem', flexWrap: 'wrap' }}>
                   {l.linkPdf && <Link href={l.linkPdf} className="text-primary" style={{ textDecoration: 'underline' }}>{l.tipoNota === 'NFS-e' ? 'DANFSe' : 'DANFE'}</Link>}
                   {l.linkXml && <Link href={l.linkXml} className="text-muted" style={{ textDecoration: 'underline' }}>XML</Link>}
+                  {(w => w && <BotaoWhatsAppNota {...w} compacto />)(whatsapp(l))}
                   {l.linkOrigem && <Link href={l.linkOrigem} className="text-muted" style={{ textDecoration: 'underline' }}>{l.rotuloOrigem}</Link>}
                 </div>
               </td>

@@ -70,17 +70,14 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
 
   const soma = (ls: { amount: number }[]) => ls.reduce((s, l) => s + l.amount, 0)
 
-  // Limite do MEI: faturamento do ano (sem reembolsos), separado em comércio e serviços.
-  const faturamentoAno = receitasAno.filter(r => origemReceita(r) !== 'OUTROS')
-  const comercioAno = soma(faturamentoAno.filter(r => r.sale || r.category?.name === 'Vendas de produtos'))
+  // Limite do MEI: só o faturamento com nota fiscal (notas autorizadas no ano); sem nota fica de fora.
+  const notasDoGrupo = (grupo: string) => notasAno.filter(n => n.grupo === grupo && n.status === 'AUTORIZADA').reduce((s, n) => s + n.valor, 0)
   const mei = (nfseConfig?.regimeTributario ?? 'MEI') === 'MEI' ? resumoMei({
     ano,
     hoje: agora.toISOString().slice(0, 10),
-    comercio: comercioAno,
-    servicos: soma(faturamentoAno) - comercioAno,
-    semNota: origemAno.SEM_NOTA,
-    notasEmitidas: notasAno.filter(n => (n.grupo === 'servico' || n.grupo === 'produto') && n.status === 'AUTORIZADA').reduce((s, n) => s + n.valor, 0),
-    aReceberNoAno: soma(abertos.filter(l => l.type === 'RECEITA' && l.dueDate < inicioMes(ano + 1, 1))),
+    notasProduto: notasDoGrupo('produto'),
+    notasServico: notasDoGrupo('servico'),
+    recebidoComNota: origemAno.COM_NOTA,
   }) : null
   const recebido = soma(pagosMes.filter(l => l.type === 'RECEITA'))
   const pago = soma(pagosMes.filter(l => l.type === 'DESPESA'))

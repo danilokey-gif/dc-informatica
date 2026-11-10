@@ -17,7 +17,6 @@ export default function LimiteMei({ r }: { r: ResumoMei }) {
   const escala = r.teto
   const largura = (v: number) => `${Math.min(100, Math.max(0, (v / escala) * 100))}%`
   const anoCorrente = r.projecao !== null
-  const comAReceber = r.base + r.aReceberNoAno
 
   const Linha = ({ rotulo, valor, detalhe, cor, forte }: { rotulo: string; valor: string; detalhe?: string; cor?: string; forte?: boolean }) => (
     <tr>
@@ -38,13 +37,10 @@ export default function LimiteMei({ r }: { r: ResumoMei }) {
         <strong style={{ fontSize: '1.1rem', color: aviso.cor }}>{r.percentual.toFixed(1).replace('.', ',')}%</strong>
       </div>
       <div className="text-muted" style={{ fontSize: '0.78rem' }}>
-        {r.porNotas > r.faturado
-          ? `Contando as notas emitidas no ano + serviços sem nota. Pelo dinheiro que já entrou: ${moeda(r.faturado)}.`
-          : 'Contando o dinheiro recebido no ano (com nota + sem nota).'}
+        Notas fiscais emitidas no ano (serviço + produto). Recebimentos sem nota não entram nesta conta.
       </div>
 
       <div style={{ position: 'relative', height: 14, borderRadius: 7, background: 'var(--surface-hover)', margin: '0.5rem 0 0.25rem', overflow: 'hidden' }}>
-        {anoCorrente && r.aReceberNoAno > 0 && <div style={{ position: 'absolute', inset: 0, width: largura(comAReceber), background: aviso.cor, opacity: 0.3 }} title="Com o que ainda tem a receber no ano" />}
         <div style={{ position: 'absolute', inset: 0, width: largura(r.base), background: aviso.cor }} />
         <div style={{ position: 'absolute', top: 0, bottom: 0, left: largura(r.limite), width: 2, background: 'var(--text-main, currentColor)' }} title={`Limite: ${moeda(r.limite)}`} />
       </div>
@@ -58,8 +54,6 @@ export default function LimiteMei({ r }: { r: ResumoMei }) {
           <tbody>
             <Linha forte rotulo={r.restante >= 0 ? 'Ainda pode faturar' : 'Passou do limite em'} valor={moeda(Math.abs(r.restante))} cor={r.restante >= 0 ? undefined : 'var(--accent-red)'}
               detalhe={r.podeFaturarPorMes !== null && r.restante > 0 ? `Cerca de ${moeda(r.podeFaturarPorMes)} por mês até dezembro` : undefined} />
-            {anoCorrente && <Linha rotulo="A receber até dezembro" valor={moeda(r.aReceberNoAno)}
-              detalhe={r.aReceberNoAno > 0 ? `Se tudo entrar: ${moeda(comAReceber)} (${comAReceber > r.limite ? `${moeda(comAReceber - r.limite)} acima do limite` : `sobram ${moeda(r.limite - comAReceber)}`})` : undefined} />}
             {anoCorrente && r.mediaMensal !== null && <Linha rotulo="Média por mês no ano" valor={moeda(r.mediaMensal)} detalhe={`O limite dá ${moeda(r.limite / 12)} por mês`} />}
             {anoCorrente && r.projecao !== null && <Linha rotulo="Previsão para o fim do ano" valor={moeda(r.projecao)} cor={r.projecao > r.limite ? 'var(--accent-red)' : undefined} detalhe="No ritmo do ano até hoje" />}
           </tbody>
@@ -67,18 +61,18 @@ export default function LimiteMei({ r }: { r: ResumoMei }) {
         <table style={{ width: '100%', fontSize: '0.9rem' }}>
           <tbody>
             <Linha forte rotulo="Para a declaração anual (DASN-SIMEI)" valor="" />
-            <Linha rotulo="Comércio (venda de produtos)" valor={moeda(r.comercio)} />
-            <Linha rotulo="Prestação de serviços" valor={moeda(r.servicos)} />
-            <Linha rotulo="Total recebido no ano" valor={moeda(r.faturado)} detalhe="Com nota + sem nota, pela data em que o dinheiro entrou" />
-            <Linha rotulo="Pela data das notas" valor={moeda(r.porNotas)} detalhe="Notas emitidas no ano + serviços sem nota recebidos" />
+            <Linha rotulo="Comércio (NF-e de venda)" valor={moeda(r.comercio)} />
+            <Linha rotulo="Prestação de serviços (NFS-e)" valor={moeda(r.servicos)} />
+            <Linha forte rotulo="Total com nota no ano" valor={moeda(r.base)} />
+            <Linha rotulo="Já recebido dessas notas" valor={moeda(r.recebidoComNota)} detalhe="Pela data em que o dinheiro entrou; o restante está parcelado ou a receber" />
           </tbody>
         </table>
       </div>
 
       <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.75rem', marginBottom: 0 }}>
-        O aviso usa o maior dos dois totais. Reembolsos, rendimento de investimentos e aportes do sócio não entram.
+        Conta só as notas autorizadas (canceladas e devoluções ficam de fora). Serviços sem nota, reembolsos, rendimento de investimentos e aportes do sócio não entram.
         Até {moeda(r.teto)} (20% acima) o MEI paga imposto sobre o excedente e sai do MEI em janeiro; acima disso o desenquadramento vale desde janeiro deste ano.
-        Confirme com o contador qual total declarar.
+        Confirme com o contador o valor a declarar.
       </p>
     </div>
   )

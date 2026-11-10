@@ -26,7 +26,7 @@ export function decryptSecret(payload: string): string {
     const decipher = crypto.createDecipheriv('aes-256-gcm', getKey(), iv)
     decipher.setAuthTag(authTag)
     return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8')
-  } catch (error) {
+  } catch {
     throw new Error('Falha de criptografia: a chave secreta de ambiente (AUTH_SECRET) foi alterada ou é inválida. Por favor, acesse a tela de Configurações e recadastre o Certificado Digital e a Senha.')
   }
 }

@@ -20,7 +20,7 @@ export async function createQuote(formData: FormData) {
     validUntil = new Date(validUntilStr)
   }
 
-  const quote = await prisma.quote.create({
+  await prisma.quote.create({
     data: {
       customerId: customerId || null,
       total,

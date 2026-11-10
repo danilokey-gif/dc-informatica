@@ -3,7 +3,6 @@ import { updateOS, deleteOS } from "../actions"
 import BotaoExcluir from "@/components/BotaoExcluir"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import SearchableSelect from "@/components/SearchableSelect"
 import OSEditForm from "./OSEditForm"
 import FotosOS from "./FotosOS"
 

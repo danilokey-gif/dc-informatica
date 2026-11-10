@@ -205,7 +205,7 @@ export async function emitirNfeVenda(saleId: string) {
 }
 
 export async function enviarNfeEmail(saleId: string) {
-  const [venda, empresa, nfeConfig, emissao] = await Promise.all([
+  const [venda, empresa, , emissao] = await Promise.all([
     prisma.sale.findUniqueOrThrow({
       where: { id: saleId },
       include: { customer: true, items: { include: { product: true } } }

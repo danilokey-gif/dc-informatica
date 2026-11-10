@@ -111,7 +111,6 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
   }
   const totalReceitasAno = receitasMes.reduce((a, b) => a + b, 0)
   const totalDespesasAno = despesasMes.reduce((a, b) => a + b, 0)
-  const saldoAno = totalReceitasAno - totalDespesasAno
 
   return (
     <div className="animate-fade-in">

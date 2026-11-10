@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma"
 import { createCategory, deleteCategory } from "../actions"
-import Link from "next/link"
 
 export const dynamic = 'force-dynamic'
 

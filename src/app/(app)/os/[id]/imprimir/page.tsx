@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { finalizarOsSemNota, desfazerOsSemNota } from "../../../sem-nota-actions"
 import FotosOS from "../FotosOS"
@@ -199,7 +200,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
         <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
           <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Financeiro</h3>
           {jaTemContaReceber ? (
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Conta a receber já gerada para esta OS. <a href="/financeiro/contas" className="text-primary">Ver em Financeiro</a>.</p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Conta a receber já gerada para esta OS. <Link href="/financeiro/contas" className="text-primary">Ver em Financeiro</Link>.</p>
           ) : os.price ? (
             <form action={gerarContaAction} className="flex gap-4 items-end" style={{ flexWrap: 'wrap' }}>
               <div className="input-group" style={{ marginBottom: 0, minWidth: '100px' }}>
@@ -293,7 +294,7 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
           <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
             {ultimaEmissao?.status === 'CANCELADA' && (
               <p style={{ color: '#b91c1c', fontWeight: 'bold' }}>
-                🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta "Canceladas" no drive local.
+                🚫 Esta nota fiscal foi CANCELADA. Os arquivos XML e PDF correspondentes foram movidos para a pasta &quot;Canceladas&quot; no drive local.
               </p>
             )}
             {!nfseAutorizada && ultimaEmissao?.status !== 'CANCELADA' && (

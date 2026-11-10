@@ -141,7 +141,7 @@ export default function SearchableSelect({
                 setAberto(false)
               }}
             >
-              + Cadastrar "{texto}"
+              + Cadastrar &quot;{texto}&quot;
             </div>
           )}
         </div>

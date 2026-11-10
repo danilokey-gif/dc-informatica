@@ -58,7 +58,7 @@ export default function QuoteForm({ produtos, clientes }: { produtos: Produto[],
     
     let finalName = ''
     let finalProductId = undefined
-    let finalIsService = itemType === 'service'
+    const finalIsService = itemType === 'service'
 
     if (itemType === 'product') {
       const produto = produtos.find(p => p.id === selectedProductId)

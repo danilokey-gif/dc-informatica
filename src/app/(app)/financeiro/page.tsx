@@ -4,6 +4,9 @@ import { inicioDoDiaUTC, formatarDataUTC } from "@/lib/dates"
 import { registrarPagamento } from "./actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
 import { SELECT_NOTA, origemReceita, type Origem } from "@/lib/financeiro-nota"
+import { resumoMei } from "@/lib/limite-mei"
+import { notasDoAno } from "../notas-fiscais/notas-do-ano"
+import LimiteMei from "./LimiteMei"
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +30,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
   const proximo = { mes: mes === 12 ? 1 : mes + 1, ano: mes === 12 ? ano + 1 : ano }
   const em30 = new Date(hoje.getTime() + 30 * 86400000)
 
-  const [pagosMes, pagos12, abertos, ultimoSaldo, recentes, receitasAno] = await Promise.all([
+  const [pagosMes, pagos12, abertos, ultimoSaldo, recentes, receitasAno, notasAno, nfseConfig] = await Promise.all([
     prisma.financeTransaction.findMany({
       where: { status: 'PAGO', type: { in: ['RECEITA', 'DESPESA'] }, paidDate: { gte: ini, lt: fim } },
       select: { type: true, amount: true, category: { select: { name: true } } },
@@ -52,6 +55,8 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
       where: { type: 'RECEITA', status: 'PAGO', paidDate: { gte: inicioMes(ano, 1), lt: inicioMes(ano + 1, 1) } },
       select: { amount: true, paidDate: true, ...SELECT_NOTA },
     }),
+    notasDoAno(ano),
+    prisma.nfseConfig.findUnique({ where: { id: 'main' }, select: { regimeTributario: true } }),
   ])
 
   // Faturamento com nota × sem nota (mês escolhido e ano todo).
@@ -64,6 +69,19 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
   const origemMes = porOrigem(receitasAno.filter(r => r.paidDate && r.paidDate >= ini && r.paidDate < fim))
 
   const soma = (ls: { amount: number }[]) => ls.reduce((s, l) => s + l.amount, 0)
+
+  // Limite do MEI: faturamento do ano (sem reembolsos), separado em comércio e serviços.
+  const faturamentoAno = receitasAno.filter(r => origemReceita(r) !== 'OUTROS')
+  const comercioAno = soma(faturamentoAno.filter(r => r.sale || r.category?.name === 'Vendas de produtos'))
+  const mei = (nfseConfig?.regimeTributario ?? 'MEI') === 'MEI' ? resumoMei({
+    ano,
+    hoje: agora.toISOString().slice(0, 10),
+    comercio: comercioAno,
+    servicos: soma(faturamentoAno) - comercioAno,
+    semNota: origemAno.SEM_NOTA,
+    notasEmitidas: notasAno.filter(n => (n.grupo === 'servico' || n.grupo === 'produto') && n.status === 'AUTORIZADA').reduce((s, n) => s + n.valor, 0),
+    aReceberNoAno: soma(abertos.filter(l => l.type === 'RECEITA' && l.dueDate < inicioMes(ano + 1, 1))),
+  }) : null
   const recebido = soma(pagosMes.filter(l => l.type === 'RECEITA'))
   const pago = soma(pagosMes.filter(l => l.type === 'DESPESA'))
   const resultado = recebido - pago
@@ -196,6 +214,8 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
           Com nota = recebimento ligado a uma NF-e ou NFS-e autorizada (venda, OS ou nota anotada no lançamento). Pela data em que o dinheiro entrou.
         </p>
       </div>
+
+      {mei && <LimiteMei r={mei} />}
 
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <div className="flex justify-between items-center" style={{ marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>

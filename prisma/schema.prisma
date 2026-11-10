@@ -138,6 +138,10 @@ model CompanySettings {
   gdriveConta         String?
   /// Pasta "Dc Informática - Sistema" criada pelo próprio sistema no Drive do usuário.
   gdrivePastaRaizId   String?
+  /// Backup do banco de dados no Google Drive (pasta "Backups"): quando rodou por último e o que deu.
+  backupUltimoEm        DateTime?
+  backupUltimoResultado String?
+  backupUltimoOk        Boolean?
   updatedAt         DateTime @updatedAt
 }
 

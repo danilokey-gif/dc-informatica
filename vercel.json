@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/cobrancas-mensais",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/backup",
+      "schedule": "0 6 * * *"
     }
   ]
 }

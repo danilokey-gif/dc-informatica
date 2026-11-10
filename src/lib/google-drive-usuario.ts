@@ -145,6 +145,13 @@ export async function enviarArquivoPequeno(token: string, nome: string, mimeType
   return (await r.json()).id as string
 }
 
+/** Arquivos (não pastas) de uma pasta, do mais novo para o mais antigo. */
+export async function listarArquivos(token: string, pastaId: string): Promise<{ id: string; name: string; size?: string; createdTime?: string }[]> {
+  const q = `'${pastaId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`
+  const r = await (await api(token, `/files?q=${encodeURIComponent(q)}&fields=files(id,name,size,createdTime)&orderBy=name desc&pageSize=1000`)).json()
+  return r.files || []
+}
+
 /** Move um arquivo para outra pasta e renomeia (usado para notas canceladas). */
 export async function moverArquivo(token: string, nome: string, deId: string, paraId: string, novoNome: string) {
   const q = `name='${nome.replace(/'/g, "\\'")}' and '${deId}' in parents and trashed=false`

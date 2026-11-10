@@ -1,5 +1,6 @@
 import CampoCep from "@/components/CampoCep"
 import GoogleDriveConfig from "./GoogleDriveConfig"
+import BackupConfig from "./BackupConfig"
 import TesteLeiauteNfse from "./TesteLeiauteNfse"
 import { getCompanySettings, getNfseConfig, getNfeConfig } from "@/lib/settings"
 import { updateSettings, updateNfseConfig, updateNfeConfig } from "./actions"
@@ -151,6 +152,13 @@ export default async function ConfiguracoesPage({ searchParams }: { searchParams
         conectado={!!settings.gdriveRefreshToken}
         conta={settings.gdriveConta}
         situacao={drive}
+      />
+
+      <BackupConfig
+        driveConectado={!!settings.gdriveRefreshToken}
+        ultimoEm={settings.backupUltimoEm}
+        ultimoResultado={settings.backupUltimoResultado}
+        ultimoOk={settings.backupUltimoOk}
       />
 
       <div id="nfse" className="card" style={{ borderLeft: '4px solid var(--primary)', scrollMarginTop: '1rem' }}>

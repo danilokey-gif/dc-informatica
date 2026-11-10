@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { encryptSecret } from "@/lib/crypto"
 import { extractCertMaterial } from "@/lib/nfse/certificate"
+import { getCurrentUser } from "@/lib/auth"
+import { fazerBackupNoDrive } from "@/lib/backup"
 
 /**
  * Nome exibido do certificado: o titular que vem de dentro do arquivo, e não o nome do arquivo.
@@ -191,6 +193,14 @@ export async function salvarCredenciaisGoogle(formData: FormData) {
   })
   revalidatePath('/configuracoes')
   redirect('/configuracoes?drive=credenciais-salvas#google-drive')
+}
+
+export async function fazerBackupAgora() {
+  const usuario = await getCurrentUser()
+  if (usuario?.role !== 'ADMIN') redirect('/')
+  await fazerBackupNoDrive('manual')
+  revalidatePath('/configuracoes')
+  redirect('/configuracoes#backup')
 }
 
 export async function desconectarGoogle() {

@@ -18,7 +18,7 @@ export default async function DevolucaoPage({ searchParams }: { searchParams: Pr
   const { tipo: tipoParam, id } = await searchParams
   const tipo = tipoParam === 'venda' ? 'venda' : tipoParam === 'compra' ? 'compra' : null
 
-  const [compras, vendas, devolucoes] = await Promise.all([
+  const [compras, vendas, devolucoes, vendasTeste] = await Promise.all([
     prisma.nfeRecebida.findMany({
       where: { completa: true, situacao: { not: '3' } },
       orderBy: { dataEmissao: 'desc' },
@@ -36,21 +36,33 @@ export default async function DevolucaoPage({ searchParams }: { searchParams: Pr
       orderBy: { createdAt: 'desc' },
       take: 20,
     }),
+    // Notas de venda autorizadas na homologação: servem de origem para testar a devolução sem valor fiscal.
+    prisma.nfeEmissao.findMany({
+      where: { status: 'AUTORIZADA', ambiente: 'homologacao', finalidade: 'VENDA', xmlNfe: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { id: true, numero: true, serie: true, valorTotal: true, dataEmissao: true, createdAt: true },
+    }),
   ])
 
   const empresa = await prisma.companySettings.findUnique({ where: { id: 'main' }, select: { document: true } }) ?? { document: null }
   let original: NotaOriginal | null = null
   let erroOriginal: string | null = null
   let restantes: Record<number, number> = {}
+  let origemDeTeste = false
   if (tipo && id) {
     try {
-      const xml = tipo === 'compra'
-        ? (await prisma.nfeRecebida.findUnique({ where: { id } }))?.xml
-        : (await prisma.nfeEmissao.findUnique({ where: { id } }))?.xmlNfe
+      let xml: string | null | undefined
+      if (tipo === 'compra') xml = (await prisma.nfeRecebida.findUnique({ where: { id } }))?.xml
+      else {
+        const nota = await prisma.nfeEmissao.findUnique({ where: { id }, select: { xmlNfe: true, ambiente: true } })
+        xml = nota?.xmlNfe
+        origemDeTeste = !!nota && nota.ambiente !== 'producao'
+      }
       if (!xml) throw new Error('Nota não encontrada.')
       original = lerNotaOriginal(xml, tipo)
       const anteriores = await prisma.nfeEmissao.findMany({
-        where: { chaveReferenciada: original.chave, status: 'AUTORIZADA', ambiente: 'producao' },
+        where: { chaveReferenciada: original.chave, status: 'AUTORIZADA', ambiente: origemDeTeste ? 'homologacao' : 'producao' },
         select: { xmlNfe: true },
       })
       const ja = quantidadesDevolvidas(anteriores.map(a => a.xmlNfe))
@@ -99,6 +111,21 @@ export default async function DevolucaoPage({ searchParams }: { searchParams: Pr
         </div>
       )}
 
+      {!original && vendasTeste.length > 0 && (
+        <div className="card mt-4">
+          <h3 style={{ fontSize: '1.1rem' }}>🧪 Testar a devolução na homologação</h3>
+          <p className="text-muted" style={{ fontSize: '0.85rem' }}>
+            Notas de venda de teste (sem valor fiscal). A devolução delas também vai só para a homologação: não usa a numeração real nem mexe no estoque.
+          </p>
+          {vendasTeste.map(v => (
+            <Link key={v.id} href={`/notas-fiscais/devolucao?tipo=venda&id=${v.id}`} className="pendencia-nota" style={{ marginTop: '0.5rem' }}>
+              <span><strong>NF-e {v.numero}</strong> (série {v.serie}) · teste<br /><span className="text-muted" style={{ fontSize: '0.8rem' }}>{dataBr(v.dataEmissao || v.createdAt)}</span></span>
+              <span>{moeda(v.valorTotal)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {erroOriginal && <div className="card" style={{ color: 'var(--badge-danger-text)' }}>{erroOriginal} <Link href="/notas-fiscais/devolucao" className="text-primary">Voltar</Link></div>}
 
       {original && tipo && id && (
@@ -114,14 +141,20 @@ export default async function DevolucaoPage({ searchParams }: { searchParams: Pr
             </div>
             <Link href="/notas-fiscais/devolucao" className="btn btn-outline" style={{ alignSelf: 'flex-start' }}>Trocar nota</Link>
           </div>
-          {!notaEhDaEmpresa(original, tipo, empresa.document || '') && (
+          {origemDeTeste && (
+            <div style={{ marginTop: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--badge-warning-bg)', color: 'var(--badge-warning-text)', fontSize: '0.9rem' }}>
+              🧪 Nota de teste (homologação). A devolução será enviada só como teste, sem valor fiscal.
+            </div>
+          )}
+          {!origemDeTeste && !notaEhDaEmpresa(original, tipo, empresa.document || '') && (
             <div style={{ marginTop: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--badge-warning-bg)', color: 'var(--badge-warning-text)', fontSize: '0.9rem' }}>
               ⚠ {tipo === 'compra'
                 ? <>Esta compra saiu no documento <strong>{original.documentoDestinatario}</strong>, não no CNPJ da empresa. A empresa não pode emitir a devolução dela: a troca precisa ser tratada direto com o fornecedor. Só o teste na homologação fica liberado.</>
                 : <>Esta NF-e não foi emitida pelo CNPJ da empresa. Só o teste na homologação fica liberado.</>}
             </div>
           )}
-          <FormDevolucao tipo={tipo} origemId={id} itens={original.itens} restantes={restantes} />
+          <FormDevolucao tipo={tipo} origemId={id} itens={original.itens} restantes={restantes}
+            somenteTeste={origemDeTeste || !notaEhDaEmpresa(original, tipo, empresa.document || '')} />
         </div>
       )}
 

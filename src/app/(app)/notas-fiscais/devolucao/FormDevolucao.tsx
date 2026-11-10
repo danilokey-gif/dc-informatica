@@ -8,17 +8,20 @@ import { emitirDevolucao, type ResultadoDevolucao } from './actions'
 
 const moeda = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export default function FormDevolucao({ tipo, origemId, itens, restantes }: {
+export default function FormDevolucao({ tipo, origemId, itens, restantes, somenteTeste = false }: {
   tipo: 'compra' | 'venda'
   origemId: string
   itens: ItemOriginal[]
   restantes: Record<number, number>
+  /** Nota de teste ou que não é da empresa: só o envio à homologação fica liberado. */
+  somenteTeste?: boolean
 }) {
   const router = useRouter()
   const [quantidades, setQuantidades] = useState<Record<number, number>>({})
   const [motivo, setMotivo] = useState('')
   const [ajustarEstoque, setAjustarEstoque] = useState(true)
-  const [homologacao, setHomologacao] = useState(true)
+  const [homologacaoMarcada, setHomologacao] = useState(true)
+  const homologacao = somenteTeste || homologacaoMarcada
   const [enviando, iniciar] = useTransition()
   const [resultado, setResultado] = useState<ResultadoDevolucao | null>(null)
 
@@ -84,7 +87,7 @@ export default function FormDevolucao({ tipo, origemId, itens, restantes }: {
           {tipo === 'compra' ? 'Tirar do estoque o que foi devolvido' : 'Voltar ao estoque o que o cliente devolveu'}
         </label>
         <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', cursor: 'pointer' }}>
-          <input type="checkbox" checked={homologacao} onChange={e => setHomologacao(e.target.checked)} />
+          <input type="checkbox" checked={homologacao} disabled={somenteTeste} onChange={e => setHomologacao(e.target.checked)} />
           Testar na homologação (sem valor fiscal)
         </label>
       </div>
@@ -95,7 +98,7 @@ export default function FormDevolucao({ tipo, origemId, itens, restantes }: {
           {enviando ? 'Enviando à Sefaz…' : homologacao ? 'Testar nota de devolução' : 'Emitir nota de devolução'}
         </button>
       </div>
-      {homologacao && <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>No teste o estoque não é alterado. Desmarque &quot;Testar&quot; para emitir a nota real.</p>}
+      {homologacao && <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>No teste o estoque não é alterado. {!somenteTeste && <> Desmarque &quot;Testar&quot; para emitir a nota real.</>}</p>}
 
       {resultado && (
         <div style={{ marginTop: '1rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.9rem',

@@ -18,17 +18,17 @@ export interface ResultadoDevolucao {
   emissaoId?: string
 }
 
-/** Busca o XML da nota original (compra recebida ou venda emitida). */
-async function xmlDaOrigem(tipo: 'compra' | 'venda', id: string) {
+/** Busca o XML da nota original (compra recebida ou venda emitida) e se ela é uma nota de teste. */
+async function xmlDaOrigem(tipo: 'compra' | 'venda', id: string): Promise<{ xml: string; deTeste: boolean }> {
   if (tipo === 'compra') {
     const nota = await prisma.nfeRecebida.findUnique({ where: { id } })
-    if (!nota?.completa) throw new Error('Esta nota de compra não tem o XML completo no sistema.')
+    if (!nota?.completa || !nota.xml) throw new Error('Esta nota de compra não tem o XML completo no sistema.')
     if (nota.situacao === '3') throw new Error('A nota de compra está cancelada.')
-    return nota.xml
+    return { xml: nota.xml, deTeste: false }
   }
   const nota = await prisma.nfeEmissao.findUnique({ where: { id } })
   if (!nota?.xmlNfe || nota.status !== 'AUTORIZADA') throw new Error('Esta venda não tem NF-e autorizada no sistema.')
-  return nota.xmlNfe
+  return { xml: nota.xmlNfe, deTeste: nota.ambiente !== 'producao' }
 }
 
 /**
@@ -49,7 +49,10 @@ export async function emitirDevolucao(entrada: {
   let emissaoId: string | null = null
   try {
     const { tipo } = entrada
-    const [empresa, cfg, xmlOriginal] = await Promise.all([getCompanySettings(), getNfeConfig(), xmlDaOrigem(tipo, entrada.origemId)])
+    const [empresa, cfg, origem] = await Promise.all([getCompanySettings(), getNfeConfig(), xmlDaOrigem(tipo, entrada.origemId)])
+    const xmlOriginal = origem.xml
+    // Nota de teste (homologação) só pode gerar devolução de teste: nunca uma nota real.
+    if (origem.deTeste && !entrada.homologacao) throw new Error('Esta é uma nota de teste (homologação): a devolução dela só pode ser enviada como teste.')
     if (!cfg.certificado || !cfg.certificadoSenha) throw new Error('Certificado digital não configurado (Configurações > Nota Fiscal de Produtos).')
     if (!empresa.document || !empresa.inscricaoEstadual) throw new Error('CNPJ ou Inscrição Estadual da empresa não configurados.')
     if (!empresa.enderLogradouro || !empresa.enderNumero || !empresa.enderBairro || !empresa.enderCep || !cfg.codigoMunicipio || !cfg.nomeMunicipio) {

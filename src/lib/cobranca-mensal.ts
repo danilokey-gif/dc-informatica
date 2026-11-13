@@ -82,7 +82,7 @@ export async function processarCobranca(cobrancaId: string, opcoes: { manual?: b
     })
     osId = os.id
 
-    const emissao = await emitirNfseDaOs(os.id, { codigoServico: cobranca.codigoServico })
+    const emissao = await emitirNfseDaOs(os.id, { codigoServico: cobranca.codigoServico }, { criarContaAReceber: false })
 
     if (!emissao.ok) {
       // Não tenta de novo sozinha: sem certeza de que a prefeitura não emitiu, repetir pode gerar

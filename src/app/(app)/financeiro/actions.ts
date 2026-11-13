@@ -124,6 +124,21 @@ export async function gerarContaReceberOS(serviceOrderId: string, formData?: For
     throw new Error('A OS não tem valor definido.')
   }
 
+  // A conta criada sozinha ao emitir a nota (pendente, forma "NFS-e") dá lugar ao parcelamento escolhido
+  // aqui. Qualquer outra conta a receber já lançada para a OS não é mexida e nada é gerado em dobro.
+  const existentes = await prisma.financeTransaction.findMany({
+    where: { serviceOrderId, type: 'RECEITA', status: { not: 'CANCELADO' } },
+    select: { id: true, status: true, paymentMethod: true, notes: true },
+  })
+  const automaticas = existentes.filter(t => t.status === 'PENDENTE' && t.paymentMethod === 'NFS-e')
+  if (existentes.length > automaticas.length) return
+  for (const a of automaticas) {
+    await prisma.financeTransaction.update({
+      where: { id: a.id },
+      data: { status: 'CANCELADO', notes: `${a.notes ? `${a.notes} ` : ''}Substituída pelo parcelamento gerado na OS.` },
+    })
+  }
+
   const valores = dividirEmParcelas(os.price, parcelas)
 
   for (let i = 0; i < parcelas; i++) {

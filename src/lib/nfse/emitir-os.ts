@@ -7,6 +7,7 @@ import { montarXmlDps, assinarDps, type DpsTomador, type LeiauteDps } from "@/li
 import tabelasIbge from "@/lib/nfse/tabelas-ibge.json"
 import { gerarDanfsePdf } from "@/lib/nfse/danfse"
 import { salvarNotaNoDrive } from "@/lib/drive"
+import { criarContaAReceberDaNfse } from "@/lib/nfse/conta-a-receber"
 
 /** Código de serviço próprio, no lugar do que está na configuração geral da NFS-e. A descrição
  * do código não vai na DPS: a Sefin devolve o xTribNac na NFS-e e o DANFSe lê de lá. */
@@ -79,7 +80,12 @@ export function leiauteDaDps(ambiente: 'producao' | 'homologacao', configurado: 
   return ambiente === 'homologacao' || configurado === 'nt009' ? 'nt009' : 'atual'
 }
 
-export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNfse): Promise<ResultadoEmissaoNfse> {
+export interface OpcoesEmissaoNfse {
+  /** Cria a conta a receber (pendente) ao autorizar a nota. Padrão: sim. A cobrança mensal cria a própria. */
+  criarContaAReceber?: boolean
+}
+
+export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNfse, opcoes: OpcoesEmissaoNfse = {}): Promise<ResultadoEmissaoNfse> {
   let emissaoId: string | null = null
   try {
     const [os, empresa, nfseConfig] = await Promise.all([
@@ -219,6 +225,19 @@ export async function emitirNfseDaOs(serviceOrderId: string, servico?: ServicoNf
     ])
 
     const numeroNfse = resposta.xmlNfse?.match(/<nNFSe>(\d+)<\/nNFSe>/)?.[1] || String(numeroDps)
+
+    // Conta a receber da nota (só nota de verdade, em produção). Falha aqui não desfaz a nota: o
+    // pagamento ainda pode ser lançado à mão em Financeiro ou pelo formulário da OS.
+    if (ambiente === 'producao' && opcoes.criarContaAReceber !== false) {
+      try {
+        await criarContaAReceberDaNfse({
+          serviceOrderId, customerId: os.customerId, cliente: os.customer.name, valor: os.price,
+          numeroNfse, chaveAcesso: resposta.chaveAcesso || null, dataEmissao,
+        })
+      } catch (err) {
+        console.error('[Financeiro] Erro ao criar a conta a receber da NFS-e:', err)
+      }
+    }
 
     // A nota já está autorizada daqui pra baixo: falha no PDF ou no Drive não muda o resultado.
     let pdf: Buffer | null = null

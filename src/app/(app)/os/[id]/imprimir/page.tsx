@@ -11,6 +11,7 @@ import DownloadPdfButton from '@/components/DownloadPdfButton'
 import WhatsAppButton from "./WhatsAppButton"
 import { emitirNfseServiceOrder, enviarNfseEmail, cancelarNfseServiceOrder } from "./nfse-actions"
 import CancelarNfseForm from "./CancelarNfseForm"
+import { situacaoContasDaOs } from "@/lib/nfse/conta-a-receber"
 import { gerarContaReceberOS } from "../../../financeiro/actions"
 import { gerarPixCopiaECola, gerarPixQrCodeDataUrl } from "@/lib/pix"
 import CopyPixButton from "./CopyPixButton"
@@ -34,7 +35,8 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
   }
 
   const gerarContaAction = gerarContaReceberOS.bind(null, os.id)
-  const jaTemContaReceber = os.transactions.some(t => t.type === 'RECEITA')
+  const contasDaOs = situacaoContasDaOs(os.transactions)
+  const jaTemContaReceber = contasDaOs.jaDefinida
 
   const nfseConfigurada = !!(nfseConfig.certificado && nfseConfig.codigoMunicipio && nfseConfig.codigoServico && nfseConfig.aliquotaIss !== null)
   const ultimaEmissao = os.nfseEmissoes[0]
@@ -200,6 +202,13 @@ export default async function ImprimirOSPage({ params }: { params: Promise<{ id:
       {user && (
         <div className="no-print" style={{ marginTop: '2rem', border: '1px solid #e5e7eb', padding: '1rem', borderRadius: '0.5rem' }}>
           <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#374151', fontSize: '1.125rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>Financeiro</h3>
+          {contasDaOs.soAutomatica && (
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+              ✅ A conta a receber desta nota foi criada automaticamente. Para dar baixa quando o cliente pagar, use{' '}
+              <Link href="/financeiro/contas?aberto=RECEITA" className="text-primary">Financeiro → A receber</Link>.
+              Para parcelar ou informar a forma de pagamento, use o formulário abaixo (ele substitui a automática).
+            </p>
+          )}
           {jaTemContaReceber ? (
             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Conta a receber já gerada para esta OS. <Link href="/financeiro/contas" className="text-primary">Ver em Financeiro</Link>.</p>
           ) : os.price ? (

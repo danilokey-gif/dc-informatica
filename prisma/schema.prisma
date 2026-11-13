@@ -438,5 +438,9 @@ model SaldoInvestimento {
   data      DateTime
   valor     Float
   descricao String?
+  /// Rendimento bruto do mês (do extrato da Caixinha), antes do imposto. Nulo nos saldos lançados à mão.
+  rendimentoBruto Float?
+  /// IR/IOF retido nesse período (renovações do RDB). Nulo nos saldos lançados à mão.
+  impostoRetido   Float?
   createdAt DateTime @default(now())
 }

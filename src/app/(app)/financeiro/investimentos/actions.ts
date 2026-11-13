@@ -80,11 +80,11 @@ export async function importarExtratoCaixinha(formData: FormData): Promise<{ ok:
       const d = meioDia(s.data)
       const existente = await prisma.saldoInvestimento.findFirst({ where: { data: { gte: new Date(d.getTime() - 43200000), lte: new Date(d.getTime() + 43200000) } } })
       if (existente) {
-        if (Math.abs(existente.valor - s.saldo) > 0.009 || existente.descricao !== descricao) {
-          await prisma.saldoInvestimento.update({ where: { id: existente.id }, data: { valor: s.saldo, descricao } }); atualizados++
+        if (Math.abs(existente.valor - s.saldo) > 0.009 || existente.descricao !== descricao || existente.rendimentoBruto !== s.rendimento || existente.impostoRetido !== s.imposto) {
+          await prisma.saldoInvestimento.update({ where: { id: existente.id }, data: { valor: s.saldo, descricao, rendimentoBruto: s.rendimento, impostoRetido: s.imposto } }); atualizados++
         }
       } else {
-        await prisma.saldoInvestimento.create({ data: { data: d, valor: s.saldo, descricao } }); criados++
+        await prisma.saldoInvestimento.create({ data: { data: d, valor: s.saldo, descricao, rendimentoBruto: s.rendimento, impostoRetido: s.imposto } }); criados++
       }
     }
 

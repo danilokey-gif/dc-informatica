@@ -17,3 +17,23 @@ export function pagadorConfere(memo: string, documento: string | null | undefine
   const palavras = normalizar(nome).match(/[A-Z]{4,}/g)?.filter(p => !COMUNS.has(p)) ?? []
   return palavras.filter(p => m.includes(p)).length >= Math.min(2, palavras.length) && palavras.length > 0
 }
+
+const DIA_MS = 86_400_000
+
+/**
+ * Procura, entre os lançamentos JÁ PAGOS (baixa manual, venda, OS, compra) de mesmo valor, o que o
+ * extrato do banco está confirmando. Vale quem pagou conferir com o cliente; e, se não conferir
+ * (ex.: o Pix veio do responsável da paróquia), vale uma baixa feita à mão na MESMA data do banco,
+ * desde que seja a única candidata. Assim a baixa manual não vira um segundo lançamento.
+ */
+export function acharLancamentoJaPago<T extends { status: string; paymentMethod: string | null; dueDate: Date; paidDate: Date | null }>(
+  candidatos: T[], dataBanco: Date, confere: (c: T) => boolean,
+): T | undefined {
+  // Para quem já foi pago vale a data do pagamento; a do vencimento é só a reserva.
+  const dias = (c: T) => (dataBanco.getTime() - (c.paidDate ?? c.dueDate).getTime()) / DIA_MS
+  const pagos = candidatos.filter(c => c.status === 'PAGO' && c.paymentMethod !== 'Transferência/Bancário' && dias(c) >= -10 && dias(c) <= 15)
+  const porPagador = pagos.filter(confere).sort((a, b) => Math.abs(dias(a)) - Math.abs(dias(b)))[0]
+  if (porPagador) return porPagador
+  const mesmoDia = pagos.filter(c => c.paidDate && Math.abs(dias(c)) <= 1)
+  return mesmoDia.length === 1 ? mesmoDia[0] : undefined
+}

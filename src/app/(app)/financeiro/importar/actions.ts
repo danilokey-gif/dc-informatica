@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { classificarExtrato } from "@/lib/financeiro-tipos"
-import { pagadorConfere } from "@/lib/conciliacao"
+import { pagadorConfere, acharLancamentoJaPago } from "@/lib/conciliacao"
 import { categoriaSugerida } from "@/lib/financeiro-categorias"
 
 export interface ImportTransactionPayload {
@@ -38,7 +38,7 @@ export async function salvarTransacoesImportadas(transacoes: ImportTransactionPa
     const candidatos = await prisma.financeTransaction.findMany({
       where: { status: { not: 'CANCELADO' }, dueDate: { gte: de, lte: ate } },
       select: {
-        id: true, description: true, amount: true, type: true, status: true, dueDate: true, notes: true, paymentMethod: true,
+        id: true, description: true, amount: true, type: true, status: true, dueDate: true, paidDate: true, notes: true, paymentMethod: true,
         customer: { select: { name: true, document: true } }, supplier: { select: { name: true, document: true } },
       },
     })
@@ -106,8 +106,7 @@ export async function salvarTransacoesImportadas(transacoes: ImportTransactionPa
         continue
       }
       // 3. Já lançado e pago pelo sistema (venda, OS, compra, aplicação).
-      const jaPago = mesmoValor.filter(c => c.status === 'PAGO' && c.paymentMethod !== 'Transferência/Bancário' && dias(c) >= -10 && dias(c) <= 15 && confere(c))
-        .sort((a, b) => Math.abs(dias(a)) - Math.abs(dias(b)))[0]
+      const jaPago = acharLancamentoJaPago(mesmoValor, data, confere)
       if (jaPago) {
         usados.add(jaPago.id)
         await prisma.financeTransaction.update({ where: { id: jaPago.id }, data: {

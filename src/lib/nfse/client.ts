@@ -33,6 +33,26 @@ interface NfsePostResponseErro {
   erros?: MensagemProcessamento[]
 }
 
+interface NfseRespostaEvento {
+  eventoXmlGZipB64?: string
+  erro?: MensagemProcessamento[]
+  erros?: MensagemProcessamento[]
+}
+
+/** Texto do erro de um evento: mensagens da Sefin (se vierem) e, sempre, o status HTTP e o corpo recebido. */
+export function mensagemDeErroEvento(status: number, data: unknown): string {
+  const obj = typeof data === 'object' && data ? (data as NfseRespostaEvento) : null
+  const lista = [...(obj?.erros || []), ...(obj?.erro || [])]
+  const mensagens = lista.map(e => {
+    const m = e as MensagemProcessamento & { codigo?: string; descricao?: string; complemento?: string }
+    const codigo = e.Codigo ?? m.codigo, descricao = e.Descricao ?? m.descricao, complemento = e.Complemento ?? m.complemento
+    return `[${codigo}] ${descricao}${complemento ? ` — ${complemento}` : ''}`
+  })
+  if (mensagens.length > 0) return mensagens.join('; ')
+  const corpo = (typeof data === 'string' ? data : data ? JSON.stringify(data) : '').replace(/\s+/g, ' ').trim().slice(0, 300)
+  return `Erro HTTP ${status} ao registrar evento da NFS-e${corpo ? ` (resposta do governo: ${corpo})` : ' (o governo não explicou o motivo)'}`
+}
+
 /**
  * Cliente HTTP para a API SEFIN Nacional (emissão de NFS-e do Sistema Nacional).
  * Todas as chamadas exigem autenticação mútua (mTLS) com o certificado e-CNPJ do contribuinte.
@@ -91,29 +111,26 @@ export class NfseClient {
   }
 
   /**
-   * Envia o Pedido de Registro de Evento (ex: cancelamento) compactado em gZip/base64.
-   * Caminho e nome do campo do corpo inferidos por analogia com `/nfse` (dpsXmlGZipB64) — não
-   * confirmados ainda contra o Swagger real da SEFIN Nacional (certificado local não decifrou
-   * para consultar em runtime). Ajustar aqui se a primeira chamada real retornar 404/400 de rota.
+   * Envia o Pedido de Registro de Evento (ex.: cancelamento) compactado em gZip/base64 para
+   * POST /nfse/{chaveAcesso}/eventos. O campo do corpo é `pedidoRegistroEventoXmlGZipB64` (o da emissão
+   * é `dpsXmlGZipB64`). Um nome de campo errado faz a Sefin responder HTTP 500 sem explicação.
+   * Quando a resposta é de erro, a mensagem traz o que o governo devolveu, para a falha ser diagnosticável.
    */
   async registrarEvento(chaveAcesso: string, pedRegEventoXmlAssinado: string): Promise<{ xmlEvento: string }> {
-    const pedRegEventoXmlGZipB64 = gzipSync(Buffer.from(pedRegEventoXmlAssinado, 'utf-8')).toString('base64')
+    const pedidoRegistroEventoXmlGZipB64 = gzipSync(Buffer.from(pedRegEventoXmlAssinado, 'utf-8')).toString('base64')
 
-    const { status, data } = await this.request<{ eventoXmlGZipB64: string } & NfsePostResponseErro>(`/nfse/${chaveAcesso}/eventos`, {
+    const { status, data } = await this.request<NfseRespostaEvento>(`/nfse/${chaveAcesso}/eventos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pedRegEventoXmlGZipB64 }),
+      body: JSON.stringify({ pedidoRegistroEventoXmlGZipB64 }),
     })
 
-    if (status !== 200 && status !== 201) {
-      const erros = data?.erros || []
-      const message = erros.length > 0
-        ? erros.map(e => `[${e.Codigo}] ${e.Descricao}${e.Complemento ? ` — ${e.Complemento}` : ''}`).join('; ')
-        : `Erro HTTP ${status} ao registrar evento da NFS-e`
-      throw new Error(message)
-    }
+    if (status !== 200 && status !== 201) throw new Error(mensagemDeErroEvento(status, data))
 
-    const xmlEvento = gunzipSync(Buffer.from(data.eventoXmlGZipB64, 'base64')).toString('utf-8')
+    // Guarda o XML do evento quando a Sefin o devolve; se vier em outro formato, guarda a resposta crua
+    // (o pedido já foi aceito: não pode virar erro só porque a resposta tem outro formato).
+    const xmlGz = typeof data === 'object' && data ? data.eventoXmlGZipB64 : undefined
+    const xmlEvento = xmlGz ? gunzipSync(Buffer.from(xmlGz, 'base64')).toString('utf-8') : (typeof data === 'string' ? data : JSON.stringify(data))
     return { xmlEvento }
   }
 

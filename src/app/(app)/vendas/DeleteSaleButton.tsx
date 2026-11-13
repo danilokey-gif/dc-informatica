@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react'
 import { deleteSale } from './actions'
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 export default function DeleteSaleButton({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition()
@@ -12,8 +13,8 @@ export default function DeleteSaleButton({ id }: { id: string }) {
         try {
           await deleteSale(id)
           alert('Venda excluída com sucesso.')
-        } catch (err: any) {
-          alert('Erro ao excluir venda: ' + err.message)
+        } catch (err) {
+          alert('Erro ao excluir venda: ' + mensagemDoErro(err))
         }
       })
     }

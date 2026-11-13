@@ -141,7 +141,7 @@ async function uploadToDrive(accessToken: string, fileName: string, mimeType: st
   const response = await fetch(uploadUrl, {
     method,
     headers,
-    body: (existingFileId ? content : body) as any
+    body: (existingFileId ? content : body) as BodyInit
   })
 
   if (!response.ok) {

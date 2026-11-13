@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { dadosDoArquivo, iniciarUploadResumivel, moverParaLixeira, pastaPorCaminho, tokenDoUsuario } from "@/lib/google-drive-usuario"
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 const TIPOS_ACEITOS = /^(image|video)\//
 const TAMANHO_MAXIMO = 2_000_000_000 // 2 GB por arquivo
@@ -45,9 +46,9 @@ export async function iniciarEnvioAnexo(serviceOrderId: string, arquivo: { nome:
       descricao: `OS ${os.id.slice(-6).toUpperCase()} - ${os.customer.name}. Enviado por ${usuario.name} em ${agora}.`,
     })
     return { url }
-  } catch (e: any) {
+  } catch (e) {
     console.error('[Anexos OS] iniciar envio:', e)
-    return { erro: e.message || 'Não consegui iniciar o envio.' }
+    return { erro: mensagemDoErro(e) || 'Não consegui iniciar o envio.' }
   }
 }
 
@@ -85,9 +86,9 @@ export async function confirmarAnexo(serviceOrderId: string, dados: { driveFileI
     })
     revalidatePath(`/os/${serviceOrderId}/imprimir`)
     return { ok: true }
-  } catch (e: any) {
+  } catch (e) {
     console.error('[Anexos OS] confirmar:', e)
-    return { erro: e.message || 'Não consegui registrar o arquivo.' }
+    return { erro: mensagemDoErro(e) || 'Não consegui registrar o arquivo.' }
   }
 }
 
@@ -103,16 +104,16 @@ export async function excluirAnexo(anexoId: string): Promise<{ ok?: boolean; err
     if (!anexo || anexo.excluidoEm) return { ok: true }
     try {
       await moverParaLixeira(await tokenDoUsuario(), anexo.driveFileId)
-    } catch (e: any) {
+    } catch (e) {
       // Já apagado direto no Drive: segue e só tira da OS.
-      if (!String(e.message).includes('404')) throw e
+      if (!mensagemDoErro(e).includes('404')) throw e
     }
     await prisma.osAnexo.update({ where: { id: anexoId }, data: { excluidoEm: new Date(), excluidoPor: usuario.name } })
     revalidatePath(`/os/${anexo.serviceOrderId}`)
     revalidatePath(`/os/${anexo.serviceOrderId}/imprimir`)
     return { ok: true }
-  } catch (e: any) {
+  } catch (e) {
     console.error('[Anexos OS] excluir:', e)
-    return { erro: e.message || 'Não consegui apagar o arquivo.' }
+    return { erro: mensagemDoErro(e) || 'Não consegui apagar o arquivo.' }
   }
 }

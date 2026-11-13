@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import CampoCep from './CampoCep'
 import type { EnderecoCep } from '@/lib/cep'
 import { consultarCnpj, consultarDocumentoInterno, validarCnpj } from '@/lib/cnpj'
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 export interface QuickCustomerData {
   name: string
@@ -105,8 +106,8 @@ export default function QuickCustomerModal({ initialName, onClose, onSave }: Pro
         enderCodMunicipio: cidade?.codigoIbge || undefined,
       })
       onClose()
-    } catch (err: any) {
-      alert(err.message || 'Erro ao salvar cliente.')
+    } catch (err) {
+      alert(mensagemDoErro(err) || 'Erro ao salvar cliente.')
     } finally {
       setLoading(false)
     }

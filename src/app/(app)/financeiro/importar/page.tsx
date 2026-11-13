@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { parseOfx, OfxTransaction } from '@/lib/ofx-parser'
 import { salvarTransacoesImportadas, buscarCategoriasFinanceiras } from './actions'
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 interface ImportItem extends OfxTransaction {
   selected: boolean
@@ -52,8 +53,8 @@ export default function ImportarExtratoPage() {
         selected: true,
         categoryId: '',
       })))
-    } catch (err: any) {
-      setError(err.message || 'Erro ao ler arquivo OFX.')
+    } catch (err) {
+      setError(mensagemDoErro(err) || 'Erro ao ler arquivo OFX.')
     } finally {
       setIsParsing(false)
     }
@@ -102,8 +103,8 @@ export default function ImportarExtratoPage() {
 • ${res.repetidas ?? 0} repetido(s), pulado(s)`)
         router.push('/financeiro')
       }
-    } catch (err: any) {
-      setError(err.message || 'Erro ao salvar transações.')
+    } catch (err) {
+      setError(mensagemDoErro(err) || 'Erro ao salvar transações.')
     } finally {
       setIsSaving(false)
     }

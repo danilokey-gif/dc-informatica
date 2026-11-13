@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { gtinValido } from "@/lib/gtin"
 import ncmVigentes from "@/lib/ncm-vigentes.json"
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 const NCMS = new Set((ncmVigentes as { ncms: string[] }).ncms)
 
@@ -222,9 +223,9 @@ export async function processXmlUpload(formData: FormData): Promise<ResultadoImp
 
       return { success: true, numero, fornecedor: emitNome, fornecedorNovo, itens, financeiro }
     }, { timeout: 30000 })
-  } catch (err: any) {
+  } catch (err) {
     console.error(err)
-    return { error: 'Falha ao ler o arquivo XML: ' + err.message }
+    return { error: 'Falha ao ler o arquivo XML: ' + mensagemDoErro(err) }
   } finally {
     revalidatePath('/produtos')
     revalidatePath('/financeiro')

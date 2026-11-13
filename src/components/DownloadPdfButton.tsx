@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 
+type Html2PdfOptions = NonNullable<Parameters<InstanceType<typeof import('html2pdf.js').default.Worker>['set']>[0]> & { pagebreak?: { mode: string[] } } // o typing da biblioteca não traz pagebreak
+
 export default function DownloadPdfButton({ filename }: { filename: string }) {
   const [loading, setLoading] = useState(false)
 
@@ -17,7 +19,7 @@ export default function DownloadPdfButton({ filename }: { filename: string }) {
       const element = (document.querySelector('.folha-clara') || document.querySelector('.print-area')) as HTMLElement | null
       if (!element) return
 
-      const opt: any = {
+      const opt: Html2PdfOptions = {
         margin: 10,
         filename: `${filename}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },

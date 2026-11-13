@@ -180,7 +180,7 @@ export async function emitirNfeVenda(saleId: string) {
         data: { status: 'REJEITADA', motivoErro: `[${cStatFinal}] ${xMotivoFinal}`, xmlProtocolo: respostaXml }
       })
     }
-  } catch (error: any) {
+  } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
     if (emissaoId) {
       await prisma.nfeEmissao.update({

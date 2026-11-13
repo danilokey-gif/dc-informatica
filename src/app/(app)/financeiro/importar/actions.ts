@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { classificarExtrato } from "@/lib/financeiro-tipos"
 import { pagadorConfere, acharLancamentoJaPago } from "@/lib/conciliacao"
 import { categoriaSugerida } from "@/lib/financeiro-categorias"
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 export interface ImportTransactionPayload {
   description: string
@@ -123,9 +124,9 @@ export async function salvarTransacoesImportadas(transacoes: ImportTransactionPa
     revalidatePath('/financeiro')
     revalidatePath('/relatorios')
     return { success: true, count: novas.length, repetidas, baixas, confirmadas }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro ao salvar transações importadas:', error)
-    return { error: error.message || 'Erro ao importar as transações para o banco de dados.' }
+    return { error: mensagemDoErro(error) || 'Erro ao importar as transações para o banco de dados.' }
   }
 }
 

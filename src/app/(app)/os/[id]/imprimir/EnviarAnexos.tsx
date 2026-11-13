@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { iniciarEnvioAnexo, confirmarAnexo } from './anexos-actions'
 import { enviarParaDrive, sha256 } from '@/lib/upload-drive'
+import { mensagemDoErro } from '@/lib/mensagem-erro'
 
 interface Envio {
   nome: string
@@ -44,8 +45,8 @@ export default function EnviarAnexos({ serviceOrderId, driveConectado }: { servi
         const r = await confirmarAnexo(serviceOrderId, { driveFileId, sha256: hash, descricao })
         if (!r.ok) throw new Error(r.erro || 'Não consegui registrar o arquivo.')
         atualizar(i, { situacao: 'ok' })
-      } catch (e: any) {
-        atualizar(i, { situacao: 'erro', erro: e.message })
+      } catch (e) {
+        atualizar(i, { situacao: 'erro', erro: mensagemDoErro(e) })
       }
     }
     if (entrada.current) entrada.current.value = ''

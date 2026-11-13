@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { inicioDoDiaUTC, formatarDataUTC } from "@/lib/dates"
-import { registrarPagamento } from "./actions"
+import { registrarPagamento, alterarVencimento } from "./actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
+import AlterarVencimento from "@/components/AlterarVencimento"
 import { SELECT_NOTA, origemReceita, type Origem } from "@/lib/financeiro-nota"
 import { resumoMei } from "@/lib/limite-mei"
 import { notasDoAno } from "../notas-fiscais/notas-do-ano"
@@ -147,7 +148,12 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: t.type === 'RECEITA' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>
                     {t.type === 'RECEITA' ? '+' : '−'} {moeda(t.amount)}
                   </td>
-                  <td><BaixaPagamento action={registrarPagamento.bind(null, t.id)} tipo={t.type} formaAtual={t.paymentMethod} /></td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <AlterarVencimento action={alterarVencimento.bind(null, t.id)} vencimento={t.dueDate.toISOString().slice(0, 10)} formaAtual={t.paymentMethod} />
+                      <BaixaPagamento action={registrarPagamento.bind(null, t.id)} tipo={t.type} formaAtual={t.paymentMethod} />
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

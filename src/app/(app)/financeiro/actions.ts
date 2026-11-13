@@ -80,6 +80,27 @@ export async function registrarPagamento(id: string, formData: FormData) {
   revalidatePath(`/financeiro/contas/${id}`)
 }
 
+/**
+ * Muda o vencimento (e, se informada, a forma de pagamento) de uma conta em aberto, sem dar baixa.
+ * A data vem do campo (AAAA-MM-DD) e é gravada ao meio-dia UTC, como as demais, para não mudar de dia.
+ */
+export async function alterarVencimento(id: string, formData: FormData) {
+  const dia = String(formData.get('dueDate') || '')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return
+  const forma = String(formData.get('paymentMethod') || '') || undefined
+  const atual = await prisma.financeTransaction.findUnique({ where: { id }, select: { status: true, paymentMethod: true } })
+  if (!atual || atual.status !== 'PENDENTE') return
+  // "Boleto (3x)" continua "Boleto (3x)" quando a forma escolhida é a mesma.
+  const trocaForma = forma && !(atual.paymentMethod || '').startsWith(forma)
+  await prisma.financeTransaction.update({
+    where: { id },
+    data: { dueDate: new Date(`${dia}T12:00:00.000Z`), ...(trocaForma ? { paymentMethod: forma } : {}) },
+  })
+  revalidatePath('/financeiro')
+  revalidatePath('/financeiro/contas')
+  revalidatePath(`/financeiro/contas/${id}`)
+}
+
 export async function marcarComoPendente(id: string) {
   await prisma.financeTransaction.update({
     where: { id },

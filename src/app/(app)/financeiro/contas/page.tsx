@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma"
 import { rotuloTipo, corTipo } from "@/lib/financeiro-tipos"
 import Link from "next/link"
-import { registrarPagamento, marcarComoPendente, deleteTransaction } from "../actions"
+import { registrarPagamento, marcarComoPendente, deleteTransaction, alterarVencimento } from "../actions"
 import BaixaPagamento from "@/components/BaixaPagamento"
+import AlterarVencimento from "@/components/AlterarVencimento"
 import BotaoExcluir from "@/components/BotaoExcluir"
 import { inicioDoDiaUTC, formatarDataUTC } from "@/lib/dates"
 import type { Prisma } from "@prisma/client"
@@ -206,6 +207,7 @@ export default async function ContasPage({ searchParams }: { searchParams: Promi
                   </td>
                   <td>
                     <div className="flex" style={{ gap: '0.75rem', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      {t.status === 'PENDENTE' && <AlterarVencimento action={alterarVencimento.bind(null, t.id)} vencimento={t.dueDate.toISOString().slice(0, 10)} formaAtual={t.paymentMethod} />}
                       {t.status === 'PENDENTE' && <BaixaPagamento action={registrarPagamento.bind(null, t.id)} tipo={t.type} formaAtual={t.paymentMethod} />}
                       {t.status === 'PAGO' && (
                         <form action={marcarComoPendente.bind(null, t.id)}>

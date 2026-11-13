@@ -28,20 +28,18 @@ function formatarDataHoraUTC(data: Date) {
 }
 
 /**
- * Monta o identificador do pedido de registro de evento conforme TSIdPedRegEvt:
- * "PRE" + Chave de Acesso NFS-e (50) + Tipo do evento (3) + Número do Pedido de Registro do Evento (3).
- * "101" para o tipo do evento (grupo do e101101 - Cancelamento de NFS-e) é a leitura mais direta do
- * padrão "PRE[0-9]{56}" documentado no schema oficial (50+3+3=56) — confirmar contra o retorno real
- * da SEFIN Nacional na primeira tentativa e ajustar se for rejeitado por formato de Id inválido.
+ * Identificador do pedido de registro de evento (TSIdPedRegEvt, esquema v1.01):
+ * "PRE" + Chave de Acesso da NFS-e (50) + Tipo do evento (6) = 59 caracteres.
+ * O tipo do cancelamento é 101101 (o mesmo nome do grupo e101101). O esquema v1.01 não tem
+ * nPedRegEvento no pedido nem no Id (o limite de 59 caracteres do tipo não deixa espaço para ele).
  */
-function montarIdPedRegEvento(chaveAcesso: string, nPedRegEvento: string) {
-  return `PRE${chaveAcesso}101${nPedRegEvento.padStart(3, '0')}`
+function montarIdPedRegEvento(chaveAcesso: string) {
+  return `PRE${chaveAcesso}101101`
 }
 
 /** Monta o XML do Pedido de Registro de Evento de Cancelamento (e101101), ainda sem assinatura. */
 export function montarXmlPedRegEventoCancelamento(input: CancelamentoInput): { xml: string; id: string } {
-  const nPedRegEvento = '001'
-  const id = montarIdPedRegEvento(input.chaveAcesso, nPedRegEvento)
+  const id = montarIdPedRegEvento(input.chaveAcesso)
   const tpAmb = input.ambiente === 'producao' ? '1' : '2'
   const documento = soNumeros(input.documentoAutor)
   const tagAutor = documento.length === 11 ? `<CPFAutor>${documento}</CPFAutor>` : `<CNPJAutor>${documento}</CNPJAutor>`

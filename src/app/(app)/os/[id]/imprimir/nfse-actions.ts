@@ -73,7 +73,13 @@ export async function enviarNfseEmail(serviceOrderId: string) {
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
 }
 
-export async function cancelarNfseServiceOrder(serviceOrderId: string, formData: FormData) {
+export interface ResultadoCancelamentoNfse { ok: boolean; mensagem?: string; erro?: string }
+
+/**
+ * Cancela a NFS-e no governo. Devolve o resultado (com a mensagem da Sefin quando ela recusa) em vez de
+ * lançar exceção: uma exceção em Server Action vira a tela genérica "Application error" e esconde o motivo.
+ */
+export async function cancelarNfseServiceOrder(serviceOrderId: string, formData: FormData): Promise<ResultadoCancelamentoNfse> {
   const cMotivo = (formData.get('cMotivo') as string) || '9'
   const xMotivo = (formData.get('xMotivo') as string) || 'Cancelamento solicitado pelo prestador'
 
@@ -162,9 +168,12 @@ export async function cancelarNfseServiceOrder(serviceOrderId: string, formData:
     } catch (gdriveError) {
       console.error('[Google Drive] Falha ao processar cancelamento no Google Drive:', gdriveError)
     }
-  } catch (error: any) {
-    throw new Error(error.message || String(error))
+  } catch (error) {
+    console.error('[NFS-e] Falha ao cancelar a nota:', error)
+    return { ok: false, erro: error instanceof Error ? error.message : String(error) }
   }
-  
+
   revalidatePath(`/os/${serviceOrderId}/imprimir`)
+  revalidatePath('/notas-fiscais')
+  return { ok: true, mensagem: 'NFS-e cancelada no governo.' }
 }

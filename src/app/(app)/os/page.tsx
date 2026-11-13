@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function OSPage() {
   const ordens = await prisma.serviceOrder.findMany({
-    include: { customer: true, technician: true, nfseEmissoes: { orderBy: { createdAt: 'desc' } } },
+    // Só o que a lista mostra; as emissões trariam os XMLs das notas (dezenas de KB cada) sem necessidade.
+    include: { customer: { select: { name: true } }, technician: { select: { name: true } }, nfseEmissoes: { orderBy: { createdAt: 'desc' }, take: 1, select: { status: true, numeroDps: true } } },
     orderBy: { createdAt: 'desc' }
   })
 

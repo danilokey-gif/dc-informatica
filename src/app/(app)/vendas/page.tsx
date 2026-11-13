@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic'
 export default async function VendasPage() {
   const vendas = await prisma.sale.findMany({
     orderBy: { createdAt: 'desc' },
-    include: { customer: true, items: true, nfeEmissoes: { orderBy: { createdAt: 'desc' } } }
+    // Só o que a lista mostra; as emissões trariam os XMLs das notas sem necessidade.
+    include: { customer: { select: { name: true } }, items: { select: { quantity: true } }, nfeEmissoes: { orderBy: { createdAt: 'desc' }, take: 1, select: { status: true, numero: true } } }
   })
 
   return (

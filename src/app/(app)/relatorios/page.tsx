@@ -42,11 +42,11 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
     // Notas de homologação são testes, sem valor fiscal: não são faturamento.
     prisma.nfseEmissao.findMany({
       where: { status: 'AUTORIZADA', ambiente: 'producao' },
-      include: { serviceOrder: { select: { price: true, createdAt: true } } },
+      select: { valorTotal: true, dataEmissao: true, serviceOrder: { select: { price: true, createdAt: true } } },
     }),
     prisma.nfeEmissao.findMany({
       where: { status: 'AUTORIZADA', ambiente: 'producao' },
-      include: { sale: { select: { total: true, createdAt: true } } },
+      select: { valorTotal: true, dataEmissao: true, sale: { select: { total: true, createdAt: true } } },
     }),
     prisma.financeTransaction.findMany({
       where: {

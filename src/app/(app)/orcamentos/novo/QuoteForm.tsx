@@ -5,6 +5,7 @@ import { createQuote } from '../actions'
 import { createCustomerQuick } from '../../clientes/actions'
 import SearchableSelect from '@/components/SearchableSelect'
 import QuickCustomerModal, { QuickCustomerData } from '@/components/QuickCustomerModal'
+import { opcaoCliente } from '@/lib/cliente'
 
 interface Produto {
   id: string
@@ -15,6 +16,7 @@ interface Produto {
 
 interface Cliente {
   id: string
+  codigo: number
   name: string
   document?: string | null
 }
@@ -269,10 +271,7 @@ export default function QuoteForm({ produtos, clientes }: { produtos: Produto[],
             value={selectedCustomerId}
             onValueChange={setSelectedCustomerId}
             placeholder="Cliente não identificado"
-            options={localClientes.map(c => ({ 
-              value: c.id, 
-              label: c.document ? `${c.name} (${c.document})` : c.name 
-            }))}
+            options={localClientes.map(c => opcaoCliente(c, true))}
             onCreateNew={(name) => {
               setNewCustomerName(name)
               setShowCustomerModal(true)

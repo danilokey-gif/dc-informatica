@@ -6,6 +6,7 @@ import { notFound } from "next/navigation"
 import CustomerForm from "@/components/CustomerForm"
 import HistoricoCliente from "./HistoricoCliente"
 import NotasCliente from "./NotasCliente"
+import { codigoCliente } from "@/lib/cliente"
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,6 +27,7 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
         <div>
           <h2 style={{ marginBottom: '0.25rem' }}>{cliente.name}</h2>
           <div className="flex gap-4" style={{ fontSize: '0.85rem', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700 }}>Código {codigoCliente(cliente.codigo)}</span>
             {cliente.document && <span className="text-muted">{cliente.document}</span>}
             <a href="#notas" className="text-primary">Notas fiscais</a>
             <a href="#historico" className="text-primary">Histórico</a>
@@ -40,6 +42,10 @@ export default async function EditarClientePage({ params }: { params: Promise<{ 
 
       <div id="cadastro" className="card" style={{ scrollMarginTop: '1rem' }}>
         <h3 style={{ marginTop: 0 }}>Dados cadastrais</h3>
+        <div className="input-group">
+          <label className="input-label" htmlFor="codigo">Código do cliente</label>
+          <input id="codigo" className="input-field" value={codigoCliente(cliente.codigo)} readOnly style={{ maxWidth: 140, fontWeight: 700 }} />
+        </div>
         <CustomerForm 
           action={updateAction} 
           submitLabel="Atualizar Cliente"

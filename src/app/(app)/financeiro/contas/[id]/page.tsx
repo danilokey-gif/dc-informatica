@@ -7,6 +7,7 @@ import { formatarDataUTC } from "@/lib/dates"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import SearchableSelect from "@/components/SearchableSelect"
+import { opcaoCliente } from "@/lib/cliente"
 
 export const dynamic = 'force-dynamic'
 
@@ -105,7 +106,7 @@ export default async function EditarLancamentoPage({ params }: { params: Promise
               name="customerId"
               placeholder="-"
               defaultValue={transacao.customerId || ''}
-              options={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
+              options={clientes.map(c => opcaoCliente(c))}
             />
           </div>
 

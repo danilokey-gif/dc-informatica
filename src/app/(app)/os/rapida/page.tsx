@@ -3,6 +3,7 @@ import CampoValor from "@/components/CampoValor"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import SearchableSelect from "@/components/SearchableSelect"
+import { opcaoCliente } from "@/lib/cliente"
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ export default async function NotaServicoAvulsaPage() {
               name="customerId"
               required
               placeholder="Digite o nome, CPF ou CNPJ do cliente..."
-              options={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
+              options={clientes.map(c => opcaoCliente(c))}
             />
             {clientes.length === 0 && (
               <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>

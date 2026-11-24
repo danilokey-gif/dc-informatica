@@ -5,6 +5,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import OSEditForm from "./OSEditForm"
 import FotosOS from "./FotosOS"
+import { opcaoCliente } from "@/lib/cliente"
 
 export default async function EditarOSPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -52,7 +53,7 @@ export default async function EditarOSPage({ params }: { params: Promise<{ id: s
         <OSEditForm
           updateAction={updateAction}
           os={{ id: os.id, device: os.device, issue: os.issue, technicalReport: os.technicalReport, price: os.price, status: os.status, technicianId: os.technicianId, customerId: os.customerId }}
-          clientes={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
+          clientes={clientes.map(c => opcaoCliente(c))}
           tecnicos={tecnicos.map(t => ({ value: t.id, label: t.name }))}
         />
       </div>

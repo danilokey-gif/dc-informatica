@@ -91,6 +91,8 @@ function ordemDeGravacao(modelos) {
       for (let i = 0; i < linhas.length; i += 200) await prisma[delegado(nome)].createMany({ data: linhas.slice(i, i + 200) })
       console.log(`  gravado: ${nome}`)
     }
+    // Os códigos de cliente voltaram com o valor do backup; a numeração continua depois do maior.
+    await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Customer"', 'codigo'), (SELECT COALESCE(MAX("codigo"), 0) + 1 FROM "Customer"), false)`)
     console.log('Restauração concluída.')
   } finally {
     await prisma.$disconnect()

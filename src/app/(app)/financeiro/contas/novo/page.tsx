@@ -3,6 +3,7 @@ import CampoValor from "@/components/CampoValor"
 import { createTransaction } from "../../actions"
 import Link from "next/link"
 import SearchableSelect from "@/components/SearchableSelect"
+import { opcaoCliente } from "@/lib/cliente"
 
 export const dynamic = 'force-dynamic'
 
@@ -73,7 +74,7 @@ export default async function NovoLancamentoPage() {
               id="customerId"
               name="customerId"
               placeholder="-"
-              options={clientes.map(c => ({ value: c.id, label: c.name, busca: c.document }))}
+              options={clientes.map(c => opcaoCliente(c))}
             />
           </div>
 

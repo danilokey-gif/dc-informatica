@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { ultimosCadastrados, ULTIMOS_NA_CAIXA } from '@/lib/cliente'
 
 export interface SearchableOption {
   value: string
   label: string
   /** Texto extra só para a busca (ex.: CPF/CNPJ do cliente), não aparece na lista. */
   busca?: string | null
+  /** Código sequencial (clientes): habilita o grupo "Últimos cadastrados". */
+  codigo?: number
 }
 
 /** Minúsculas e sem acento: "Paróquia" e "paroquia" são iguais na busca. */
@@ -67,9 +70,27 @@ export default function SearchableSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valorControlado])
 
-  const filtradas = texto && texto !== options.find(o => o.value === valorAtual)?.label
-    ? options.filter(o => combina(o, texto))
-    : options
+  const filtrando = !!texto && texto !== options.find(o => o.value === valorAtual)?.label
+  const encontradas = filtrando ? options.filter(o => combina(o, texto)) : options
+  // Digitou o código ("7" ou "0007"): esse cliente vem em primeiro.
+  const codigoDigitado = filtrando && /^\d{1,6}$/.test(texto.trim()) ? Number(texto) : null
+  const peloCodigo = codigoDigitado != null ? options.filter(o => o.codigo === codigoDigitado) : []
+  const filtradas = peloCodigo.length ? [...peloCodigo, ...encontradas.filter(o => !peloCodigo.includes(o))] : encontradas
+  const recentes = filtrando ? [] : ultimosCadastrados(options, ULTIMOS_NA_CAIXA)
+
+  const linha = (opt: SearchableOption, grupo = '') => (
+    <div
+      key={grupo + opt.value}
+      className="searchable-select-option"
+      onMouseDown={e => e.preventDefault()}
+      onClick={() => selecionar(opt)}
+    >
+      {opt.label}
+    </div>
+  )
+  const titulo = (t: string) => (
+    <div className="text-muted" onMouseDown={e => e.preventDefault()} style={{ padding: '0.35rem 0.75rem', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', borderBottom: '1px solid var(--border)' }}>{t}</div>
+  )
 
   useEffect(() => {
     function aoClicarFora(e: MouseEvent) {
@@ -116,16 +137,14 @@ export default function SearchableSelect({
       {name && <input type="hidden" name={name} value={valorAtual} />}
       {aberto && filtradas.length > 0 && (
         <div className="searchable-select-menu">
-          {filtradas.map(opt => (
-            <div
-              key={opt.value}
-              className="searchable-select-option"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => selecionar(opt)}
-            >
-              {opt.label}
-            </div>
-          ))}
+          {recentes.length > 0 && (
+            <>
+              {titulo('Últimos cadastrados')}
+              {recentes.map(opt => linha(opt, 'recente-'))}
+              {titulo('Todos')}
+            </>
+          )}
+          {filtradas.map(opt => linha(opt))}
         </div>
       )}
       {aberto && filtradas.length === 0 && (

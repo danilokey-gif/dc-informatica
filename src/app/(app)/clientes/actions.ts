@@ -46,7 +46,7 @@ export async function createCustomerQuick(data: QuickCustomerData) {
       enderCodMunicipio: data.enderCodMunicipio || null,
     }
   })
-  return { id: customer.id, name: customer.name, document: customer.document }
+  return { id: customer.id, codigo: customer.codigo, name: customer.name, document: customer.document }
 }
 
 export async function updateCustomer(id: string, formData: FormData) {

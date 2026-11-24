@@ -20,6 +20,8 @@ model User {
 
 model Customer {
   id                String               @id @default(cuid())
+  /// Código do cliente (sequencial, na ordem de cadastro). Mostrado com 4 dígitos.
+  codigo            Int                  @unique @default(autoincrement())
   name              String
   document          String?
   phone             String?

@@ -13,6 +13,7 @@ export default async function NovoClientePage({ searchParams }: { searchParams: 
       </div>
 
       <div className="card">
+        <p className="text-muted" style={{ marginTop: 0, fontSize: '0.85rem' }}>O código do cliente é gerado automaticamente ao salvar.</p>
         <CustomerForm 
           action={createCustomer} 
           submitLabel="Salvar Cliente" 

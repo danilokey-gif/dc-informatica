@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export default async function NovaVendaPage() {
   const [produtos, clientes] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, salePrice: true, stockQty: true } }),
-    prisma.customer.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } })
+    prisma.customer.findMany({ orderBy: { name: 'asc' }, select: { id: true, codigo: true, name: true, document: true } })
   ])
 
   return (
